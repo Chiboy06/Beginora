@@ -7,6 +7,7 @@ import {
   Alert,
   ScrollView,
   Switch,
+  TextInput,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
@@ -26,6 +27,12 @@ import {
   DEFAULT_PERF,
   type PerfSettings,
 } from "../lib/llm/perf-config";
+import {
+  getTelegramConfig,
+  saveTelegramConfig,
+  sendTelegramMessage,
+  type TelegramConfig,
+} from "../lib/telegram/telegram-service";
 import { colors, spacing, radii, typography } from "../lib/theme";
 import type { Language } from "../lib/orchestrator/types";
 import { GlassScreen } from "../components/GlassSurface";
@@ -48,6 +55,24 @@ export default function SettingsScreen() {
   const [confirmActions, setConfirmActions] = useState(true);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+  const [telegram, setTelegram] = useState<TelegramConfig>({ botToken: "", chatId: "", enabled: false });
+  const [telegramBusy, setTelegramBusy] = useState(false);
+
+  useEffect(() => {
+    getTelegramConfig().then(setTelegram).catch(() => {});
+  }, []);
+
+  const saveTelegram = async (next: TelegramConfig) => {
+    setTelegram(next);
+    await saveTelegramConfig(next).catch(() => {});
+  };
+
+  const testTelegram = async () => {
+    setTelegramBusy(true);
+    const result = await sendTelegramMessage("Beginora is connected. Your task summaries will appear here.");
+    setTelegramBusy(false);
+    Alert.alert(result.ok ? "Connected" : "Not sent", result.ok ? "Test message sent to your Telegram." : (result.error ?? "Check your bot token and chat ID."));
+  };
 
   useEffect(() => {
     getConfig("confirm_destructive_actions")
@@ -384,6 +409,60 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Telegram */}
+      <Text style={styles.sectionTitle}>Telegram</Text>
+      <View style={styles.card}>
+        <Text style={styles.desc}>
+          Send task summaries and reminders to a Telegram chat. Create a bot at t.me/BotFather, then paste the token and your chat ID below.
+        </Text>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleTitle}>Enable Telegram</Text>
+          </View>
+          <Switch
+            value={telegram.enabled}
+            onValueChange={(v) => saveTelegram({ ...telegram, enabled: v })}
+            trackColor={{ false: colors.disabled, true: colors.accent }}
+            accessibilityLabel="Enable Telegram integration"
+          />
+        </View>
+        {telegram.enabled && (
+          <>
+            <Text style={[styles.toggleTitle, { marginTop: spacing.md, marginBottom: 4 }]}>Bot token</Text>
+            <TextInput
+              style={styles.textField}
+              value={telegram.botToken}
+              onChangeText={(v) => saveTelegram({ ...telegram, botToken: v })}
+              placeholder="123456:ABC-DEF..."
+              placeholderTextColor={colors.textPlaceholder}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              accessibilityLabel="Telegram bot token"
+            />
+            <Text style={[styles.toggleTitle, { marginTop: spacing.md, marginBottom: 4 }]}>Chat ID</Text>
+            <TextInput
+              style={styles.textField}
+              value={telegram.chatId}
+              onChangeText={(v) => saveTelegram({ ...telegram, chatId: v })}
+              placeholder="Your numeric chat ID"
+              placeholderTextColor={colors.textPlaceholder}
+              keyboardType="numeric"
+              accessibilityLabel="Telegram chat ID"
+            />
+            <TouchableOpacity
+              style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }, telegramBusy && styles.btnBusy]}
+              onPress={testTelegram}
+              disabled={telegramBusy || !telegram.botToken || !telegram.chatId}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Text style={styles.btnPrimaryText}>{telegramBusy ? "Sending…" : "Send test message"}</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
       {/* About */}
       <Text style={styles.sectionTitle}>About</Text>
       <View style={styles.card}>
@@ -453,4 +532,14 @@ const styles = StyleSheet.create({
   removeBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.sm, borderWidth: 1, borderColor: colors.error },
   removeBtnText: { color: colors.error, fontSize: 13, fontWeight: "500" },
   version: { color: colors.textMuted, ...typography.caption, marginTop: 8 },
+  textField: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.textPrimary,
+    backgroundColor: colors.bg,
+  },
 });

@@ -13,6 +13,7 @@ import { useChatStore } from "../lib/store/chat-store";
 import { useTaskStore } from "../lib/store/task-store";
 import { unloadEmbeddingModel, isEmbeddingLoaded } from "../lib/llm/embed-engine";
 import { prefs } from "../lib/store/prefs";
+import { FloatingBubble } from "../components/FloatingBubble";
 import { colors } from "../lib/theme";
 
 export default function RootLayout() {
@@ -106,6 +107,8 @@ export default function RootLayout() {
         <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
         <Stack.Screen name="mcp" options={{ title: "MCP Server" }} />
       </Stack>
+      {/* Floating bubble — shows active task overlay, syncs foreground service notification */}
+      <FloatingBubble />
     </SafeAreaProvider>
   );
 }

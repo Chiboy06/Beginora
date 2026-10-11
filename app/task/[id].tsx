@@ -13,6 +13,7 @@ import { useTaskStore } from "../../lib/store/task-store";
 import { decompose } from "../../lib/ai/decomposer";
 import { getTaskOutcomes, type TaskOutcomeRecord } from "../../lib/storage/database";
 import { scheduleLocalReminder } from "../../lib/native/reminders";
+import { sendTaskSummary } from "../../lib/telegram/telegram-service";
 import { GlassScreen, GlassSurface } from "../../components/GlassSurface";
 import { colors, radii, spacing, typography } from "../../lib/theme";
 
@@ -148,6 +149,21 @@ export default function TaskDetailScreen() {
       Alert.alert("One reminder set", "I’ll give you a quiet reminder in about 15 minutes.");
     } catch {
       Alert.alert("Reminder not set", "You can still return to this task whenever you’re ready.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSendTelegram = async () => {
+    if (!task) return;
+    setBusy(true);
+    try {
+      const result = await sendTaskSummary(task.title, task.firstAction);
+      if (result.ok) {
+        Alert.alert("Sent", "Task summary sent to your Telegram.");
+      } else {
+        Alert.alert("Not sent", result.error ?? "Check your Telegram settings.");
+      }
     } finally {
       setBusy(false);
     }
@@ -304,6 +320,16 @@ export default function TaskDetailScreen() {
         </View>
       )}
 
+      <TouchableOpacity
+        style={styles.telegramButton}
+        onPress={handleSendTelegram}
+        disabled={busy}
+        accessibilityRole="button"
+        accessibilityLabel="Send task summary to Telegram"
+      >
+        <Text style={styles.telegramButtonText}>Send to Telegram</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} accessibilityRole="button">
         <Text style={styles.deleteText}>Remove task and activity</Text>
       </TouchableOpacity>
@@ -357,6 +383,8 @@ const styles = StyleSheet.create({
   activityRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   activityText: { color: colors.textPrimary, fontSize: 14 },
   activityDate: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  telegramButton: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, padding: 13, alignItems: "center", borderWidth: 1, borderColor: colors.border, marginTop: 8 },
+  telegramButtonText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
   deleteButton: { paddingVertical: 16, alignItems: "center", marginTop: 12 },
   deleteText: { color: colors.error, fontSize: 13, fontWeight: "600" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },

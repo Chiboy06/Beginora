@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { VoiceButton } from "./VoiceButton";
 import { colors, radii, spacing } from "../lib/theme";
 
 interface Props {
@@ -45,6 +46,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(
     return (
       <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={styles.inputRow}>
+          <VoiceButton disabled={disabled || isGenerating} />
           <TextInput
             ref={inputRef}
             style={styles.input}
