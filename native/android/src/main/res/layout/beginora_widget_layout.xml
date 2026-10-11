@@ -7,7 +7,6 @@
     android:background="@drawable/widget_background"
     android:padding="14dp">
 
-    <!-- Top area: Logo + name (tap opens app) -->
     <LinearLayout
         android:id="@+id/widget_header"
         android:layout_width="match_parent"
@@ -19,10 +18,10 @@
         android:paddingEnd="4dp">
 
         <ImageView
-            android:id="@+id/widget_flame_icon"
+            android:id="@+id/widget_leaf_icon"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@drawable/ic_vesta_flame"
+            android:src="@drawable/ic_beginora_leaf"
             android:contentDescription="@string/widget_label" />
 
         <LinearLayout
@@ -34,7 +33,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Vesta"
+                android:text="Beginora"
                 android:textColor="@color/vesta_text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -50,7 +49,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Bottom: Chat bar -->
     <LinearLayout
         android:id="@+id/widget_chat_bar"
         android:layout_width="match_parent"
@@ -61,7 +59,6 @@
         android:paddingStart="16dp"
         android:paddingEnd="5dp">
 
-        <!-- Placeholder text (tap opens quick chat) -->
         <TextView
             android:id="@+id/widget_chat_text"
             android:layout_width="0dp"
@@ -72,7 +69,6 @@
             android:textColor="@color/vesta_text_placeholder"
             android:textSize="15sp" />
 
-        <!-- Mic button (accent circle) -->
         <FrameLayout
             android:id="@+id/widget_mic_btn"
             android:layout_width="38dp"

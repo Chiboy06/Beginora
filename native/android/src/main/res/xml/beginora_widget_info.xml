@@ -9,8 +9,8 @@
     android:minResizeWidth="110dp"
     android:minResizeHeight="110dp"
     android:updatePeriodMillis="0"
-    android:initialLayout="@layout/vesta_widget_layout"
+    android:initialLayout="@layout/beginora_widget_layout"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
-    android:previewLayout="@layout/vesta_widget_layout"
+    android:previewLayout="@layout/beginora_widget_layout"
     android:description="@string/widget_description" />

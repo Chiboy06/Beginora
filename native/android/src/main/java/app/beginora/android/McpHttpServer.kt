@@ -1,4 +1,4 @@
-package com.cosmico.vesta
+package app.beginora.android
 
 import android.util.Log
 import fi.iki.elonen.NanoHTTPD
@@ -6,11 +6,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
-// Dumb transport + auth gate. Terminates HTTP, checks the bearer token against
-// an in-memory active set (pushed from TS — never opens the DB), forwards the
-// raw JSON-RPC body to JS, and blocks the request thread on a future keyed by a
-// per-request id until JS calls back with the response. Single-client, low
-// concurrency by design.
 class McpHttpServer(
     port: Int,
     private val activeTokens: () -> Set<String>,
@@ -40,16 +35,10 @@ class McpHttpServer(
         val future = CompletableFuture<Pair<Int, String>>()
 
         return try {
-            // Register the future BEFORE emitting so a synchronous JS reply can't
-            // race a missing entry; keep onRequest inside the try so a synchronous
-            // throw still cleans up `pending` and returns a 500 instead of leaking.
             pending[id] = future
             onRequest(id, token, body)
             val (status, respBody) = future.get(30, TimeUnit.SECONDS)
             val nanoStatus = if (status == 200) Response.Status.OK else Response.Status.INTERNAL_ERROR
-            // A 200 with an empty body is an MCP notification → 202 Accepted, no
-            // content. An empty body with a non-200 status is a real failure and
-            // must surface as INTERNAL_ERROR, never 202.
             if (status == 200 && respBody.isEmpty()) {
                 newFixedLengthResponse(Response.Status.ACCEPTED, "application/json", "")
             } else {

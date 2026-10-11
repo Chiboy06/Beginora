@@ -1,4 +1,4 @@
-package com.cosmico.vesta
+package app.beginora.android
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -10,20 +10,15 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 
-class VestaService : Service() {
+class BeginoraService : Service() {
 
     companion object {
         const val NOTIFICATION_ID = 1
-        const val CHANNEL_ID = "vesta_service"
-        const val ACTION_UPDATE_STATUS = "com.cosmico.vesta.UPDATE_STATUS"
+        const val CHANNEL_ID = "beginora_service"
+        const val ACTION_UPDATE_STATUS = "app.beginora.android.UPDATE_STATUS"
         const val EXTRA_STATUS = "status"
     }
 
-    // Whether we've already promoted ourselves to a foreground service. The first
-    // onStartCommand MUST call startForeground (within a few seconds) or Android
-    // crashes the process. A status-only intent can be the very first one the OS
-    // delivers (e.g. a START_STICKY restart, or updateNotification racing the
-    // initial start), so we must startForeground there too before notify().
     private var isForeground = false
 
     override fun onCreate() {
@@ -33,16 +28,11 @@ class VestaService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val status = intent?.getStringExtra(EXTRA_STATUS)
-
         if (!isForeground) {
-            // Always go foreground on the first start, using the status as the
-            // initial text if one was provided.
-            startForegroundCompat(status ?: "Vesta is ready")
+            startForegroundCompat(status ?: "Beginora is ready")
         } else if (status != null) {
-            // Already foreground — just refresh the notification text.
             updateNotification(status)
         }
-
         return START_STICKY
     }
 
@@ -65,10 +55,10 @@ class VestaService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Vesta Service",
+            "Beginora Service",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Keeps Vesta's AI model loaded in memory"
+            description = "Keeps Beginora's AI model loaded in memory"
             setShowBadge(false)
         }
         val manager = getSystemService(NotificationManager::class.java)
@@ -77,13 +67,11 @@ class VestaService : Service() {
 
     private fun buildNotification(status: String): Notification {
         val builder = Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Vesta")
+            .setContentTitle("Beginora")
             .setContentText(status)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
 
-        // Tapping the notification reopens the app. Guard against a null launch
-        // intent (some restricted profiles) so notification building never crashes.
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         if (launchIntent != null) {
             val pendingIntent = PendingIntent.getActivity(

@@ -1,4 +1,4 @@
-package com.cosmico.vesta
+package app.beginora.android
 
 import android.app.ActivityManager
 import android.content.ComponentCallbacks2
@@ -19,15 +19,6 @@ class SystemActionsModule(reactContext: ReactApplicationContext) :
 
     override fun getName(): String = "SystemActionsModule"
 
-    // ── Memory-pressure bridge ───────────────────────────────────────────
-    // Android signals low memory through ComponentCallbacks2.onTrimMemory, NOT
-    // through React Native's AppState: its `memoryWarning` event is emitted only
-    // on iOS (AppStateModule never fires it on Android). We register on the
-    // application context and forward a device event to JS, which drops the
-    // cheap-to-rebuild embedding context. The chat model stays resident by
-    // design — if the OS still kills us, the foreground service is START_STICKY
-    // and the prefix session cache makes the restart cheap (~3s). See ADR-016.
-
     override fun initialize() {
         super.initialize()
         reactApplicationContext.applicationContext.registerComponentCallbacks(this)
@@ -39,43 +30,28 @@ class SystemActionsModule(reactContext: ReactApplicationContext) :
     }
 
     override fun onTrimMemory(level: Int) {
-        // Forward only real pressure. RUNNING_LOW/CRITICAL mean "free non-critical
-        // memory now" while foregrounded; UI_HIDDEN and the background levels are
-        // all >= this and also worth reclaiming the embed context for. Below
-        // RUNNING_LOW (RUNNING_MODERATE) Android is merely informational.
         if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
             emitMemoryWarning(level)
         }
     }
 
-    // Legacy pre-API-34 path; some devices still call this on severe pressure.
     override fun onLowMemory() {
         emitMemoryWarning(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        // No config-driven behavior here; required by ComponentCallbacks.
-    }
+    override fun onConfigurationChanged(newConfig: Configuration) {}
 
     private fun emitMemoryWarning(level: Int) {
-        // A trim can arrive while the app is backgrounded and the instance is
-        // being torn down — guard exactly as RN's own AppStateModule does.
         if (!reactApplicationContext.hasActiveReactInstance()) return
         reactApplicationContext.emitDeviceEvent("memoryWarning", level)
     }
 
-    // Required so the JS-side NativeEventEmitter(SystemActionsModule) doesn't
-    // warn about a missing listener interface. No bookkeeping needed — the
-    // native trim callback fires regardless of JS subscriber count.
     @ReactMethod
     fun addListener(eventName: String) {}
 
     @ReactMethod
     fun removeListeners(count: Int) {}
 
-    // Device capabilities — used by the model manager to recommend models that
-    // actually fit this phone's RAM (e.g. a 16 GB Pixel runs every catalog model;
-    // a 4 GB device should be steered away from 8B).
     @ReactMethod
     fun getDeviceInfo(promise: Promise) {
         try {
@@ -97,10 +73,8 @@ class SystemActionsModule(reactContext: ReactApplicationContext) :
 
     private fun parseToMillis(dateStr: String): Long {
         return try {
-            // Try timezone-aware format first (e.g., 2026-03-10T15:00:00+01:00)
             ZonedDateTime.parse(dateStr).toInstant().toEpochMilli()
         } catch (e: DateTimeParseException) {
-            // Fall back to local datetime (e.g., 2026-03-10T15:00:00)
             LocalDateTime.parse(dateStr)
                 .atZone(ZoneId.systemDefault())
                 .toInstant()
@@ -111,17 +85,11 @@ class SystemActionsModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setAlarm(hours: Int, minutes: Int, label: String, date: String, promise: Promise) {
         try {
-            // NOTE: Android's AlarmClock.ACTION_SET_ALARM does NOT support scheduling on
-            // specific future dates. The `date` parameter is accepted but ignored in MVP.
-            // Alarms are always set for the next occurrence of the given time.
-            // For future-dated alarms, AlarmManager would be needed (Fase 2 scope).
             val intent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
                 putExtra(AlarmClock.EXTRA_HOUR, hours)
                 putExtra(AlarmClock.EXTRA_MINUTES, minutes)
                 putExtra(AlarmClock.EXTRA_SKIP_UI, true)
-                if (label.isNotEmpty()) {
-                    putExtra(AlarmClock.EXTRA_MESSAGE, label)
-                }
+                if (label.isNotEmpty()) putExtra(AlarmClock.EXTRA_MESSAGE, label)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             reactApplicationContext.startActivity(intent)
@@ -137,9 +105,7 @@ class SystemActionsModule(reactContext: ReactApplicationContext) :
             val intent = Intent(AlarmClock.ACTION_SET_TIMER).apply {
                 putExtra(AlarmClock.EXTRA_LENGTH, seconds)
                 putExtra(AlarmClock.EXTRA_SKIP_UI, true)
-                if (label.isNotEmpty()) {
-                    putExtra(AlarmClock.EXTRA_MESSAGE, label)
-                }
+                if (label.isNotEmpty()) putExtra(AlarmClock.EXTRA_MESSAGE, label)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             reactApplicationContext.startActivity(intent)
@@ -153,20 +119,14 @@ class SystemActionsModule(reactContext: ReactApplicationContext) :
     fun createCalendarEvent(title: String, start: String, end: String, location: String, promise: Promise) {
         try {
             val startMillis = parseToMillis(start)
-            val endMillis = if (end.isNotEmpty()) {
-                parseToMillis(end)
-            } else {
-                startMillis + 3600000 // default 1 hour duration
-            }
+            val endMillis = if (end.isNotEmpty()) parseToMillis(end) else startMillis + 3600000
 
             val intent = Intent(Intent.ACTION_INSERT).apply {
                 data = CalendarContract.Events.CONTENT_URI
                 putExtra(CalendarContract.Events.TITLE, title)
                 putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, startMillis)
                 putExtra(CalendarContract.EXTRA_EVENT_END_TIME, endMillis)
-                if (location.isNotEmpty()) {
-                    putExtra(CalendarContract.Events.EVENT_LOCATION, location)
-                }
+                if (location.isNotEmpty()) putExtra(CalendarContract.Events.EVENT_LOCATION, location)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             reactApplicationContext.startActivity(intent)

@@ -1,18 +1,18 @@
-package com.cosmico.vesta
+package app.beginora.android
 
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.*
 
-class VestaServiceModule(reactContext: ReactApplicationContext) :
+class BeginoraServiceModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 
-    override fun getName(): String = "VestaServiceModule"
+    override fun getName(): String = "BeginoraServiceModule"
 
     @ReactMethod
     fun startService(promise: Promise) {
         try {
-            val intent = Intent(reactApplicationContext, VestaService::class.java)
+            val intent = Intent(reactApplicationContext, BeginoraService::class.java)
             ContextCompat.startForegroundService(reactApplicationContext, intent)
             promise.resolve(null)
         } catch (e: Exception) {
@@ -23,7 +23,7 @@ class VestaServiceModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun stopService(promise: Promise) {
         try {
-            val intent = Intent(reactApplicationContext, VestaService::class.java)
+            val intent = Intent(reactApplicationContext, BeginoraService::class.java)
             reactApplicationContext.stopService(intent)
             promise.resolve(null)
         } catch (e: Exception) {
@@ -34,14 +34,10 @@ class VestaServiceModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun updateNotification(status: String, promise: Promise) {
         try {
-            val intent = Intent(reactApplicationContext, VestaService::class.java).apply {
-                action = VestaService.ACTION_UPDATE_STATUS
-                putExtra(VestaService.EXTRA_STATUS, status)
+            val intent = Intent(reactApplicationContext, BeginoraService::class.java).apply {
+                action = BeginoraService.ACTION_UPDATE_STATUS
+                putExtra(BeginoraService.EXTRA_STATUS, status)
             }
-            // Use startForegroundService so that if the OS had killed the service,
-            // this re-delivery still promotes it to foreground (the service calls
-            // startForeground on its first onStartCommand). Plain startService here
-            // would throw on Android 8+ when the app is backgrounded.
             ContextCompat.startForegroundService(reactApplicationContext, intent)
             promise.resolve(null)
         } catch (e: Exception) {

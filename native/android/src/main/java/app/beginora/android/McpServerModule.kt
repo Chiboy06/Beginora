@@ -1,4 +1,4 @@
-package com.cosmico.vesta
+package app.beginora.android
 
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -49,7 +49,6 @@ class McpServerModule(reactContext: ReactApplicationContext) :
         server?.complete(id, status, body)
     }
 
-    // NativeEventEmitter contract.
     @ReactMethod fun addListener(eventName: String) {}
     @ReactMethod fun removeListeners(count: Int) {}
 

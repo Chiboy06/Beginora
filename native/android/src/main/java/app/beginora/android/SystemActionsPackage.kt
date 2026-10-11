@@ -1,4 +1,4 @@
-package com.cosmico.vesta
+package app.beginora.android
 
 import android.view.View
 import com.facebook.react.ReactPackage
@@ -11,7 +11,7 @@ class SystemActionsPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
         return listOf(
             SystemActionsModule(reactContext),
-            VestaServiceModule(reactContext),
+            BeginoraServiceModule(reactContext),
             McpServerModule(reactContext),
         )
     }
