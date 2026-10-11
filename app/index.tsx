@@ -10,7 +10,7 @@ import {
   Platform,
   Linking,
 } from "react-native";
-import { useRouter, useNavigation } from "expo-router";
+import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useChatStore } from "../lib/store/chat-store";
 import { ChatBubble, StreamingBubble } from "../components/ChatBubble";
 import { ChatInput } from "../components/ChatInput";
@@ -48,6 +48,10 @@ function useKeyboardHeight() {
 
 export default function ChatScreen() {
   const router = useRouter();
+  const { voice_text: voiceTextParam, focus: focusParam } = useLocalSearchParams<{
+    voice_text?: string;
+    focus?: string;
+  }>();
   const navigation = useNavigation();
   const flatListRef = useRef<FlatList<Message>>(null);
   const lastScrollRef = useRef(0);
@@ -146,6 +150,21 @@ export default function ChatScreen() {
     const sub = Linking.addEventListener("url", ({ url }) => handleDeepLink(url));
     return () => sub.remove();
   }, [modelLoaded]);
+
+  useEffect(() => {
+    if (typeof voiceTextParam === "string" && voiceTextParam) {
+      const prefill = voiceTextParam.slice(0, 1000);
+      const timer = setTimeout(() => {
+        chatInputRef.current?.setText(prefill);
+        chatInputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+    if (typeof focusParam === "string" && focusParam) {
+      const timer = setTimeout(() => chatInputRef.current?.focus(), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [voiceTextParam, focusParam]);
 
   useEffect(() => {
     if (messages.length > 0) {

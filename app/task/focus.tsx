@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTaskStore } from "../../lib/store/task-store";
@@ -16,17 +16,16 @@ export default function FocusScreen() {
 
   const [remaining, setRemaining] = useState(FOCUS_DURATION_SECONDS);
   const [running, setRunning] = useState(true);
-  const [extensionCount, setExtensionCount] = useState(0);
   const [signal, setSignal] = useState<FocusSignal>({ kind: "none" });
   const [signalDismissed, setSignalDismissed] = useState(false);
 
   const endAt = useRef<number | null>(null);
-  const activeStartedAt = useRef(Date.now());
+  const activeStartedAt = useRef(0);
   // Ref mirrors state so runDetection always reads the current value,
   // avoiding the stale-closure problem with async callbacks inside effects.
   const extensionCountRef = useRef(0);
 
-  const runDetection = async (count: number) => {
+  const runDetection = useCallback(async (count: number) => {
     if (!task) return;
     const result = await detectFocusSignal({
       taskId: task.id,
@@ -37,9 +36,10 @@ export default function FocusScreen() {
       setSignal(result);
       setSignalDismissed(false);
     }
-  };
+  }, [task]);
 
   useEffect(() => {
+    if (activeStartedAt.current === 0) activeStartedAt.current = Date.now();
     if (endAt.current === null) {
       endAt.current = Date.now() + FOCUS_DURATION_SECONDS * 1000;
     }
@@ -55,7 +55,7 @@ export default function FocusScreen() {
       }
     }, 250);
     return () => clearInterval(interval);
-  }, [running]);
+  }, [running, runDetection]);
 
   const finishSession = async () => {
     try {
@@ -91,7 +91,6 @@ export default function FocusScreen() {
       setRemaining(FOCUS_DURATION_SECONDS);
       const next = extensionCountRef.current + 1;
       extensionCountRef.current = next;
-      setExtensionCount(next);
       runDetection(next);
     }
     setRunning(true);
@@ -103,7 +102,7 @@ export default function FocusScreen() {
   if (!task) {
     return (
       <View style={styles.center}>
-        <Text style={styles.body}>This task isn't available.</Text>
+        <Text style={styles.body}>This task isn’t available.</Text>
         <TouchableOpacity onPress={() => router.back()} accessibilityRole="button">
           <Text style={styles.link}>Go back</Text>
         </TouchableOpacity>

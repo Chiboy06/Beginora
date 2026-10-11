@@ -6,7 +6,7 @@ Beginora is an Android-first, offline-first task-starting and focus aid. It help
 
 You describe something you want to work on. Beginora finds one concrete first action — something you can start in about 30 seconds and do in about five minutes. Then it offers a low-pressure five-minute focus session.
 
-The core flow works with no account, no network connection (after model install), no calendar permission, and no notification permission.
+Manual task planning and focus work offline after any on-device model is installed. Calendar, reminders, voice recognition, Telegram, model downloads, and app-code updates are optional and are invoked only through their user-visible actions or explicit Settings choices. Some providers may process data online according to their own policies.
 
 ## Current prototype
 
@@ -16,12 +16,15 @@ The core flow works with no account, no network connection (after model install)
 - A bounded, user-requested device-calendar review and explicit "prepare for this event" flow.
 - A native calendar-editor handoff for user-reviewed appointment drafts. This does not book with a clinic or provider.
 - An email composer handoff that creates an editable draft. Beginora never sends email silently.
+- Android system speech input that fills an editable draft and never auto-sends it.
+- Optional Telegram task summaries with the bot token stored in Android secure storage; sending is user-triggered.
+- An opt-in Android background-model service with a generic persistent notification; off by default.
 - A capability and privacy registry and a restrained translucent surface treatment.
-- An optional EAS Update check for compatible JavaScript and assets.
+- EAS Update checks on connectivity for compatible JavaScript/assets, with an explicit user-confirmed restart.
 - A first-run disclaimer screen and onboarding gate.
 - A deterministic safety pre-check that returns a fixed, human-reviewed response for crisis or medical-treatment content before any model call.
 
-Cloud sync and authentication are intentionally off. Task data is local. Neon is not needed for the current prototype. EAS Updates is a separate app-code delivery service, not a task-data backend.
+Cloud sync and authentication are intentionally off. Core task data is local. User-selected integrations can send selected data to their named providers. Neon is not needed for the current prototype. EAS Updates is a separate app-code delivery service, not a task-data backend; it is not linked until an EAS project ID and publishing credentials are configured.
 
 ## Screens
 
@@ -38,7 +41,7 @@ Cloud sync and authentication are intentionally off. Task data is local. Neon is
 
 ## Development
 
-Use Node 22 for the Expo SDK 55 toolchain. A native Android build also needs JDK 17 and the Android SDK/NDK/CMake versions selected by the generated Expo project.
+Use Node 22 for the Expo SDK 58 toolchain. A native Android build also needs JDK 17 and the Android SDK/NDK/CMake versions selected by the generated Expo project.
 
 ```sh
 npm ci --legacy-peer-deps
@@ -74,22 +77,22 @@ The sandbox APK is signed with a local debug key and is for testing only, not Pl
 
 Copy `.env.example` to `.env` for local configuration. Never commit `.env`. Keep `ENABLE_CLOUD_SYNC=false` until an actual sync design and backend are implemented.
 
-To activate Settings → Check for updates, link an Expo project and set `EAS_PROJECT_ID` in the release build environment. The GitHub workflow also needs repository variable `EAS_PROJECT_ID`, repository variable `EAS_UPDATES_ENABLED=true`, and secret `EXPO_TOKEN`. See [OTA setup](docs/OTA_UPDATES.md). OTA updates change JavaScript and assets only. Native dependency or configuration changes require a new binary.
+To activate connected app-code updates, link an Expo project and set `EAS_PROJECT_ID` in the release build environment. The GitHub workflow also needs repository variable `EAS_PROJECT_ID`, repository variable `EAS_UPDATES_ENABLED=true`, and secret `EXPO_TOKEN`. Compatible updates download when connectivity is available; Beginora asks before restarting. See [OTA setup](docs/OTA_UPDATES.md). OTA updates change JavaScript and assets only. Native dependency or configuration changes require a new binary.
 
 ## Permissions
 
 | Permission | Status | Reason |
 | --- | --- | --- |
-| INTERNET | Keep | Model download only. No analytics or telemetry. |
-| POST_NOTIFICATIONS | Keep | Focus-end and task reminders. Runtime request only when the user starts a timer or enables a reminder. |
+| INTERNET | Keep | Model downloads, user-selected external integrations, and EAS update checks when configured. No analytics or telemetry. |
+| POST_NOTIFICATIONS | Keep | Local reminders and the optional background-model service. Runtime request only after the relevant user action. |
 | READ_CALENDAR | Keep | Next-event preparation. Runtime request only after the user taps the calendar feature. |
 | VIBRATE | Keep | Normal permission; notification feedback. |
 | RECEIVE_BOOT_COMPLETED | Keep | Restores scheduled reminders after reboot. |
 | WRITE_CALENDAR | Declared | Appointment drafts open the device calendar editor. |
 | SET_ALARM | Declared | Available for the alarm intent path. |
 | READ_CONTACTS | Declared | Available for contact-lookup features. |
-| RECORD_AUDIO | Declared | Available for voice input features. |
-| FOREGROUND_SERVICE | Declared | Available for background service features. |
+| RECORD_AUDIO | Declared | Requested only when the user taps Android voice input; transcript is returned to an editable draft. |
+| FOREGROUND_SERVICE | Declared | Used only when the user opts in to keeping a loaded local model active in the background. |
 
 ## Architecture
 
@@ -100,12 +103,12 @@ Key points:
 - Domain code (rule engine, validator, safety pre-check) imports no React Native or Expo module.
 - The model has no tools and cannot trigger device actions. Task text and model output are untrusted data.
 - Device actions come only from application code through an allowlist.
-- No network call occurs in the core flow. The only network use is the user-initiated model download.
+- Core task planning is local. Optional service calls happen only when enabled/used, and their data boundaries are disclosed in the UI.
 - All model output is validated before display. Unvalidated output is never rendered.
 
 ## Data
 
-All task data is stored in a local SQLite database (`beginora.db`). No data is sent to any server. The Settings screen provides export (JSON via the system share sheet) and delete-all-data options.
+Core task data is stored in a local SQLite database (`beginora.db`) and is not cloud-synced. Calendar/email/Telegram interactions send only user-selected information to the target provider; voice recognition is handled by the chosen Android speech provider. EAS update checks contact Expo only when an EAS-linked release build is online. The Settings screen provides export (JSON via the system share sheet) and delete-all-data options.
 
 ## Verification and project notes
 
@@ -117,7 +120,7 @@ All task data is stored in a local SQLite database (`beginora.db`). No data is s
 
 ## Smoke test status
 
-The app has not yet been built or smoke-tested on the current native rebuild. An earlier APK ran a downloaded model on the owner's phone. The current native rebuild must be tested again after installation.
+An earlier APK was smoke-tested on the owner's phone, including running a downloaded model. This integration branch changes native speech handling and background-service opt-in behavior, so the rebuilt APK needs a new phone smoke test before its behavior is considered verified.
 
 No passive device monitoring, autonomous actions, direct provider booking, cloud account, or task-data synchronisation is implemented.
 
@@ -128,7 +131,7 @@ No passive device monitoring, autonomous actions, direct provider booking, cloud
 - Cloud sync and account (requires backend design)
 - Passive focus or paralysis detection
 - Hyperfocus detection
-- Telegram integration
+- Secure cloud task sync and account (requires backend design)
 - Billing
 - Clinical efficacy claims (out of scope permanently — this is a planning aid)
 

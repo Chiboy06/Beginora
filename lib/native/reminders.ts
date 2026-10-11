@@ -44,6 +44,7 @@ export async function scheduleLocalReminder(
   text: string,
   datetime: string,
   replaceIdentifier?: string | null,
+  data?: Record<string, string>,
 ): Promise<ScheduledReminderResult> {
   const when = new Date(datetime);
   if (Number.isNaN(when.getTime())) return { success: false, message: "Invalid reminder time." };
@@ -56,20 +57,30 @@ export async function scheduleLocalReminder(
     if (!(await ensurePermission())) {
       return { success: false, message: "Notifications are off. You can still use Beginora without reminders." };
     }
-    if (replaceIdentifier) {
-      await Notifications.cancelScheduledNotificationAsync(replaceIdentifier).catch(() => {});
-    }
     const identifier = await Notifications.scheduleNotificationAsync({
-      content: { title: "Beginora reminder", body: text, sound: false },
+      content: { title: "Beginora reminder", body: text, sound: false, ...(data ? { data } : {}) },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: when,
         channelId: CHANNEL_ID,
       },
     });
+    if (replaceIdentifier) {
+      await Notifications.cancelScheduledNotificationAsync(replaceIdentifier).catch(() => {});
+    }
     return { success: true, message: "One local reminder is scheduled.", identifier };
   } catch {
     return { success: false, message: "I couldn’t set a reminder. You can still return to this task whenever you’re ready." };
+  }
+}
+
+export async function cancelLocalReminder(identifier: string): Promise<boolean> {
+  if (!identifier.trim()) return true;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(identifier);
+    return true;
+  } catch {
+    return false;
   }
 }
 

@@ -1,41 +1,52 @@
-// Voice input — launches Android's built-in speech recognition intent.
-// Uses ACTION_RECOGNIZE_SPEECH via expo-speech-recognition (or Linking fallback).
-// RECORD_AUDIO permission is already declared in app.json.
-// Returns the transcribed text string, or null if cancelled/failed.
+import { NativeModules, Platform } from "react-native";
 
-import { Platform } from "react-native";
-import * as ExpoAV from "expo-av";
+export type VoiceResult =
+  | { status: "success"; text: string }
+  | { status: "cancelled" }
+  | { status: "denied"; error: string }
+  | { status: "unavailable"; error: string }
+  | { status: "failed"; error: string };
 
-export interface VoiceResult {
-  ok: boolean;
+interface NativeVoiceResult {
+  status?: string;
   text?: string;
   error?: string;
 }
 
-// Request microphone permission before attempting to record.
-async function ensureMicPermission(): Promise<boolean> {
-  if (Platform.OS !== "android") return false;
-  const { status } = await ExpoAV.Audio.requestPermissionsAsync();
-  return status === "granted";
+interface SystemActionsVoiceModule {
+  startVoiceRecognition(): Promise<NativeVoiceResult>;
 }
 
-// On Android we use the native SpeechRecognizer via a NativeModule bridge.
-// The BeginoraVoiceActivity (already in native/android) handles the intent
-// and returns the result via a deep link: beginora://chat?voice_text=...
-// This function just checks permission and signals readiness — the actual
-// launch is done by the VoiceButton component via Linking.openURL.
-export async function checkVoiceAvailable(): Promise<boolean> {
-  if (Platform.OS !== "android") return false;
-  return ensureMicPermission();
-}
-
-export async function requestMicPermission(): Promise<VoiceResult> {
+/**
+ * Uses the app-owned Android Activity, which requests microphone permission
+ * and launches the system speech recognizer. The provider may process speech
+ * online according to the user's Android settings; no transcript is sent
+ * automatically by Beginora.
+ */
+export async function startVoiceRecognition(): Promise<VoiceResult> {
   if (Platform.OS !== "android") {
-    return { ok: false, error: "Voice input is only available on Android in this build." };
+    return { status: "unavailable", error: "Voice input is available on Android only in this build." };
   }
-  const granted = await ensureMicPermission();
-  if (!granted) {
-    return { ok: false, error: "Microphone permission is needed for voice input. You can still type your task." };
+
+  const nativeModule = NativeModules.SystemActionsModule as SystemActionsVoiceModule | undefined;
+  if (!nativeModule?.startVoiceRecognition) {
+    return { status: "unavailable", error: "Voice input is not available in this app build." };
   }
-  return { ok: true };
+
+  try {
+    const result = await nativeModule.startVoiceRecognition();
+    if (result.status === "success" && typeof result.text === "string" && result.text.trim()) {
+      return { status: "success", text: result.text.trim().slice(0, 1000) };
+    }
+    if (result.status === "denied") {
+      return { status: "denied", error: result.error ?? "Microphone permission was not granted." };
+    }
+    if (result.status === "unavailable") {
+      return { status: "unavailable", error: result.error ?? "Speech recognition is not available on this device." };
+    }
+    if (result.status === "cancelled") return { status: "cancelled" };
+    return { status: "failed", error: result.error ?? "No transcript was returned." };
+  } catch (err) {
+    return { status: "failed", error: err instanceof Error ? err.message : "Voice input failed." };
+  }
 }

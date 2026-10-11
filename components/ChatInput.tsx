@@ -46,7 +46,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(
     return (
       <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={styles.inputRow}>
-          <VoiceButton disabled={disabled || isGenerating} />
+          <VoiceButton
+            disabled={disabled || isGenerating}
+            onTranscript={(transcript) => {
+              setText(transcript);
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
+          />
           <TextInput
             ref={inputRef}
             style={styles.input}

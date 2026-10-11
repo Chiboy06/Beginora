@@ -8,8 +8,10 @@ import {
   ScrollView,
   Switch,
   TextInput,
+  Platform,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
+import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useChatStore } from "../lib/store/chat-store";
 import {
@@ -21,6 +23,8 @@ import {
 import { getConfig, setConfig } from "../lib/storage/database";
 import type { KnowledgeFile } from "../lib/storage/database";
 import { useModelStore } from "../lib/store/model-store";
+import { prefs } from "../lib/store/prefs";
+import { startBeginoraService, stopBeginoraService } from "../lib/native/vesta-service";
 import {
   getPerfSettings,
   setPerfSettings,
@@ -36,7 +40,7 @@ import {
 import { colors, spacing, radii, typography } from "../lib/theme";
 import type { Language } from "../lib/orchestrator/types";
 import { GlassScreen } from "../components/GlassSurface";
-import { checkForAppUpdate } from "../lib/updates/update-service";
+import { applyDownloadedAppUpdate, checkForAppUpdate } from "../lib/updates/update-service";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -57,21 +61,72 @@ export default function SettingsScreen() {
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [telegram, setTelegram] = useState<TelegramConfig>({ botToken: "", chatId: "", enabled: false });
   const [telegramBusy, setTelegramBusy] = useState(false);
+  const [telegramSaved, setTelegramSaved] = useState(false);
+  const [keepModelInBackground, setKeepModelInBackground] = useState(prefs.keepModelInBackground);
+  const [backgroundServiceBusy, setBackgroundServiceBusy] = useState(false);
 
   useEffect(() => {
-    getTelegramConfig().then(setTelegram).catch(() => {});
+    getTelegramConfig().then((config) => {
+      setTelegram(config);
+      setTelegramSaved(true);
+    }).catch(() => {});
   }, []);
 
-  const saveTelegram = async (next: TelegramConfig) => {
-    setTelegram(next);
-    await saveTelegramConfig(next).catch(() => {});
+  const updateTelegram = (patch: Partial<TelegramConfig>) => {
+    setTelegram((current) => ({ ...current, ...patch }));
+    setTelegramSaved(false);
+  };
+
+  const persistTelegram = async () => {
+    setTelegramBusy(true);
+    try {
+      await saveTelegramConfig(telegram);
+      setTelegramSaved(true);
+      Alert.alert("Saved", "The bot token is stored in Android secure storage. Telegram sends remain user-triggered.");
+    } catch {
+      Alert.alert("Not saved", "Beginora couldn’t securely save these settings. Check device secure storage and try again.");
+    } finally {
+      setTelegramBusy(false);
+    }
+  };
+
+  const removeTelegram = () => {
+    Alert.alert("Remove Telegram credentials?", "This deletes the saved bot token and disables the integration on this device.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          setTelegramBusy(true);
+          try {
+            const empty = { botToken: "", chatId: "", enabled: false };
+            await saveTelegramConfig(empty);
+            setTelegram(empty);
+            setTelegramSaved(true);
+          } catch {
+            Alert.alert("Not removed", "The credentials could not be removed from secure storage.");
+          } finally {
+            setTelegramBusy(false);
+          }
+        },
+      },
+    ]);
   };
 
   const testTelegram = async () => {
+    if (!telegramSaved) {
+      Alert.alert("Save settings first", "Save the current bot token and chat ID before sending a test message.");
+      return;
+    }
     setTelegramBusy(true);
-    const result = await sendTelegramMessage("Beginora is connected. Your task summaries will appear here.");
-    setTelegramBusy(false);
-    Alert.alert(result.ok ? "Connected" : "Not sent", result.ok ? "Test message sent to your Telegram." : (result.error ?? "Check your bot token and chat ID."));
+    try {
+      const result = await sendTelegramMessage("Beginora is connected. This is a user-requested test message.");
+      Alert.alert(result.ok ? "Sent" : "Not sent", result.ok ? "The test message was sent to Telegram." : (result.error ?? "Check your bot token and chat ID."));
+    } catch {
+      Alert.alert("Not sent", "Telegram settings could not be read. Check secure storage and try again.");
+    } finally {
+      setTelegramBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -107,6 +162,37 @@ export default function SettingsScreen() {
       Alert.alert("Performance", e instanceof Error ? e.message : String(e));
     } finally {
       setPerfBusy(false);
+    }
+  };
+
+  const toggleBackgroundModel = async (enabled: boolean) => {
+    if (backgroundServiceBusy) return;
+    setBackgroundServiceBusy(true);
+    try {
+      if (enabled) {
+        let permission = await Notifications.getPermissionsAsync();
+        if (!permission.granted && permission.canAskAgain !== false) {
+          permission = await Notifications.requestPermissionsAsync();
+        }
+        if (!permission.granted) {
+          Alert.alert("Notifications required", "Android needs notification permission to show the persistent background-model service. The setting remains off.");
+          return;
+        }
+        prefs.keepModelInBackground = true;
+        setKeepModelInBackground(true);
+        if (modelLoaded) await startBeginoraService();
+        else Alert.alert("Background mode ready", "Beginora will start the background service after an on-device model is loaded.");
+      } else {
+        prefs.keepModelInBackground = false;
+        setKeepModelInBackground(false);
+        await stopBeginoraService();
+      }
+    } catch {
+      prefs.keepModelInBackground = false;
+      setKeepModelInBackground(false);
+      Alert.alert("Background mode not changed", "Beginora could not update the background service. Check Android notification permission and try again.");
+    } finally {
+      setBackgroundServiceBusy(false);
     }
   };
 
@@ -179,6 +265,12 @@ export default function SettingsScreen() {
     const result = await checkForAppUpdate();
     setUpdateMessage(result.message);
     setUpdateBusy(false);
+    if (result.status === "update_ready") {
+      Alert.alert("Update downloaded", "Restart Beginora now to apply the compatible code update? Your local tasks and plans remain on this device.", [
+        { text: "Later", style: "cancel" },
+        { text: "Restart now", onPress: () => { void applyDownloadedAppUpdate().catch(() => Alert.alert("Update", "Could not restart into the downloaded update.")); } },
+      ]);
+    }
   };
 
   const shortPath = modelPath ? modelPath.split("/").pop() || modelPath : "None";
@@ -248,12 +340,12 @@ export default function SettingsScreen() {
             accessibilityLabel="Confirm actions before executing"
           />
         </View>
-        <Text style={[styles.toggleHint, { marginTop: spacing.lg }]}>This prototype keeps tasks, plans, and activity on this device. Cloud sync is not enabled.</Text>
+        <Text style={[styles.toggleHint, { marginTop: spacing.lg }]}>Tasks, plans, and activity remain on this device. Cloud sync is disabled; optional integrations and update checks contact their named providers when you choose to use them.</Text>
       </View>
 
       <Text style={styles.sectionTitle}>Connections</Text>
       <View style={styles.card}>
-        <Text style={styles.desc}>Review upcoming appointments, set a local reminder, or prepare an editable email draft. Each connection opens only after you choose it.</Text>
+        <Text style={styles.desc}>Review appointments, set local reminders, prepare an editable email draft, or send a task summary to Telegram. Optional connections are user-triggered and disclose the data they share.</Text>
         <TouchableOpacity
           style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }]}
           onPress={() => router.push("/connectors")}
@@ -392,13 +484,28 @@ export default function SettingsScreen() {
             trackColor={{ false: colors.disabled, true: colors.accent }}
           />
         </View>
+        {Platform.OS === "android" && (
+          <View style={[styles.toggleRow, { marginTop: spacing.lg }]}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleTitle}>Keep model active in background</Text>
+              <Text style={styles.toggleHint}>Optional persistent notification; uses more battery and memory. Off by default.</Text>
+            </View>
+            <Switch
+              value={keepModelInBackground}
+              onValueChange={toggleBackgroundModel}
+              disabled={backgroundServiceBusy}
+              trackColor={{ false: colors.disabled, true: colors.accent }}
+              accessibilityLabel="Keep the local model active in the background"
+            />
+          </View>
+        )}
         {perfBusy && <Text style={[styles.toggleHint, { marginTop: spacing.sm }]}>Reloading model…</Text>}
       </View>
 
       {/* Diagnostics */}
       <Text style={styles.sectionTitle}>Diagnostics</Text>
       <View style={styles.card}>
-        <Text style={styles.desc}>On-device status: model, prefill timing, database size. Nothing leaves your device.</Text>
+        <Text style={styles.desc}>On-device status: model, prefill timing, and database size. These diagnostics stay local; optional update checks and services contact their named providers when you use them.</Text>
         <TouchableOpacity
           style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }]}
           onPress={() => router.push("/diagnostics")}
@@ -413,26 +520,25 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>Telegram</Text>
       <View style={styles.card}>
         <Text style={styles.desc}>
-          Send task summaries and reminders to a Telegram chat. Create a bot at t.me/BotFather, then paste the token and your chat ID below.
+          Send task summaries to Telegram only when you tap Send. The selected text and chat ID go to Telegram over HTTPS; the bot token is stored in Android secure storage. Telegram reminders are not active in this build.
         </Text>
         <View style={styles.toggleRow}>
           <View style={styles.toggleInfo}>
-            <Text style={styles.toggleTitle}>Enable Telegram</Text>
+            <Text style={styles.toggleTitle}>Enable Telegram for explicit sends</Text>
           </View>
           <Switch
             value={telegram.enabled}
-            onValueChange={(v) => saveTelegram({ ...telegram, enabled: v })}
+            onValueChange={(v) => updateTelegram({ enabled: v })}
             trackColor={{ false: colors.disabled, true: colors.accent }}
             accessibilityLabel="Enable Telegram integration"
           />
         </View>
-        {telegram.enabled && (
-          <>
+        <>
             <Text style={[styles.toggleTitle, { marginTop: spacing.md, marginBottom: 4 }]}>Bot token</Text>
             <TextInput
               style={styles.textField}
               value={telegram.botToken}
-              onChangeText={(v) => saveTelegram({ ...telegram, botToken: v })}
+              onChangeText={(v) => updateTelegram({ botToken: v })}
               placeholder="123456:ABC-DEF..."
               placeholderTextColor={colors.textPlaceholder}
               autoCapitalize="none"
@@ -444,7 +550,7 @@ export default function SettingsScreen() {
             <TextInput
               style={styles.textField}
               value={telegram.chatId}
-              onChangeText={(v) => saveTelegram({ ...telegram, chatId: v })}
+              onChangeText={(v) => updateTelegram({ chatId: v })}
               placeholder="Your numeric chat ID"
               placeholderTextColor={colors.textPlaceholder}
               keyboardType="numeric"
@@ -452,24 +558,41 @@ export default function SettingsScreen() {
             />
             <TouchableOpacity
               style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }, telegramBusy && styles.btnBusy]}
+              onPress={persistTelegram}
+              disabled={telegramBusy || telegramSaved}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Text style={styles.btnPrimaryText}>{telegramBusy ? "Saving…" : telegramSaved ? "Settings saved" : "Save Telegram settings"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }, telegramBusy && styles.btnBusy]}
               onPress={testTelegram}
-              disabled={telegramBusy || !telegram.botToken || !telegram.chatId}
+              disabled={telegramBusy || !telegram.enabled || !telegramSaved || !telegram.botToken || !telegram.chatId}
               activeOpacity={0.7}
               accessibilityRole="button"
             >
               <Text style={styles.btnPrimaryText}>{telegramBusy ? "Sending…" : "Send test message"}</Text>
             </TouchableOpacity>
-          </>
-        )}
+            <TouchableOpacity
+              style={[styles.removeBtn, { marginTop: spacing.md }]}
+              onPress={removeTelegram}
+              disabled={telegramBusy}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Text style={styles.removeBtnText}>Remove Telegram credentials</Text>
+            </TouchableOpacity>
+        </>
       </View>
 
       {/* About */}
       <Text style={styles.sectionTitle}>About</Text>
       <View style={styles.card}>
         <Text style={styles.desc}>
-          Beginora is an offline-first assistant that helps you find a first step. Task plans and activity stay on this device in this prototype.
+          Beginora is an offline-first assistant that helps you find a first step. Core task plans and activity stay on this device in this prototype; selected integrations may send the information you choose to their providers.
         </Text>
-        <Text style={styles.version}>v0.1.0 — MVP</Text>
+        <Text style={styles.version}>v0.2.0 — integration preview</Text>
       </View>
 
     </ScrollView>

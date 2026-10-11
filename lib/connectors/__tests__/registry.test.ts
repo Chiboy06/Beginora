@@ -11,7 +11,12 @@ describe("connector registry", () => {
       "calendar.read",
       "calendar.create",
       "calendar.reminder",
+      "contacts.read",
+      "voice.capture",
       "email.compose",
+      "telegram.send_summary",
+      "app_updates.check",
+      "model.background",
       "notifications.schedule",
       "documents.read",
       "local_model.infer",
@@ -31,11 +36,16 @@ describe("connector registry", () => {
     }
   });
 
-  it("keeps calendar and on-device inference local while disclosing email handoff", () => {
-    expect(getConnector("device-calendar")?.dataLeavesDevice).toBe(false);
+  it("discloses calendar-provider and communication-provider egress", () => {
+    expect(getConnector("device-calendar")?.dataLeavesDevice).toBe(true);
+    expect(getConnector("device-calendar")?.userControl).toContain("may sync");
     expect(getConnector("on-device-model")?.offline).toBe(true);
     expect(getConnector("email-composer")?.dataLeavesDevice).toBe(true);
     expect(getConnector("email-composer")?.permissionKind).toBe("user_handoff");
+    expect(getConnector("android-voice-input")?.dataLeavesDevice).toBe(true);
+    expect(getConnector("telegram-task-summaries")?.dataLeavesDevice).toBe(true);
+    expect(getConnector("app-updates")?.permissionState).toBe("unavailable");
+    expect(getConnector("paired-mcp")?.permissionState).toBe("unavailable");
   });
 
   it("answers capability lookups without exposing unknown connector ids", () => {

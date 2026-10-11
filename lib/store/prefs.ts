@@ -32,4 +32,11 @@ export const prefs = {
   set onboardingDone(v: boolean) {
     storage.set("onboarding_done", v);
   },
+
+  get keepModelInBackground(): boolean {
+    return storage.getBoolean("keep_model_in_background") ?? false;
+  },
+  set keepModelInBackground(v: boolean) {
+    storage.set("keep_model_in_background", v);
+  },
 };

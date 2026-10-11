@@ -1,6 +1,6 @@
 {
   "name": "beginora",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -16,6 +16,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "@tanstack/react-query": "^5.104.1",
     "drizzle-orm": "^0.45.4",
     "expo": "^58.0.7",
@@ -26,8 +27,10 @@
     "expo-dev-client": "~58.0.12",
     "expo-document-picker": "~58.0.4",
     "expo-file-system": "~58.0.8",
+    "expo-font": "~58.0.7",
     "expo-linking": "~58.0.11",
     "expo-mail-composer": "~58.0.3",
+    "expo-network": "~58.0.3",
     "expo-notifications": "~58.1.2",
     "expo-router": "~58.0.17",
     "expo-secure-store": "~58.0.2",

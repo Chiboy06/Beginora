@@ -12,7 +12,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useTaskStore } from "../../lib/store/task-store";
 import { decompose } from "../../lib/ai/decomposer";
 import { getTaskOutcomes, type TaskOutcomeRecord } from "../../lib/storage/database";
-import { scheduleLocalReminder } from "../../lib/native/reminders";
+import { cancelLocalReminder, scheduleLocalReminder } from "../../lib/native/reminders";
 import { sendTaskSummary } from "../../lib/telegram/telegram-service";
 import { GlassScreen, GlassSurface } from "../../components/GlassSurface";
 import { colors, radii, spacing, typography } from "../../lib/theme";
@@ -136,20 +136,26 @@ export default function TaskDetailScreen() {
   const handleReminder = async () => {
     if (!task || task.reminderId) return;
     setBusy(true);
+    let unpersistedReminderId: string | null = null;
     try {
       const result = await scheduleLocalReminder(
-        `Try this first step: ${task.firstAction ?? task.title}`,
+        "A gentle task reminder is ready when you are.",
         new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        null,
+        { kind: "task", taskId: task.id },
       );
       if (!result.success || !result.identifier) {
         Alert.alert("Reminder not set", result.message);
         return;
       }
+      unpersistedReminderId = result.identifier;
       await setReminderId(task.id, result.identifier);
+      unpersistedReminderId = null;
       Alert.alert("One reminder set", "I’ll give you a quiet reminder in about 15 minutes.");
     } catch {
       Alert.alert("Reminder not set", "You can still return to this task whenever you’re ready.");
     } finally {
+      if (unpersistedReminderId) await cancelLocalReminder(unpersistedReminderId);
       setBusy(false);
     }
   };

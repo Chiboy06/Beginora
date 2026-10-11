@@ -6,11 +6,11 @@ jest.mock("expo-updates", () => ({
 }));
 
 import * as Updates from "expo-updates";
-import { checkForAppUpdate } from "../update-service";
+import { applyDownloadedAppUpdate, checkForAppUpdate } from "../update-service";
 
 const updates = Updates as jest.Mocked<typeof Updates>;
 
-describe("checkForAppUpdate", () => {
+describe("EAS OTA updates", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     Reflect.set(globalThis, "__DEV__", false);
@@ -23,16 +23,19 @@ describe("checkForAppUpdate", () => {
     expect(updates.fetchUpdateAsync).not.toHaveBeenCalled();
   });
 
-  it("downloads and reloads only an available update", async () => {
+  it("downloads an update but does not restart until the apply action", async () => {
     updates.checkForUpdateAsync.mockResolvedValue({ isAvailable: true } as never);
     updates.fetchUpdateAsync.mockResolvedValue({ isNew: true } as never);
-    await expect(checkForAppUpdate()).resolves.toMatchObject({ status: "reloading" });
+    await expect(checkForAppUpdate()).resolves.toMatchObject({ status: "update_ready" });
+    expect(updates.reloadAsync).not.toHaveBeenCalled();
+    await applyDownloadedAppUpdate();
     expect(updates.reloadAsync).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the current app usable when the update service is disabled", async () => {
     Object.defineProperty(Updates, "isEnabled", { configurable: true, value: false });
     await expect(checkForAppUpdate()).resolves.toMatchObject({ status: "unavailable" });
+    await expect(applyDownloadedAppUpdate()).rejects.toThrow("not connected");
     expect(updates.checkForUpdateAsync).not.toHaveBeenCalled();
     Object.defineProperty(Updates, "isEnabled", { configurable: true, value: true });
   });

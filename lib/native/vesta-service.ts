@@ -2,6 +2,7 @@
 // Keeps the app process alive so Android doesn't kill the LLM while in background.
 
 import { NativeModules, Platform } from "react-native";
+import * as Notifications from "expo-notifications";
 
 // Supports both the legacy VestaServiceModule name (from the base repo's
 // compiled native code) and a future BeginoraServiceModule rename.
@@ -12,6 +13,8 @@ const isAvailable = Platform.OS === "android" && !!mod;
 
 export async function startBeginoraService(): Promise<void> {
   if (!isAvailable) return;
+  const permission = await Notifications.getPermissionsAsync();
+  if (!permission.granted) throw new Error("Notification permission is required to keep the model active in the background.");
   await mod.startService();
 }
 

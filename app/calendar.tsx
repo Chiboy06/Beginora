@@ -140,7 +140,7 @@ export default function CalendarPreparationScreen() {
         <GlassSurface style={styles.addCard}>
           <Text style={styles.addTitle}>Need to add an appointment?</Text>
           <Text style={styles.bodySmall}>
-            Beginora can prepare an event in your device calendar. It cannot book with a clinic or provider; use their official booking flow for that.
+            Beginora can prepare an event in your device calendar. Your calendar account may sync an event you save. It cannot book with a clinic or provider; use their official booking flow for that.
           </Text>
           <TouchableOpacity style={styles.primaryButton} onPress={() => router.push("/appointment/new")} accessibilityRole="button">
             <Text style={styles.primaryText}>Add to device calendar</Text>

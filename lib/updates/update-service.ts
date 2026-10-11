@@ -3,10 +3,10 @@ import * as Updates from "expo-updates";
 export type AppUpdateResult =
   | { status: "unavailable"; message: string }
   | { status: "up_to_date"; message: string }
-  | { status: "reloading"; message: string }
+  | { status: "update_ready"; message: string }
   | { status: "failed"; message: string };
 
-/** OTA updates can change JS/assets only; native-module changes still need a new APK. */
+/** OTA updates can change JavaScript/assets only; native-module changes still need a new APK. */
 export async function checkForAppUpdate(): Promise<AppUpdateResult> {
   if (__DEV__) {
     return {
@@ -32,12 +32,20 @@ export async function checkForAppUpdate(): Promise<AppUpdateResult> {
       return { status: "up_to_date", message: "No newer compatible app update was found." };
     }
 
-    await Updates.reloadAsync();
-    return { status: "reloading", message: "The update is ready. Restarting Beginora now." };
+    return {
+      status: "update_ready",
+      message: "A compatible code update is downloaded. Restart Beginora when you’re ready to apply it.",
+    };
   } catch {
     return {
       status: "failed",
       message: "I couldn’t check for an update right now. Your current app and local data are unchanged.",
     };
   }
+}
+
+/** Apply only after the user confirms; this restarts JS and preserves local SQLite data. */
+export async function applyDownloadedAppUpdate(): Promise<void> {
+  if (!Updates.isEnabled) throw new Error("Over-the-air updates are not connected in this build.");
+  await Updates.reloadAsync();
 }

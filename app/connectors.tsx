@@ -9,7 +9,12 @@ import { colors, radii, spacing, typography } from "../lib/theme";
 
 const ROUTES: Record<string, string> = {
   "device-calendar": "/calendar",
+  "device-contacts": "/",
+  "android-voice-input": "/",
   "local-reminders": "/calendar",
+  "background-model": "/settings",
+  "telegram-task-summaries": "/settings",
+  "app-updates": "/settings",
   "email-composer": "/email",
   "local-documents": "/documents",
   "on-device-model": "/models",
@@ -20,6 +25,8 @@ const STATUS: Record<ConnectorPermissionState, string> = {
   unavailable: "Unavailable on this device",
   available: "Ready",
   not_requested: "Not requested",
+  not_granted: "Not granted; requested when used",
+  disabled: "Configured but disabled",
   granted: "Allowed",
   denied: "Not allowed",
   revoked: "Permission removed",
@@ -41,7 +48,7 @@ export default function ConnectorsScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Text style={styles.heading}>Your connections</Text>
         <Text style={styles.intro}>
-          Beginora connects only when you choose an action. Calendar and reminders stay on this device; email opens your mail app for you to review.
+          Beginora connects only when you choose an action. Local reminders stay on this device; a calendar account may sync events you save, and email or Telegram receives only the content you choose to send.
         </Text>
         {listConnectors().map((connector) => (
           <TouchableOpacity

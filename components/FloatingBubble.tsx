@@ -1,14 +1,7 @@
-// FloatingBubble — a small persistent overlay that stays visible when the app
-// is backgrounded, similar to how Gemini shows a floating icon.
+// FloatingBubble — an in-app foreground overlay for the active task. The
+// optional Android background model service is separately controlled in Settings.
 //
-// On Android this works by keeping the foreground service running (already
-// implemented in BeginoraService.kt) and showing a persistent notification.
-// The bubble itself is rendered as a React Native Modal with windowSoftInputMode
-// set to allow it to float. When the app is in background the notification
-// acts as the entry point; when foregrounded the bubble is visible.
-//
-// The bubble shows the current active task title (if any) and a mic button
-// for quick voice input without opening the full app.
+// The overlay shows the active task only inside the app and provides quick voice input.
 
 import { useState, useEffect } from "react";
 import {
@@ -19,20 +12,20 @@ import {
   StyleSheet,
   AppState,
   Platform,
-  Linking,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { VoiceButton } from "./VoiceButton";
 import { useTaskStore } from "../lib/store/task-store";
-import { updateServiceNotification } from "../lib/native/vesta-service";
 import { colors, radii, spacing } from "../lib/theme";
 
 export function FloatingBubble() {
+  const router = useRouter();
   const [appInBackground, setAppInBackground] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const tasks = useTaskStore((s) => s.tasks);
 
   const activeTask = tasks.find((t) => t.status === "active") ?? null;
-  const pendingCount = tasks.filter((t) => t.status === "pending").length;
 
   // Track app state — show bubble when backgrounded
   useEffect(() => {
@@ -42,16 +35,6 @@ export function FloatingBubble() {
     return () => sub.remove();
   }, []);
 
-  // Keep the foreground service notification text in sync with the active task
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    const label = activeTask
-      ? `Active: ${activeTask.title.slice(0, 60)}`
-      : pendingCount > 0
-        ? `${pendingCount} task${pendingCount === 1 ? "" : "s"} waiting`
-        : "Ready";
-    updateServiceNotification(label).catch(() => {});
-  }, [activeTask, pendingCount]);
 
   // The floating bubble is only shown when the app is foregrounded and the
   // user has an active task — it acts as a persistent heads-up.
@@ -75,23 +58,23 @@ export function FloatingBubble() {
               <Text style={styles.step} numberOfLines={2}>{activeTask.firstAction}</Text>
             )}
             <View style={styles.row}>
-              <TouchableOpacity
-                style={styles.voiceBtn}
-                onPress={() => {
-                  setExpanded(false);
-                  Linking.openURL("beginora://voice").catch(() => {});
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Voice input"
-              >
-                <Ionicons name="mic-outline" size={20} color={colors.accent} />
+              {Platform.OS === "android" && (
+                <View style={styles.voiceBtn}>
+                  <VoiceButton
+                    size={20}
+                    onTranscript={(text) => {
+                      setExpanded(false);
+                      router.push({ pathname: "/chat", params: { voice_text: text } });
+                    }}
+                  />
                 <Text style={styles.voiceLabel}>Speak</Text>
-              </TouchableOpacity>
+                </View>
+              )}
               <TouchableOpacity
                 style={styles.openBtn}
                 onPress={() => {
                   setExpanded(false);
-                  Linking.openURL(`beginora://task/${activeTask.id}`).catch(() => {});
+                  router.push({ pathname: "/task/[id]", params: { id: activeTask.id } });
                 }}
                 accessibilityRole="button"
               >

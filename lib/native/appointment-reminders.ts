@@ -25,7 +25,7 @@ export function getAppointmentReminderTime(
 }
 
 function reminderKey(event: UpcomingCalendarEvent): string {
-  return `appointment_reminder:${event.id}:${new Date(event.start).getTime()}`;
+  return `appointment_reminder:${event.id}`;
 }
 
 function parseRecord(value: string | null): AppointmentReminderRecord | null {
@@ -49,7 +49,8 @@ export async function getAppointmentReminder(
   event: UpcomingCalendarEvent,
 ): Promise<AppointmentReminderRecord | null> {
   try {
-    return parseRecord(await getConfig(reminderKey(event)));
+    const record = parseRecord(await getConfig(reminderKey(event)));
+    return record?.startAt === event.start ? record : null;
   } catch {
     return null;
   }
@@ -75,8 +76,10 @@ export async function scheduleAppointmentReminder(
     }
 
     const result = await scheduleLocalReminder(
-      `Upcoming appointment: ${event.title}`,
+      "An appointment is coming up. Open Beginora to review your plan.",
       new Date(fireAt).toISOString(),
+      undefined,
+      { kind: "appointment", eventId: event.id },
     );
     if (!result.success || !result.identifier) return { success: false, message: result.message };
 

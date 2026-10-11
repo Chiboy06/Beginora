@@ -365,6 +365,11 @@ export async function setConfig(key: string, value: string): Promise<void> {
   );
 }
 
+export async function deleteConfig(key: string): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync("DELETE FROM config WHERE key = ?", key);
+}
+
 // --- Conversations ---
 
 export async function createConversation(id: string, title?: string): Promise<void> {
@@ -818,6 +823,11 @@ export async function selectMcpClients(): Promise<McpClientRow[]> {
 export async function deleteMcpClient(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync("DELETE FROM mcp_clients WHERE id = ?", [id]);
+}
+
+export async function deleteAllMcpClients(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync("DELETE FROM mcp_clients");
 }
 
 export async function touchMcpClient(token: string, at: number): Promise<void> {
