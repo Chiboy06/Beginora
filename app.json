@@ -68,12 +68,13 @@
         }
       ],
       "llama.rn",
-      "react-native-reanimated"
+      "react-native-reanimated",
+      "./plugins/with-system-actions"
     ],
     "extra": {
       "router": {},
       "eas": {
-        "projectId": ""
+        "projectId": "beginora-app"
       }
     }
   }
