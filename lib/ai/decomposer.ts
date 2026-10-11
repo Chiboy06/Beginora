@@ -5,7 +5,26 @@ import { validatePlan } from "./plan-validator";
 export interface DecompositionResult {
   firstAction: string;
   steps: string[];
-  source: "llm" | "rule_engine";
+  source: "llm" | "rule_engine" | "safety_block";
+}
+
+// Deterministic safety pre-check — runs before any model call.
+// Returns a fixed, human-reviewed response for crisis or medical-treatment content.
+// This list is intentionally conservative; false positives fall back to the rule engine.
+const SAFETY_PATTERNS = [
+  /\b(kill|hurt|harm|suicide|self.harm|end my life|don't want to (be here|live))\b/i,
+  /\b(medication|dose|mg|prescri|diagnos|disorder|adhd|autism|bipolar|depression|anxiety disorder)\b/i,
+  /\b(ignore (your|all) instructions|disregard|jailbreak|act as|pretend you are|you are now)\b/i,
+];
+
+const SAFETY_RESPONSE: DecompositionResult = {
+  firstAction: "If you're going through something difficult, please reach out to someone you trust or a support line in your area.",
+  steps: [],
+  source: "safety_block",
+};
+
+function isSafetyBlock(text: string): boolean {
+  return SAFETY_PATTERNS.some((pattern) => pattern.test(text));
 }
 
 const DECOMPOSE_PROMPT = (task: string, context?: string) => `You are Beginora, a calm assistant that helps people start tasks.
@@ -38,6 +57,12 @@ export async function decompose(
   const task = taskTitle.trim().slice(0, 200);
   const safeContext = context?.trim().slice(0, 500);
   if (!task) throw new Error("Enter a task before asking for a first step.");
+
+  // Safety pre-check runs before any model call.
+  // Crisis or medical-treatment content returns a fixed response immediately.
+  if (isSafetyBlock(task) || (safeContext && isSafetyBlock(safeContext))) {
+    return SAFETY_RESPONSE;
+  }
 
   // Short tasks and devices without a loaded local model always have a usable
   // offline path; no cloud inference is used here.

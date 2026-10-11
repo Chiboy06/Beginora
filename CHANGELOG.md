@@ -8,9 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
-- `lib/sync/sync-service.ts` — background runner that drains the sync queue (pending)
-- expo-secure-store encryption integration for the SQLite database (pending)
-- Beginora brand assets replacing Vesta flame assets (pending)
+- `lib/sync/sync-service.ts` — background runner that drains the sync queue; feature-flagged off until a real backend exists
+- `app/onboarding.tsx` — first-run disclaimer screen; `app/_layout.tsx` gates on `prefs.onboardingDone` and redirects new users before the tab navigator loads
+- `lib/ai/decomposer.ts` — deterministic safety pre-check added before any model call; crisis and medical-treatment content returns a fixed, human-reviewed response and stops (no model call)
+- `docs/DECISIONS.md` — full autonomous-decision log covering D-001 through D-011 plus known risks
+- `README.md` — complete, accurate project README matching actual behaviour; roadmap items clearly marked
+
+### Changed
+- `lib/ai/decomposer.ts` — `DecompositionResult.source` now includes `"safety_block"` as a possible value
 
 ---
 

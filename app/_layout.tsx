@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState, useEffect } from "react";
 import {
@@ -12,19 +12,26 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useChatStore } from "../lib/store/chat-store";
 import { useTaskStore } from "../lib/store/task-store";
 import { unloadEmbeddingModel, isEmbeddingLoaded } from "../lib/llm/embed-engine";
+import { prefs } from "../lib/store/prefs";
 import { colors } from "../lib/theme";
 
 export default function RootLayout() {
   const init = useChatStore((s) => s.init);
   const loadTasks = useTaskStore((s) => s.loadTasks);
+  const router = useRouter();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     Promise.all([
       init().catch((err) => console.error("Chat init failed:", err)),
       loadTasks().catch((err) => console.error("Task load failed:", err)),
-    ]).finally(() => setReady(true));
-  }, [init, loadTasks]);
+    ]).finally(() => {
+      setReady(true);
+      if (!prefs.onboardingDone) {
+        router.replace("/onboarding");
+      }
+    });
+  }, [init, loadTasks, router]);
 
   // Release embedding model RAM when backgrounded — reloads lazily on next use
   useEffect(() => {
@@ -72,6 +79,9 @@ export default function RootLayout() {
       >
         {/* Tab navigator — primary navigation */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+        {/* Onboarding */}
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
 
         {/* Task screens */}
         <Stack.Screen name="task/new" options={{ title: "New Task", presentation: "modal" }} />
