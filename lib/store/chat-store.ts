@@ -1,0 +1,490 @@
+// Zustand store for chat state management.
+// Drives the chat UI and coordinates between orchestrator, storage, and LLM.
+// Persists conversations across app restarts via SQLite.
+
+import { create } from "zustand";
+import { v4 as uuid } from "uuid";
+import type {
+  Message,
+  Language,
+  OrchestratorResponse,
+  ToolCallResult,
+} from "../orchestrator/types";
+import { processMessage, executeToolCall } from "../orchestrator/orchestrator";
+import {
+  saveMessage,
+  getMessages,
+  getConfig,
+  setConfig,
+  createConversation,
+  getLatestConversation,
+  updateConversationTitle,
+  touchConversation,
+  deleteConversation,
+  updateMessageToolResult,
+} from "../storage/database";
+import {
+  loadModel,
+  isLoaded,
+  getModelInfo,
+  stopGeneration as llmStopGeneration,
+} from "../llm/llm-engine";
+import { getPerfSettings, perfToLlmOptions } from "../llm/perf-config";
+import { runMemoryDecay } from "../orchestrator/memory-manager";
+import { warmSessionCache } from "../orchestrator/session-warmer";
+import { clearPrefixSessionCache } from "../llm/session-cache";
+import { persistFailureNotice, modelLoadFailureNotice } from "./notices";
+import { startVestaService } from "../native/vesta-service";
+import * as FileSystem from "expo-file-system/legacy";
+import {
+  ensureLegacyMigration,
+  getActiveModel,
+  setModelState,
+} from "../models/model-registry";
+import type { InstalledModel } from "../models/types";
+
+// A destructive tool call parsed but not yet executed — awaiting the user's
+// explicit confirmation. Held in memory only: a restart never auto-executes it.
+interface PendingConfirmation {
+  messageId: string;
+  tool: string;
+  parameters: Record<string, unknown>;
+}
+
+interface ChatState {
+  messages: Message[];
+  conversationId: string;
+  conversationTitle: string | null;
+  language: Language;
+  isGenerating: boolean;
+  streamingText: string;
+  modelLoaded: boolean;
+  modelPath: string | null;
+  error: string | null;
+  // Non-fatal warning (a save failed, a model didn't load). The turn succeeded
+  // but something degraded — shown in a dismissible amber banner, not the red
+  // `error` one. See ./notices and NoticeBanner.
+  notice: string | null;
+  pendingConfirmation: PendingConfirmation | null;
+
+  // Actions
+  init: () => Promise<void>;
+  sendMessage: (text: string) => Promise<void>;
+  stopGenerating: () => void;
+  resolveConfirmation: (confirmed: boolean) => Promise<void>;
+  loadConversation: (id: string, title: string | null) => Promise<void>;
+  clearConversation: () => void;
+  deleteAndSwitch: (id: string) => Promise<void>;
+  setLanguage: (lang: Language) => Promise<void>;
+  updateModelStatus: () => void;
+  dismissNotice: () => void;
+}
+
+export const useChatStore = create<ChatState>((set, get) => {
+  // A persistence write failed. Log it (for `adb logcat`) AND surface it, so a
+  // save failure is never silent — the in-memory turn is fine, but the SQLite
+  // copy isn't, and the user deserves to know it may not survive a restart.
+  const notePersistFailure = (scope: string, err: unknown) => {
+    console.error(`Failed to persist ${scope}:`, err);
+    set({ notice: persistFailureNotice(get().language) });
+  };
+
+  return {
+  messages: [],
+  conversationId: uuid(),
+  conversationTitle: null,
+  language: "en",
+  isGenerating: false,
+  streamingText: "",
+  modelLoaded: false,
+  modelPath: null,
+  error: null,
+  notice: null,
+  pendingConfirmation: null,
+
+  init: async () => {
+    const lang = await getConfig("language");
+    if (lang === "en") set({ language: lang });
+
+    // Try to restore the latest conversation
+    const latest = await getLatestConversation();
+    let conversationId: string;
+
+    if (latest) {
+      conversationId = latest.id;
+      const messages = await getMessages(conversationId);
+      set({
+        conversationId,
+        conversationTitle: latest.title,
+        messages,
+      });
+    } else {
+      // First launch — lazy: just set ID, don't persist until first message
+      conversationId = uuid();
+      set({ conversationId, messages: [] });
+    }
+
+    // Start foreground service to keep process alive
+    startVestaService().catch(() => {});
+
+    // Auto-load the active model from the registry (migrating any legacy
+    // model_path on first run). Don't erase the selection on a transient load
+    // failure — only mark it errored when the file is genuinely gone, so a
+    // low-memory boot doesn't force re-downloading a multi-GB model.
+    let active: InstalledModel | null = null;
+    try {
+      await ensureLegacyMigration();
+      active = await getActiveModel();
+      if (active && !isLoaded()) {
+        const fileInfo = await FileSystem.getInfoAsync(active.filePath);
+        if (fileInfo.exists) {
+          const perf = perfToLlmOptions(await getPerfSettings());
+          await loadModel(active.filePath, {
+            ...perf,
+            contextSize: active.contextSize,
+            gpuLayers: 0,
+            chatTemplate: active.chatTemplate ?? undefined,
+          });
+          // Cold-start prefix cache: restore the stable prefix's KV state from
+          // disk BEFORE any completion, so the first turn skips the ~30s cold
+          // prefill. Awaited to guarantee the ordering; failures start cold.
+          await warmSessionCache();
+        } else {
+          await setModelState(active.id, "error");
+        }
+      }
+    } catch (err) {
+      console.warn("[chat-store] model auto-load failed:", err);
+      // A model IS selected but didn't load (transient low-memory boot, a bad
+      // session cache, etc). Say so — otherwise the chat shows the "no model —
+      // tap to download" banner and misrepresents a model that's actually there.
+      if (active) {
+        set({ notice: modelLoadFailureNotice(get().language, active.displayName) });
+      }
+    }
+
+    const info = getModelInfo();
+    set({
+      modelLoaded: info.loaded,
+      modelPath: info.path ?? null,
+    });
+
+    // Run memory decay on startup (lightweight)
+    runMemoryDecay().catch(() => {});
+  },
+
+  sendMessage: async (text: string) => {
+    if (get().isGenerating) return; // prevent concurrent sends
+
+    // Dev-only diagnostics, driven from the chat input. Result messages go
+    // through the normal persistence path (conversation row + saveMessage):
+    // state-only messages would break sendMessage's `currentMsgs.length === 0`
+    // lazy-creation sentinel and orphan every later message of the chat.
+    if (__DEV__ && (text.trim() === "/benchmark-prefill" || text.trim() === "/session-clear")) {
+      const postInfo = async (content: string) => {
+        const msg: Message = {
+          id: uuid(),
+          conversationId: get().conversationId,
+          role: "assistant",
+          content,
+          createdAt: Date.now(),
+        };
+        try {
+          if (get().messages.length === 0) {
+            await createConversation(msg.conversationId);
+            const title = text.trim();
+            set({ conversationTitle: title });
+            await updateConversationTitle(msg.conversationId, title);
+          }
+          await saveMessage(msg);
+          await touchConversation(msg.conversationId);
+        } catch (err) {
+          console.error("Failed to persist dev message:", err);
+        }
+        set((s) => ({ messages: [...s.messages, msg] }));
+      };
+      if (text.trim() === "/session-clear") {
+        await clearPrefixSessionCache();
+        await postInfo("Session cache cleared. Riavvia l'app per misurare un cold start.");
+        return;
+      }
+      set({ isGenerating: true, streamingText: "", error: null });
+      try {
+        // Lazy import keeps lib/dev (incl. the frozen V2 prompt) out of the
+        // release bundle's startup path; the __DEV__ guard alone only removes
+        // the call site, not a hoisted static import.
+        const { runPrefillBenchmark } = await import("../dev/prefill-benchmark");
+        const report = await runPrefillBenchmark((line) => {
+          console.log("[Benchmark]", line);
+          set((s) => ({ streamingText: s.streamingText + line + "\n" }));
+        });
+        console.log("[Benchmark] report:\n" + report);
+        await postInfo("```\n" + report + "\n```");
+      } catch (err) {
+        set({ error: err instanceof Error ? err.message : String(err) });
+      } finally {
+        set({ isGenerating: false, streamingText: "" });
+      }
+      return;
+    }
+
+    // Moving on with a new message implicitly declines any unconfirmed action.
+    if (get().pendingConfirmation) {
+      await get().resolveConfirmation(false);
+    }
+
+    const { conversationId, language, messages: currentMsgs } = get();
+
+    // Create user message
+    const userMsg: Message = {
+      id: uuid(),
+      conversationId,
+      role: "user",
+      content: text,
+      createdAt: Date.now(),
+    };
+
+    // Use updater to avoid stale closure
+    set((s) => ({
+      messages: [...s.messages, userMsg],
+      isGenerating: true,
+      streamingText: "",
+      error: null,
+    }));
+
+    try {
+      // Lazy creation: ensure conversation exists in DB before first message
+      if (currentMsgs.length === 0) {
+        await createConversation(conversationId);
+      }
+      await saveMessage(userMsg);
+      await touchConversation(conversationId);
+    } catch (err) {
+      notePersistFailure("user message", err);
+    }
+
+    // Auto-title: use first user message as conversation title
+    if (currentMsgs.length === 0) {
+      const title = text.length > 50 ? text.substring(0, 47) + "..." : text;
+      set({ conversationTitle: title });
+      updateConversationTitle(conversationId, title).catch(() => {});
+    }
+
+    // History = the conversation BEFORE this turn (currentMsgs was captured
+    // before userMsg was appended). processMessage appends the current text
+    // itself — passing post-append state here sent the user's message to the
+    // model TWICE (once from history, once appended).
+    const response: OrchestratorResponse = await processMessage(
+      text,
+      currentMsgs,
+      language,
+      (token) => {
+        set((s) => ({ streamingText: s.streamingText + token }));
+      },
+      // Read tools generate twice; clear the tool-call JSON so only the
+      // grounded answer streams.
+      () => set({ streamingText: "" }),
+      // The persisted timestamp: history replays of this turn render their
+      // time context from createdAt, so the live turn must render from the
+      // same instant to keep the KV prefix byte-identical.
+      new Date(userMsg.createdAt),
+    );
+
+    // Create assistant message based on response type
+    let assistantMsg: Message;
+
+    switch (response.type) {
+      case "tool_call":
+        assistantMsg = {
+          id: uuid(),
+          conversationId,
+          role: "assistant",
+          content: response.message,
+          toolCall: JSON.stringify({
+            tool: response.tool,
+            parameters: response.parameters,
+          }),
+          toolResult: JSON.stringify(response.result),
+          createdAt: Date.now(),
+        };
+        break;
+
+      case "pending_tool_call": {
+        // Destructive action proposed — show it with Confirm/Cancel and DO NOT
+        // execute until the user approves (toolResult left undefined = pending).
+        const pendingMsg: Message = {
+          id: uuid(),
+          conversationId,
+          role: "assistant",
+          content: response.message,
+          toolCall: JSON.stringify({
+            tool: response.tool,
+            parameters: response.parameters,
+          }),
+          createdAt: Date.now(),
+        };
+        set((s) => ({
+          messages: [...s.messages, pendingMsg],
+          isGenerating: false,
+          streamingText: "",
+          pendingConfirmation: {
+            messageId: pendingMsg.id,
+            tool: response.tool,
+            parameters: response.parameters,
+          },
+        }));
+        try {
+          await saveMessage(pendingMsg);
+          await touchConversation(conversationId);
+        } catch (err) {
+          notePersistFailure("pending message", err);
+        }
+        return;
+      }
+
+      case "text":
+        assistantMsg = {
+          id: uuid(),
+          conversationId,
+          role: "assistant",
+          content: response.content,
+          createdAt: Date.now(),
+        };
+        break;
+
+      case "error":
+        set({ isGenerating: false, streamingText: "", error: response.error });
+        return;
+    }
+
+    set((s) => ({
+      messages: [...s.messages, assistantMsg],
+      isGenerating: false,
+      streamingText: "",
+    }));
+
+    try {
+      await saveMessage(assistantMsg);
+      await touchConversation(conversationId);
+    } catch (err) {
+      notePersistFailure("assistant message", err);
+    }
+  },
+
+  stopGenerating: () => {
+    // Signals the native layer to stop the active completion. The in-flight
+    // generate() then resolves with the partial text and sendMessage finishes
+    // normally (appending what was produced and flipping isGenerating off).
+    llmStopGeneration().catch(() => {});
+  },
+
+  resolveConfirmation: async (confirmed: boolean) => {
+    const pending = get().pendingConfirmation;
+    if (!pending) return;
+
+    // Clear first so a second tap / concurrent send can't double-dispatch.
+    set({ pendingConfirmation: null });
+
+    let result: ToolCallResult;
+    if (confirmed) {
+      try {
+        result = await executeToolCall(
+          pending.tool,
+          pending.parameters,
+          get().language,
+        );
+      } catch (err) {
+        result = {
+          success: false,
+          message: "Action failed",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    } else {
+      result = {
+        success: false,
+        message: get().language === "it" ? "Annullato" : "Canceled",
+        error: "declined",
+      };
+    }
+
+    const toolResultStr = JSON.stringify(result);
+    set((s) => ({
+      messages: s.messages.map((m) =>
+        m.id === pending.messageId ? { ...m, toolResult: toolResultStr } : m,
+      ),
+    }));
+    try {
+      await updateMessageToolResult(pending.messageId, toolResultStr);
+    } catch (err) {
+      notePersistFailure("tool result", err);
+    }
+  },
+
+  loadConversation: async (id: string, title: string | null) => {
+    const messages = await getMessages(id);
+    set({
+      conversationId: id,
+      conversationTitle: title,
+      messages,
+      streamingText: "",
+      error: null,
+      pendingConfirmation: null,
+    });
+  },
+
+  clearConversation: () => {
+    // Lazy creation: don't persist to DB until first message is sent
+    set({
+      messages: [],
+      conversationId: uuid(),
+      conversationTitle: null,
+      streamingText: "",
+      error: null,
+      pendingConfirmation: null,
+    });
+  },
+
+  deleteAndSwitch: async (id: string) => {
+    await deleteConversation(id);
+
+    // If we deleted the active conversation, switch to the next one
+    if (get().conversationId === id) {
+      const latest = await getLatestConversation();
+      if (latest) {
+        const messages = await getMessages(latest.id);
+        set({
+          conversationId: latest.id,
+          conversationTitle: latest.title,
+          messages,
+          streamingText: "",
+          error: null,
+          pendingConfirmation: null,
+        });
+      } else {
+        // No conversations left — start fresh (lazy, not persisted)
+        set({
+          messages: [],
+          conversationId: uuid(),
+          conversationTitle: null,
+          streamingText: "",
+          error: null,
+          pendingConfirmation: null,
+        });
+      }
+    }
+  },
+
+  setLanguage: async (lang: Language) => {
+    set({ language: lang });
+    await setConfig("language", lang);
+  },
+
+  updateModelStatus: () => {
+    const info = getModelInfo();
+    set({ modelLoaded: info.loaded, modelPath: info.path ?? null });
+  },
+
+  dismissNotice: () => set({ notice: null }),
+  };
+});

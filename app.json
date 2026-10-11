@@ -1,0 +1,80 @@
+{
+  "expo": {
+    "name": "Beginora",
+    "slug": "beginora",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "beginora",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F4EF"
+    },
+    "android": {
+      "package": "app.beginora.android",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F4EF",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "com.android.alarm.permission.SET_ALARM",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.READ_CONTACTS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "app.beginora.ios",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "Beginora reads your calendar to help you plan around existing commitments.",
+        "NSCalendarsFullAccessUsageDescription": "Beginora reads and creates calendar events to help you schedule tasks.",
+        "NSContactsUsageDescription": "Beginora reads your contacts to help you delegate or schedule with people.",
+        "NSMicrophoneUsageDescription": "Beginora uses the microphone for voice input so you can describe tasks hands-free.",
+        "NSSpeechRecognitionUsageDescription": "Beginora uses speech recognition to convert your voice into task descriptions.",
+        "NSRemindersUsageDescription": "Beginora creates reminders to help you follow through on your first actions."
+      }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-router",
+      "expo-notifications",
+      "expo-secure-store",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow Beginora to access your calendar to help you plan tasks around your schedule."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow Beginora to access your contacts to help you delegate and schedule with people."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Beginora to use the microphone for voice task input."
+        }
+      ],
+      "llama.rn",
+      "react-native-reanimated"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}

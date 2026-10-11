@@ -1,0 +1,271 @@
+// Expo config plugin for native modules: SystemActionsPackage + Beginora Service.
+// After `npx expo prebuild`, this plugin copies Kotlin files and Android resources
+// into the android/ dir, registers packages, and adds the service to the manifest.
+
+const {
+  withMainApplication,
+  withDangerousMod,
+  withAndroidManifest,
+  withAppBuildGradle,
+} = require("expo/config-plugins");
+const fs = require("fs");
+const path = require("path");
+
+// Fase 6 (MCP): the native McpHttpServer uses NanoHTTPD as its HTTP transport.
+// Add the dependency to the app module's build.gradle (idempotent — skipped if
+// already present).
+function withNanoHttpd(config) {
+  return withAppBuildGradle(config, (cfg) => {
+    const dep = `    implementation("org.nanohttpd:nanohttpd:2.3.1")`;
+    if (!cfg.modResults.contents.includes("org.nanohttpd:nanohttpd")) {
+      cfg.modResults.contents = cfg.modResults.contents.replace(
+        /dependencies\s*\{/,
+        (m) => `${m}\n${dep}`,
+      );
+    }
+    return cfg;
+  });
+}
+
+function withSystemActions(config) {
+  // Copy Kotlin source files into the generated android project
+  config = withDangerousMod(config, [
+    "android",
+    (config) => {
+      const srcDir = path.join(
+        config.modRequest.projectRoot,
+        "native/android/src/main/java/app/beginora/android"
+      );
+      const destDir = path.join(
+        config.modRequest.platformProjectRoot,
+        "app/src/main/java/app/beginora/android"
+      );
+
+      if (!fs.existsSync(srcDir)) {
+        console.warn(
+          "[with-system-actions] Source directory not found:",
+          srcDir
+        );
+        return config;
+      }
+
+      fs.mkdirSync(destDir, { recursive: true });
+      for (const file of fs.readdirSync(srcDir)) {
+        if (file.endsWith(".kt") || file.endsWith(".java")) {
+          fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file));
+        }
+      }
+
+      // Copy Android resource files (widget layout, drawables, values, xml)
+      const resSrcDir = path.join(
+        config.modRequest.projectRoot,
+        "native/android/src/main/res"
+      );
+      const resDestDir = path.join(
+        config.modRequest.platformProjectRoot,
+        "app/src/main/res"
+      );
+
+      if (fs.existsSync(resSrcDir)) {
+        for (const subDir of fs.readdirSync(resSrcDir)) {
+          const srcSubDir = path.join(resSrcDir, subDir);
+          const destSubDir = path.join(resDestDir, subDir);
+          if (fs.statSync(srcSubDir).isDirectory()) {
+            fs.mkdirSync(destSubDir, { recursive: true });
+            for (const file of fs.readdirSync(srcSubDir)) {
+              fs.copyFileSync(
+                path.join(srcSubDir, file),
+                path.join(destSubDir, file)
+              );
+            }
+          }
+        }
+      }
+
+      return config;
+    },
+  ]);
+
+  // Register the package in MainApplication
+  config = withMainApplication(config, (config) => {
+    let contents = config.modResults.contents;
+
+    // Add import (if not already present)
+    if (!contents.includes("import app.beginora.android.SystemActionsPackage")) {
+      // Try multiple import insertion patterns
+      const importPatterns = [
+        /(import com\.facebook\.react.*\n)/,
+        /(import android\.app\.Application\n)/,
+        /(^package .*\n)/m,
+      ];
+
+      let importInserted = false;
+      for (const pattern of importPatterns) {
+        if (pattern.test(contents)) {
+          contents = contents.replace(
+            pattern,
+            `$1import app.beginora.android.SystemActionsPackage\n`
+          );
+          importInserted = true;
+          break;
+        }
+      }
+
+      if (!importInserted) {
+        console.warn(
+          "[with-system-actions] Could not find import insertion point in MainApplication"
+        );
+      }
+    }
+
+    // Add to packages list (if not already present)
+    if (!contents.includes("SystemActionsPackage()")) {
+      const packagePatterns = [
+        // Expo SDK 55 / RN 0.83: PackageList(this).packages.apply { ... }
+        // Insert add() call inside the .apply block
+        {
+          pattern: /(PackageList\(this\)\.packages\.apply\s*\{)\s*\n/,
+          replacement: `$1\n          add(SystemActionsPackage())\n`,
+        },
+        // Older pattern: packages.add(MainReactPackage())
+        {
+          pattern: /(packages\.add\(MainReactPackage\(\)\))/,
+          replacement: `$1\n          packages.add(SystemActionsPackage())`,
+        },
+      ];
+
+      let packageInserted = false;
+      for (const { pattern, replacement } of packagePatterns) {
+        if (pattern.test(contents)) {
+          contents = contents.replace(pattern, replacement);
+          packageInserted = true;
+          break;
+        }
+      }
+
+      if (!packageInserted) {
+        console.warn(
+          "[with-system-actions] Could not find package registration point in MainApplication. " +
+            "You may need to manually add SystemActionsPackage() to your packages list."
+        );
+      }
+    }
+
+    config.modResults.contents = contents;
+    return config;
+  });
+
+  // Register the Vesta Widget receiver in AndroidManifest.xml
+  config = withAndroidManifest(config, (config) => {
+    const mainApplication = config.modResults.manifest.application[0];
+
+    if (!mainApplication.receiver) {
+      mainApplication.receiver = [];
+    }
+
+    // Register widget activities (transparent overlays)
+    if (!mainApplication.activity) {
+      mainApplication.activity = [];
+    }
+
+    // Quick chat dialog (floating input over home screen)
+    const hasQuickChat = mainApplication.activity.some(
+      (a) => a.$?.["android:name"] === ".VestaQuickChatActivity"
+    );
+    if (!hasQuickChat) {
+      mainApplication.activity.push({
+        $: {
+          "android:name": ".BeginoraQuickChatActivity",
+          "android:theme": "@android:style/Theme.Translucent.NoTitleBar",
+          "android:exported": "false",
+          "android:excludeFromRecents": "true",
+          "android:taskAffinity": "",
+          "android:windowSoftInputMode": "adjustResize",
+        },
+      });
+    }
+
+    // Voice input activity
+    const hasVoiceActivity = mainApplication.activity.some(
+      (a) => a.$?.["android:name"] === ".VestaVoiceActivity"
+    );
+    if (!hasVoiceActivity) {
+      mainApplication.activity.push({
+        $: {
+          "android:name": ".BeginoraVoiceActivity",
+          "android:theme": "@android:style/Theme.Translucent.NoTitleBar",
+          "android:exported": "false",
+          "android:excludeFromRecents": "true",
+          "android:taskAffinity": "",
+        },
+      });
+    }
+
+    const hasWidget = mainApplication.receiver.some(
+      (r) => r.$?.["android:name"] === ".VestaWidgetProvider"
+    );
+
+    if (!hasWidget) {
+      mainApplication.receiver.push({
+        $: {
+          "android:name": ".BeginoraWidgetProvider",
+          "android:exported": "true",
+          "android:label": "@string/widget_label",
+        },
+        "intent-filter": [
+          {
+            action: [
+              {
+                $: {
+                  "android:name": "android.appwidget.action.APPWIDGET_UPDATE",
+                },
+              },
+            ],
+          },
+        ],
+        "meta-data": [
+          {
+            $: {
+              "android:name": "android.appwidget.provider",
+              "android:resource": "@xml/beginora_widget_info",
+            },
+          },
+        ],
+      });
+    }
+
+    // Register VestaService (foreground service) in manifest
+    if (!mainApplication.service) {
+      mainApplication.service = [];
+    }
+
+    const hasService = mainApplication.service.some(
+      (s) => s.$?.["android:name"] === ".VestaService"
+    );
+    if (!hasService) {
+      mainApplication.service.push({
+        $: {
+          "android:name": ".BeginoraService",
+          "android:foregroundServiceType": "specialUse",
+          "android:exported": "false",
+        },
+        property: [
+          {
+            $: {
+              "android:name": "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE",
+              "android:value": "Keeps Beginora AI model loaded in memory for offline task assistance",
+            },
+          },
+        ],
+      });
+    }
+
+    return config;
+  });
+
+  config = withNanoHttpd(config);
+
+  return config;
+}
+
+module.exports = withSystemActions;
