@@ -13,12 +13,13 @@ import { useTaskStore } from "../../lib/store/task-store";
 import type { Task } from "../../lib/storage/database";
 import { colors, spacing, radii, typography } from "../../lib/theme";
 
-type Filter = "pending" | "active" | "done" | "all";
+type Filter = "pending" | "active" | "snoozed" | "done" | "all";
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "pending", label: "To start" },
   { key: "active", label: "In progress" },
+  { key: "snoozed", label: "Snoozed" },
   { key: "done", label: "Done" },
 ];
 
@@ -79,22 +80,27 @@ function TaskItem({
 
 export default function TasksScreen() {
   const router = useRouter();
-  const { tasks, loading, error, loadTasks, setStatus, clearError } = useTaskStore();
+  const tasks = useTaskStore((s) => s.tasks);
+  const loading = useTaskStore((s) => s.loading);
+  const error = useTaskStore((s) => s.error);
+  const loadTasks = useTaskStore((s) => s.loadTasks);
+  const setStatus = useTaskStore((s) => s.setStatus);
+  const clearError = useTaskStore((s) => s.clearError);
   const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [loadTasks]);
 
   useEffect(() => {
     if (error) {
       Alert.alert("Error", error, [{ text: "OK", onPress: clearError }]);
     }
-  }, [error]);
+  }, [error, clearError]);
 
   const filtered = tasks.filter((t) => {
-    if (filter === "all") return t.isDeleted !== 1;
-    return t.status === filter && t.isDeleted !== 1;
+    if (filter === "all") return true;
+    return t.status === filter;
   });
 
   const handleToggleDone = (task: Task) => {

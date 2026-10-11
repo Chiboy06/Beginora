@@ -105,7 +105,7 @@ export default function ChatScreen() {
         </View>
       ),
     });
-  }, [navigation, conversationTitle, clearConversation]);
+  }, [navigation, router, conversationTitle, clearConversation]);
 
   const handleDeepLink = (url: string) => {
     if (!url || url === handledUrlRef.current) return;
@@ -141,7 +141,7 @@ export default function ChatScreen() {
     if (messages.length > 0) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [messages.length]);
+  }, [messages]);
 
   useEffect(() => {
     if (isGenerating && streamingText) {
@@ -157,7 +157,7 @@ export default function ChatScreen() {
     if (keyboardHeight > 0 && messages.length > 0) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [keyboardHeight]);
+  }, [keyboardHeight, messages.length]);
 
   const chatContent = (
     <>
@@ -208,7 +208,7 @@ export default function ChatScreen() {
             </View>
             <Text style={styles.emptyTitle}>Beginora</Text>
             <Text style={styles.emptySubtitle}>
-              What's one thing you'd like to get started on?
+              What’s one thing you’d like to get started on?
             </Text>
             <View style={styles.promptChips}>
               {[
@@ -230,6 +230,24 @@ export default function ChatScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+            <TouchableOpacity
+              style={styles.taskCta}
+              onPress={() => router.push("/task/new")}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Start an offline task and find its first step"
+            >
+              <Text style={styles.taskCtaText}>Start with one small step</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.calendarCta}
+              onPress={() => router.push("/calendar")}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Prepare for the next calendar event"
+            >
+              <Text style={styles.calendarCtaText}>Prepare for my next event (optional)</Text>
+            </TouchableOpacity>
           </View>
         }
         ListFooterComponent={
@@ -349,6 +367,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  taskCta: {
+    width: "100%",
+    marginTop: spacing.md,
+    paddingVertical: 15,
+    paddingHorizontal: spacing.lg,
+    alignItems: "center",
+    borderRadius: radii.md,
+    backgroundColor: colors.accent,
+  },
+  taskCtaText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  calendarCta: { width: "100%", paddingVertical: 13, alignItems: "center" },
+  calendarCtaText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
   headerBtn: {
     width: 36,
     height: 36,

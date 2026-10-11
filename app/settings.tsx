@@ -44,25 +44,16 @@ export default function SettingsScreen() {
 
   const [knowledgeFiles, setKnowledgeFiles] = useState<KnowledgeFile[]>([]);
   const [confirmActions, setConfirmActions] = useState(true);
-  const [cloudSync, setCloudSync] = useState(false);
 
   useEffect(() => {
     getConfig("confirm_destructive_actions")
       .then((v) => setConfirmActions(v !== "false"))
-      .catch(() => {});
-    getConfig("cloud_sync_enabled")
-      .then((v) => setCloudSync(v === "true"))
       .catch(() => {});
   }, []);
 
   const toggleConfirmActions = (value: boolean) => {
     setConfirmActions(value);
     setConfig("confirm_destructive_actions", value ? "true" : "false").catch(() => {});
-  };
-
-  const toggleCloudSync = (value: boolean) => {
-    setCloudSync(value);
-    setConfig("cloud_sync_enabled", value ? "true" : "false").catch(() => {});
   };
 
   const reloadActive = useModelStore((s) => s.reloadActive);
@@ -215,20 +206,14 @@ export default function SettingsScreen() {
             accessibilityLabel="Confirm actions before executing"
           />
         </View>
-        <View style={[styles.toggleRow, { marginTop: spacing.lg }]}>
-          <View style={styles.toggleInfo}>
-            <Text style={styles.toggleTitle}>Cloud sync</Text>
-            <Text style={styles.toggleHint}>
-              Optionally back up your tasks to the cloud. Your data is encrypted before leaving your device.
-            </Text>
-          </View>
-          <Switch
-            value={cloudSync}
-            onValueChange={toggleCloudSync}
-            trackColor={{ false: colors.disabled, true: colors.accent }}
-            accessibilityLabel="Enable cloud sync"
-          />
-        </View>
+        <Text style={[styles.toggleHint, { marginTop: spacing.lg }]}>This prototype keeps tasks, plans, and activity on this device. Cloud sync is not enabled.</Text>
+      </View>
+
+      <Text style={styles.sectionTitle}>About this app</Text>
+      <View style={styles.card}>
+        <Text style={styles.desc}>
+          Beginora is a planning and focus aid, not medical care. It does not diagnose or treat ADHD and does not replace professional support.
+        </Text>
       </View>
 
       {/* Documents */}
@@ -357,7 +342,7 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>About</Text>
       <View style={styles.card}>
         <Text style={styles.desc}>
-          Beginora is an offline-first assistant that helps you start tasks. Everything runs on your device — no data ever leaves without your permission.
+          Beginora is an offline-first assistant that helps you find a first step. Task plans and activity stay on this device in this prototype.
         </Text>
         <Text style={styles.version}>v0.1.0 — MVP</Text>
       </View>

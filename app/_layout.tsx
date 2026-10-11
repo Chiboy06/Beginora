@@ -24,7 +24,7 @@ export default function RootLayout() {
       init().catch((err) => console.error("Chat init failed:", err)),
       loadTasks().catch((err) => console.error("Task load failed:", err)),
     ]).finally(() => setReady(true));
-  }, []);
+  }, [init, loadTasks]);
 
   // Release embedding model RAM when backgrounded — reloads lazily on next use
   useEffect(() => {
@@ -76,6 +76,8 @@ export default function RootLayout() {
         {/* Task screens */}
         <Stack.Screen name="task/new" options={{ title: "New Task", presentation: "modal" }} />
         <Stack.Screen name="task/[id]" options={{ title: "Task" }} />
+        <Stack.Screen name="task/focus" options={{ title: "Focus", presentation: "modal" }} />
+        <Stack.Screen name="calendar" options={{ title: "Calendar preparation", presentation: "modal" }} />
 
         {/* Utility screens */}
         <Stack.Screen name="history" options={{ title: "Conversations" }} />

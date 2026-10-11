@@ -89,7 +89,7 @@ describe("warmSessionCache", () => {
     const prefix = mockRestore.mock.calls[0][0];
     // Italian persona (language config mocked to "it"), tools included, and
     // strictly time-free — the same invariants prompt-builder.test.ts locks.
-    expect(prefix).toContain("Sei Vesta");
+    expect(prefix).toContain("Sei Beginora");
     expect(prefix).toContain("Strumenti disponibili:");
     expect(prefix).not.toContain("Contesto temporale corrente:");
   });

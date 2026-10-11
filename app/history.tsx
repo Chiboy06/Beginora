@@ -67,7 +67,7 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, clearConversation]);
+  }, [navigation, clearConversation, router]);
 
   const refresh = useCallback(async () => {
     const all = await getAllConversationsWithPreview();

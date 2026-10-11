@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, Animated, Image, StyleSheet, Easing } from "react-native";
+import { View, Animated, StyleSheet, Easing } from "react-native";
 import { colors } from "../lib/theme";
 
 const flameLogo = require("../assets/brand/vesta-flame-logo-1024x1024.png");
@@ -121,7 +121,7 @@ export function FlameIndicator() {
       dotAnim2.stop();
       dotAnim3.stop();
     };
-  }, []);
+  }, [dot1, dot2, dot3, glowOpacity, glowScale, opacity, scale]);
 
   const dotStyle = (dot: Animated.Value) => ({
     opacity: dot.interpolate({

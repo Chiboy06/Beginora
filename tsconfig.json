@@ -9,7 +9,7 @@
       "@lib/*": ["./lib/*"],
       "@app/*": ["./app/*"]
     },
-    "types": ["nativewind/types"]
+    "types": ["nativewind/types", "jest"]
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts"]
 }

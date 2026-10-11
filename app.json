@@ -61,21 +61,11 @@
           "contactsPermission": "Allow Beginora to access your contacts to help you delegate and schedule with people."
         }
       ],
-      [
-        "expo-av",
-        {
-          "microphonePermission": "Allow Beginora to use the microphone for voice task input."
-        }
-      ],
       "llama.rn",
-      "react-native-reanimated",
       "./plugins/with-system-actions"
     ],
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "beginora-app"
-      }
+      "router": {}
     }
   }
 }
