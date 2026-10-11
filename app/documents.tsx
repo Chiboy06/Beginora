@@ -39,8 +39,8 @@ function strings(lang: Language) {
   const it = lang === "it";
   return {
     desc: it
-      ? "Importa file PDF, Word (.docx), di testo o Markdown. Vesta li indicizza sul dispositivo così puoi farci domande — completamente offline. Serve un modello di embedding (Nomic Embed), disponibile in Modelli."
-      : "Import PDF, Word (.docx), text, or Markdown files. Vesta indexes them on-device so you can ask questions about their contents — fully offline. Requires an embedding model (Nomic Embed), available in Models.",
+      ? "Importa file PDF, Word (.docx), di testo o Markdown. Beginora li indicizza sul dispositivo così puoi farci domande — completamente offline. Serve un modello di embedding (Nomic Embed), disponibile in Modelli."
+      : "Import PDF, Word (.docx), text, or Markdown files. Beginora indexes them on-device so you can ask questions about their contents — fully offline. Requires an embedding model (Nomic Embed), available in Models.",
     empty: it ? "Nessun documento importato." : "No documents imported yet.",
     importBtn: it ? "+ Importa documento" : "+ Import Document",
     remove: it ? "Rimuovi" : "Remove",
@@ -54,15 +54,15 @@ function strings(lang: Language) {
     saving: it ? "Salvataggio…" : "Saving…",
     busyTitle: it ? "Attendi" : "Please wait",
     busyBody: it
-      ? "Aspetta che Vesta finisca la risposta corrente."
-      : "Wait for Vesta to finish the current response.",
+      ? "Aspetta che Beginora finisca la risposta corrente."
+      : "Wait for Beginora to finish the current response.",
     unsupportedTitle: it ? "File non supportato" : "Unsupported file",
     unsupportedBody: it
       ? "Scegli un file PDF, Word (.docx), di testo o Markdown."
       : "Please choose a PDF, Word (.docx), text, or Markdown file.",
     embedTitle: it ? "Serve un modello" : "Embedding model needed",
     embedBody: it
-      ? "Scarica il modello Nomic Embed dalla schermata Modelli per indicizzare e cercare nei documenti."
+      ? "Scarica il modello Nomic Embed dalla schermata Modelli per indicizzare e cercare nei documenti con Beginora."
       : "Download the Nomic Embed model from the Models screen to index and search documents.",
     getModel: it ? "Vai a Modelli" : "Go to Models",
     cancel: it ? "Annulla" : "Cancel",

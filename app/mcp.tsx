@@ -65,7 +65,7 @@ export default function McpScreen() {
       const url = ip ? `http://${ip}:${MCP_PORT}/mcp` : `http://<phone-ip>:${MCP_PORT}/mcp`;
       Alert.alert(
         c.name,
-        `Add to your MCP client:\n\nclaude mcp add --transport http vesta ${url} --header "Authorization: Bearer ${c.token}"`,
+        `Add to your MCP client:\n\nclaude mcp add --transport http beginora ${url} --header "Authorization: Bearer ${c.token}"`,
       );
     } catch (e) {
       Alert.alert("MCP", e instanceof Error ? e.message : String(e));
