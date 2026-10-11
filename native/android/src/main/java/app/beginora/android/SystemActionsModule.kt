@@ -1,6 +1,7 @@
 package app.beginora.android
 
 import android.app.ActivityManager
+import android.app.Activity
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
@@ -8,6 +9,8 @@ import android.content.res.Configuration
 import android.os.Build
 import android.provider.AlarmClock
 import android.provider.CalendarContract
+import com.facebook.react.bridge.ActivityEventListener
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.*
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -15,18 +18,83 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeParseException
 
 class SystemActionsModule(reactContext: ReactApplicationContext) :
-    ReactContextBaseJavaModule(reactContext), ComponentCallbacks2 {
+    ReactContextBaseJavaModule(reactContext), ComponentCallbacks2, ActivityEventListener {
+
+    companion object {
+        private const val VOICE_ACTIVITY_REQUEST = 4317
+    }
+
+    private var voicePromise: Promise? = null
 
     override fun getName(): String = "SystemActionsModule"
 
     override fun initialize() {
         super.initialize()
         reactApplicationContext.applicationContext.registerComponentCallbacks(this)
+        reactApplicationContext.addActivityEventListener(this)
     }
 
     override fun invalidate() {
         reactApplicationContext.applicationContext.unregisterComponentCallbacks(this)
+        reactApplicationContext.removeActivityEventListener(this)
+        voicePromise?.reject("VOICE_CANCELLED", "Voice input ended before a result was returned.")
+        voicePromise = null
         super.invalidate()
+    }
+
+    override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode != VOICE_ACTIVITY_REQUEST) return
+        val promise = voicePromise ?: return
+        voicePromise = null
+        val transcript = data?.getStringExtra(BeginoraVoiceActivity.EXTRA_TRANSCRIPT).orEmpty()
+        val error = data?.getStringExtra(BeginoraVoiceActivity.EXTRA_ERROR)
+        val result = Arguments.createMap()
+        when {
+            resultCode == Activity.RESULT_OK && transcript.isNotBlank() -> {
+                result.putString("status", "success")
+                result.putString("text", transcript)
+            }
+            error == "permission_denied" -> {
+                result.putString("status", "denied")
+                result.putString("error", "Microphone permission was not granted.")
+            }
+            error == "unavailable" -> {
+                result.putString("status", "unavailable")
+                result.putString("error", "Speech recognition is not available on this device.")
+            }
+            error == "failed" -> {
+                result.putString("status", "failed")
+                result.putString("error", "Speech recognition could not be started.")
+            }
+            else -> result.putString("status", "cancelled")
+        }
+        promise.resolve(result)
+    }
+
+    override fun onNewIntent(intent: Intent) {}
+
+    @ReactMethod
+    fun startVoiceRecognition(promise: Promise) {
+        val activity = reactApplicationContext.currentActivity
+        if (activity == null) {
+            promise.reject("VOICE_NO_ACTIVITY", "Beginora must be open to start voice input.")
+            return
+        }
+        if (voicePromise != null) {
+            promise.reject("VOICE_BUSY", "Voice input is already open.")
+            return
+        }
+        try {
+            voicePromise = promise
+            activity.startActivityForResult(
+                Intent(activity, BeginoraVoiceActivity::class.java)
+                    .putExtra(BeginoraVoiceActivity.EXTRA_NATIVE_BRIDGE, true),
+                VOICE_ACTIVITY_REQUEST,
+            )
+        } catch (e: Exception) {
+            voicePromise = null
+            promise.reject("VOICE_START_ERROR", e.message, e)
+        }
     }
 
     override fun onTrimMemory(level: Int) {

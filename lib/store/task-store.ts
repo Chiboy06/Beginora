@@ -10,6 +10,7 @@ import {
   recordTaskOutcome,
   deleteTask,
 } from "../storage/database";
+import { cancelLocalReminder } from "../native/reminders";
 
 interface TaskState {
   tasks: Task[];
@@ -106,6 +107,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }));
     try {
       await updateTaskStatus(id, status);
+      if (status === "done" && previous?.reminderId) {
+        if (await cancelLocalReminder(previous.reminderId)) {
+          try {
+            await updateTaskReminderId(id, null);
+            set((s) => ({ tasks: s.tasks.map((task) => task.id === id ? { ...task, reminderId: null } : task) }));
+          } catch {
+            set({ error: "Task completed, but reminder state could not be cleared." });
+          }
+        } else {
+          set({ error: "Task completed, but its reminder could not be cancelled." });
+        }
+      }
     } catch {
       if (previous) {
         set((s) => ({ tasks: s.tasks.map((task) => task.id === id ? previous : task) }));
@@ -142,6 +155,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   removeTask: async (id) => {
     const previous = get().tasks;
+    const existing = previous.find((task) => task.id === id);
+    if (existing?.reminderId && !(await cancelLocalReminder(existing.reminderId))) {
+      set({ error: "Could not cancel this task’s reminder, so the task was not removed." });
+      throw new Error("Could not cancel task reminder");
+    }
     set((s) => ({ tasks: s.tasks.filter((task) => task.id !== id) }));
     try {
       await deleteTask(id);

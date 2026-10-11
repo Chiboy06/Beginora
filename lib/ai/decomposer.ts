@@ -20,7 +20,7 @@ const SAFETY_PATTERNS = [
 // Frozen so no caller can mutate the shared singleton.
 const SAFETY_RESPONSE: DecompositionResult = Object.freeze({
   firstAction: "If you're going through something difficult, please reach out to someone you trust or a support line in your area.",
-  steps: Object.freeze([]) as string[],
+  steps: Object.freeze([]) as unknown as string[],
   source: "safety_block" as const,
 });
 

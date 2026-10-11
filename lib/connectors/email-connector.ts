@@ -42,7 +42,7 @@ export async function openEmailDraft(draft: EmailDraft): Promise<EmailComposerRe
     });
     return {
       success: true,
-      message: "Your email app opened with an editable draft. Review it there before sending.",
+      message: "The email composer returned control. Check your mail app to see whether the draft was saved or sent; Beginora did not send it directly.",
     };
   } catch {
     return {

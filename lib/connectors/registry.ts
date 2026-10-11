@@ -1,9 +1,8 @@
 import type { ConnectorCapability, ConnectorDescriptor } from "./types";
 
 /**
- * The registry is intentionally descriptive, not an agent tool marketplace.
- * Orchestration must still validate arguments and require approval before any
- * mutating action. Integrations only receive the minimum selected data.
+ * The registry is descriptive, not an agent tool marketplace. Orchestration
+ * still validates arguments and requires approval before mutating actions.
  */
 export const CONNECTOR_REGISTRY: readonly ConnectorDescriptor[] = [
   {
@@ -15,9 +14,35 @@ export const CONNECTOR_REGISTRY: readonly ConnectorDescriptor[] = [
     permissionState: "not_requested",
     offline: true,
     dataRead: ["Selected event title, start/end time, optional location"],
+    dataLeavesDevice: true,
+    confirmationRequired: true,
+    userControl: "Calendar access is requested only when you choose to review events. Event creation opens the device calendar editor; the calendar account/provider may sync an event you save.",
+  },
+  {
+    id: "device-contacts",
+    displayName: "Device contacts",
+    description: "Look up a small set of matching names and phone numbers when you ask for contact help.",
+    capabilities: ["contacts.read"],
+    permissionKind: "contacts_read",
+    permissionState: "not_requested",
+    offline: true,
+    dataRead: ["Names and phone numbers of matching contacts"],
     dataLeavesDevice: false,
     confirmationRequired: true,
-    userControl: "Calendar access is requested only when you choose to review events. Event creation opens the device calendar editor, where you save or cancel.",
+    userControl: "Contacts are read only after an explicit lookup and Android permission; matches are handled on this device.",
+  },
+  {
+    id: "android-voice-input",
+    displayName: "Android speech input",
+    description: "Transcribe speech into an editable Beginora draft using the Android speech provider.",
+    capabilities: ["voice.capture"],
+    permissionKind: "microphone",
+    permissionState: "not_requested",
+    offline: false,
+    dataRead: ["Spoken words you choose to capture"],
+    dataLeavesDevice: true,
+    confirmationRequired: true,
+    userControl: "Microphone access is requested only when you tap voice input. The Android speech provider may use a network and applies its own processing/retention policy; Beginora never auto-sends the transcript.",
   },
   {
     id: "email-composer",
@@ -44,6 +69,45 @@ export const CONNECTOR_REGISTRY: readonly ConnectorDescriptor[] = [
     dataLeavesDevice: false,
     confirmationRequired: true,
     userControl: "Notification permission is requested only when you ask for a reminder; reminders can be cancelled in system settings.",
+  },
+  {
+    id: "telegram-task-summaries",
+    displayName: "Telegram task summaries",
+    description: "Send a selected task title and first step only when you explicitly tap Send.",
+    capabilities: ["telegram.send_summary"],
+    permissionKind: "user_handoff",
+    permissionState: "not_requested",
+    offline: false,
+    dataRead: ["Selected task title, first step, and configured Telegram chat ID"],
+    dataLeavesDevice: true,
+    confirmationRequired: true,
+    userControl: "The bot token is stored in Android secure storage. Selected task text is sent to Telegram only after you request the send.",
+  },
+  {
+    id: "app-updates",
+    displayName: "App-code updates",
+    description: "Check Expo EAS for compatible JavaScript and bundled-asset updates; not task-data sync.",
+    capabilities: ["app_updates.check"],
+    permissionKind: "none",
+    permissionState: "unavailable",
+    offline: false,
+    dataRead: ["App version, runtime, update channel, and update status"],
+    dataLeavesDevice: true,
+    confirmationRequired: true,
+    userControl: "Available only on a build linked to an EAS project. Downloaded updates are applied only after you confirm a restart.",
+  },
+  {
+    id: "background-model",
+    displayName: "Background model service",
+    description: "Optionally keep a loaded on-device model available while Beginora is backgrounded.",
+    capabilities: ["model.background"],
+    permissionKind: "notifications",
+    permissionState: "not_requested",
+    offline: true,
+    dataRead: ["Generic model-availability status; no task title is shown in the persistent notification"],
+    dataLeavesDevice: false,
+    confirmationRequired: true,
+    userControl: "Off by default. Enable in Settings to request Android notification permission and start the service; turn it off at any time.",
   },
   {
     id: "local-documents",
@@ -74,15 +138,15 @@ export const CONNECTOR_REGISTRY: readonly ConnectorDescriptor[] = [
   {
     id: "paired-mcp",
     displayName: "Paired local MCP clients",
-    description: "Expose only allowlisted read-only data to a client you explicitly pair on your local network.",
+    description: "Temporarily unavailable while encrypted transport and per-source controls are completed.",
     capabilities: ["mcp.read"],
     permissionKind: "user_handoff",
-    permissionState: "not_requested",
+    permissionState: "unavailable",
     offline: true,
-    dataRead: ["Only the individual read-only source you enable"],
+    dataRead: ["Contacts, calendar events, and document excerpts would be exposed to a paired client"],
     dataLeavesDevice: true,
     confirmationRequired: true,
-    userControl: "The server is off by default; pairing and data exposure require explicit user action.",
+    userControl: "The unencrypted local-network server is disabled in this build; legacy pairing credentials are revoked at app startup.",
   },
 ] as const;
 

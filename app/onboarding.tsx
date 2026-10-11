@@ -1,13 +1,14 @@
 import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { prefs } from "../lib/store/prefs";
+import { useOnboardingStore } from "../lib/store/onboarding-store";
 import { colors, radii, spacing, typography } from "../lib/theme";
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const completeOnboarding = useOnboardingStore((s) => s.complete);
 
   const handleContinue = () => {
-    prefs.onboardingDone = true;
+    completeOnboarding();
     router.replace("/(tabs)");
   };
 
@@ -25,9 +26,9 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Your data stays on your phone</Text>
+          <Text style={styles.cardTitle}>Your data and connections</Text>
           <Text style={styles.cardBody}>
-            Tasks, plans, and activity are stored locally. No account is needed. Nothing is sent to a server.
+            Tasks, plans, and activity are stored locally in this prototype. Optional services send only the information you choose to share with them. Android voice input uses your selected system speech provider, whose online and retention behavior is controlled by that provider.
           </Text>
         </View>
 

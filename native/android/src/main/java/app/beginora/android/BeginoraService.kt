@@ -65,10 +65,11 @@ class BeginoraService : Service() {
         manager.createNotificationChannel(channel)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun buildNotification(status: String): Notification {
-        val builder = Notification.Builder(this, CHANNEL_ID)
+        val notification = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Beginora")
-            .setContentText(status)
+            .setContentText("On-device model available")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
 
@@ -78,10 +79,10 @@ class BeginoraService : Service() {
                 this, 0, launchIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            builder.setContentIntent(pendingIntent)
+            notification.setContentIntent(pendingIntent)
         }
 
-        return builder.build()
+        return notification.build()
     }
 
     private fun updateNotification(status: String) {

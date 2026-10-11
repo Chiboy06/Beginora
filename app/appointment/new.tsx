@@ -77,7 +77,7 @@ export default function NewAppointmentScreen() {
         <Text style={styles.eyebrow}>You choose what gets saved</Text>
         <Text style={styles.heading}>Add an appointment</Text>
         <Text style={styles.intro}>
-          Beginora prepares an event in your device calendar. It does not book with a clinic, therapist, or other provider.
+          Beginora prepares an event in your device calendar. The calendar account may sync events you save; this does not book with a clinic, therapist, or other provider.
         </Text>
         <GlassSurface style={styles.form}>
           <Text style={styles.label}>Appointment</Text>

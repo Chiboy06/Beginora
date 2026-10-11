@@ -56,11 +56,16 @@ function score(ctx: FocusContext, outcomes: TaskOutcomeRecord[]): FocusSignal {
     };
   }
 
-  // Paralysis check — look at recent outcomes, most recent first.
-  // Count consecutive stuck outcomes before the last completion or started.
+  // Paralysis check — outcomes are newest first. Ignore this focus session's
+  // own `started` marker, then count prior stuck outcomes until a reset point.
   let stuckRun = 0;
+  let skippedCurrentStart = false;
   for (const o of outcomes) {
-    if (o.outcome === "completed" || o.outcome === "started") break;
+    if (o.outcome === "started" && !skippedCurrentStart) {
+      skippedCurrentStart = true;
+      continue;
+    }
+    if (o.outcome === "completed" || o.outcome === "started" || o.outcome === "retried") break;
     if (STUCK_OUTCOMES.has(o.outcome)) stuckRun++;
   }
 

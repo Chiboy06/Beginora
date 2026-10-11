@@ -34,7 +34,6 @@ import { runMemoryDecay } from "../orchestrator/memory-manager";
 import { warmSessionCache } from "../orchestrator/session-warmer";
 import { clearPrefixSessionCache } from "../llm/session-cache";
 import { persistFailureNotice, modelLoadFailureNotice } from "./notices";
-import { startVestaService } from "../native/vesta-service";
 import * as FileSystem from "expo-file-system/legacy";
 import {
   ensureLegacyMigration,
@@ -123,9 +122,6 @@ export const useChatStore = create<ChatState>((set, get) => {
       conversationId = uuid();
       set({ conversationId, messages: [] });
     }
-
-    // Start foreground service to keep process alive
-    startVestaService().catch(() => {});
 
     // Auto-load the active model from the registry (migrating any legacy
     // model_path on first run). Don't erase the selection on a transient load

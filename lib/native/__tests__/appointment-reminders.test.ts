@@ -61,8 +61,13 @@ describe("appointment reminder timing and persistence", () => {
     const event = makeEvent();
     const result = await scheduleAppointmentReminder(event, 15);
     expect(result.success).toBe(true);
-    expect(mockedScheduleReminder).toHaveBeenCalledWith(expect.stringContaining(event.title), expect.any(String));
-    expect(mockedSetConfig).toHaveBeenCalledWith(expect.stringContaining(event.id), expect.stringContaining("notification-1"));
+    expect(mockedScheduleReminder).toHaveBeenCalledWith(
+      "An appointment is coming up. Open Beginora to review your plan.",
+      expect.any(String),
+      undefined,
+      { kind: "appointment", eventId: event.id },
+    );
+    expect(mockedSetConfig).toHaveBeenCalledWith(`appointment_reminder:${event.id}`, expect.stringContaining("notification-1"));
   });
 
   it("does not schedule a duplicate when the same appointment reminder is already stored", async () => {

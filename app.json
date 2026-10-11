@@ -2,14 +2,14 @@
   "expo": {
     "name": "Beginora",
     "slug": "beginora",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "beginora",
     "android": {
       "package": "app.beginora.android",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#F7F4EF",
         "foregroundImage": "./assets/android-icon-foreground.png"
@@ -34,8 +34,6 @@
         "NSCalendarsUsageDescription": "Beginora reads your calendar to help you plan around existing commitments.",
         "NSCalendarsFullAccessUsageDescription": "Beginora reads and creates calendar events to help you schedule tasks.",
         "NSContactsUsageDescription": "Beginora reads your contacts to help you delegate or schedule with people.",
-        "NSMicrophoneUsageDescription": "Beginora uses the microphone for voice input so you can describe tasks hands-free.",
-        "NSSpeechRecognitionUsageDescription": "Beginora uses speech recognition to convert your voice into task descriptions.",
         "NSRemindersUsageDescription": "Beginora creates reminders to help you follow through on your first actions."
       }
     },
@@ -46,6 +44,7 @@
       "expo-updates",
       "expo-secure-store",
       "expo-status-bar",
+      "expo-font",
       [
         "expo-splash-screen",
         {
