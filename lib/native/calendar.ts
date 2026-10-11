@@ -1,59 +1,96 @@
-// Calendar read access via expo-calendar. Permission is requested only when a
-// user explicitly invokes a calendar feature.
+// Device-calendar reads are optional. Permission is requested only when the
+// user invokes a calendar feature; the app reads a bounded window and returns
+// only the event fields needed for preparation.
 
 import * as Calendar from "expo-calendar";
 import type { ToolCallResult, Language } from "../orchestrator/types";
 import { isValidYMD } from "../orchestrator/date-utils";
 
 export interface UpcomingCalendarEvent {
+  id: string;
   title: string;
   start: string;
   end: string;
   allDay: boolean;
+  location?: string;
 }
 
 async function hasCalendarPermission(): Promise<boolean> {
-  const { status } = await Calendar.requestCalendarPermissionsAsync();
-  return status === "granted";
+  const current = await Calendar.getCalendarPermissionsAsync();
+  if (current.granted) return true;
+  if (current.canAskAgain === false) return false;
+  const requested = await Calendar.requestCalendarPermissionsAsync();
+  return requested.granted;
+}
+
+export async function getUpcomingCalendarEvents(
+  lookAheadDays = 30,
+  limit = 12,
+): Promise<
+  | { success: true; events: UpcomingCalendarEvent[] }
+  | { success: false; message: string }
+> {
+  if (!Number.isInteger(lookAheadDays) || lookAheadDays < 1 || lookAheadDays > 90) {
+    return { success: false, message: "Choose a calendar window between 1 and 90 days." };
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    return { success: false, message: "The appointment list limit is invalid." };
+  }
+
+  try {
+    if (!(await hasCalendarPermission())) {
+      return { success: false, message: "Calendar access wasn’t granted. You can still use Beginora without it." };
+    }
+    const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    const calendarIds = calendars.map((calendar) => calendar.id);
+    if (calendarIds.length === 0) return { success: true, events: [] };
+
+    const start = new Date();
+    const end = new Date(start);
+    end.setDate(end.getDate() + lookAheadDays);
+    const events = await Calendar.getEventsAsync(calendarIds, start, end);
+    const seen = new Set<string>();
+    const upcoming = events
+      .map((event) => {
+        const eventStart = new Date(event.startDate);
+        const eventEnd = new Date(event.endDate);
+        return {
+          id: event.id || `${event.calendarId}:${eventStart.toISOString()}`,
+          title: event.title?.trim() || "Calendar event",
+          start: eventStart.toISOString(),
+          end: eventEnd.toISOString(),
+          allDay: event.allDay ?? false,
+          location: event.location?.trim() || undefined,
+        } satisfies UpcomingCalendarEvent;
+      })
+      .filter((event) => {
+        const at = new Date(event.start).getTime();
+        if (!Number.isFinite(at) || at < start.getTime() || at > end.getTime()) return false;
+        const duplicateKey = `${event.title.trim().toLocaleLowerCase()}|${event.start}|${event.end}`;
+        if (seen.has(duplicateKey)) return false;
+        seen.add(duplicateKey);
+        return true;
+      })
+      .sort((a, b) => a.start.localeCompare(b.start))
+      .slice(0, limit);
+
+    return { success: true, events: upcoming };
+  } catch {
+    return { success: false, message: "I couldn’t read your calendar just now. You can add a task manually instead." };
+  }
 }
 
 export async function getNextCalendarEvent(): Promise<
   | { success: true; event: UpcomingCalendarEvent | null }
   | { success: false; message: string }
 > {
-  if (!(await hasCalendarPermission())) {
-    return { success: false, message: "Calendar access wasn’t granted. You can add a task manually instead." };
-  }
-
-  try {
-    const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-    const calendarIds = calendars.map((calendar) => calendar.id);
-    if (calendarIds.length === 0) return { success: true, event: null };
-
-    const start = new Date();
-    const end = new Date(start);
-    end.setDate(end.getDate() + 30);
-    const events = await Calendar.getEventsAsync(calendarIds, start, end);
-    const next = events
-      .filter((event) => new Date(event.startDate).getTime() >= start.getTime())
-      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0];
-
-    if (!next) return { success: true, event: null };
-    return {
-      success: true,
-      event: {
-        title: next.title?.trim() || "Calendar event",
-        start: new Date(next.startDate).toISOString(),
-        end: new Date(next.endDate).toISOString(),
-        allDay: next.allDay ?? false,
-      },
-    };
-  } catch {
-    return { success: false, message: "I couldn’t read the calendar just now. You can add a task manually instead." };
-  }
+  const result = await getUpcomingCalendarEvents(30, 1);
+  if (!result.success) return result;
+  return { success: true, event: result.events[0] ?? null };
 }
 
-// Reads events for a single local day (YYYY-MM-DD) for the chat assistant.
+// Reads events for one local day for the chat assistant. Event data is returned
+// to the local orchestration layer only; nothing is synced by this adapter.
 export async function getCalendarEvents(
   date: string,
   lang: Language,

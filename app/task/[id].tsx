@@ -13,6 +13,7 @@ import { useTaskStore } from "../../lib/store/task-store";
 import { decompose } from "../../lib/ai/decomposer";
 import { getTaskOutcomes, type TaskOutcomeRecord } from "../../lib/storage/database";
 import { scheduleLocalReminder } from "../../lib/native/reminders";
+import { GlassScreen, GlassSurface } from "../../components/GlassSurface";
 import { colors, radii, spacing, typography } from "../../lib/theme";
 
 function outcomeLabel(outcome: TaskOutcomeRecord["outcome"]): string {
@@ -56,13 +57,16 @@ export default function TaskDetailScreen() {
   const hasFirstAction = Boolean(task?.firstAction);
 
   useEffect(() => {
-    if (!taskId || !taskTitle || hasFirstAction || decomposing) return;
-    setDecomposing(true);
-    decompose(taskTitle)
-      .then((result) => setPlan(taskId, result.firstAction, result.steps))
-      .catch(() => {})
-      .finally(() => setDecomposing(false));
-  }, [taskId, taskTitle, hasFirstAction, decomposing, setPlan]);
+    if (!taskId || !taskTitle || hasFirstAction) return;
+    const timer = setTimeout(() => {
+      setDecomposing(true);
+      void decompose(taskTitle)
+        .then((result) => setPlan(taskId, result.firstAction, result.steps))
+        .catch(() => {})
+        .finally(() => setDecomposing(false));
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [taskId, taskTitle, hasFirstAction, setPlan]);
 
   const refreshOutcomes = async () => {
     if (!id) return;
@@ -179,12 +183,14 @@ export default function TaskDetailScreen() {
   }
 
   const isDone = task.status === "done";
+  const isEmailTask = /\b(email|reply|respond|mail|message)\b/i.test(`${task.title} ${task.firstAction ?? ""}`);
 
   return (
+    <GlassScreen>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{task.title}</Text>
 
-      <View style={styles.firstActionCard}>
+      <GlassSurface style={styles.firstActionCard}>
         <Text style={styles.firstActionLabel}>Start here</Text>
         {decomposing ? (
           <View style={styles.loadingRow}>
@@ -197,7 +203,7 @@ export default function TaskDetailScreen() {
           </Text>
         )}
         {!!task.firstAction && <Text style={styles.durationText}>A small step to begin with</Text>}
-      </View>
+      </GlassSurface>
 
       <Text style={styles.encouragement}>You only need to begin. You can stop whenever you want.</Text>
 
@@ -249,6 +255,23 @@ export default function TaskDetailScreen() {
         </Text>
       </TouchableOpacity>
 
+      {isEmailTask && (
+        <TouchableOpacity
+          style={styles.emailButton}
+          onPress={() => router.push({
+            pathname: "/email",
+            params: {
+              subject: task.title.slice(0, 200),
+              body: `Task: ${task.title}\n\nFirst step: ${task.firstAction ?? "Open your email app and start a draft."}\n\n`,
+            },
+          })}
+          accessibilityRole="button"
+          accessibilityLabel="Open an editable email draft for this task"
+        >
+          <Text style={styles.emailButtonText}>Draft in email app</Text>
+        </TouchableOpacity>
+      )}
+
       {task.steps.length > 0 && (
         <View style={styles.section}>
           <TouchableOpacity
@@ -285,20 +308,19 @@ export default function TaskDetailScreen() {
         <Text style={styles.deleteText}>Remove task and activity</Text>
       </TouchableOpacity>
     </ScrollView>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: "transparent" },
   content: { padding: spacing.xl, paddingBottom: 60 },
   title: { ...typography.heading, color: colors.textPrimary, marginBottom: 20 },
   firstActionCard: {
-    backgroundColor: colors.accentMuted,
     borderRadius: radii.lg,
     padding: spacing.xl,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: colors.accentSoft,
   },
   firstActionLabel: {
     fontSize: 11,
@@ -321,6 +343,8 @@ const styles = StyleSheet.create({
   quietButtonText: { color: colors.accent, fontSize: 14, fontWeight: "600" },
   reminderButton: { backgroundColor: colors.surface, borderRadius: radii.md, padding: 13, alignItems: "center", borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   reminderText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
+  emailButton: { backgroundColor: "rgba(228,237,232,0.86)", borderRadius: radii.md, padding: 13, alignItems: "center", borderWidth: 1, borderColor: colors.accentSoft, marginTop: 6 },
+  emailButtonText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
   disabledButton: { opacity: 0.5 },
   section: { marginTop: 24 },
   stepsToggle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8 },

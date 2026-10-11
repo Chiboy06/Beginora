@@ -1,0 +1,40 @@
+name: Publish EAS Preview Update
+
+on:
+  push:
+    branches: [main, develop, manus/beginora-android-mvp]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-preview:
+    name: Publish compatible preview update
+    if: ${{ vars.EAS_UPDATES_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+      EAS_UPDATE_CHANNEL: preview
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate EAS connection
+        run: |
+          if [ -z "$EXPO_TOKEN" ] || [ -z "$EAS_PROJECT_ID" ]; then
+            echo "EAS OTA publishing is enabled but EXPO_TOKEN or EAS_PROJECT_ID is missing." >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Publish preview update
+        run: npx eas-cli@latest update --channel preview --message "GitHub ${GITHUB_SHA}" --non-interactive

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ComponentRef } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTaskStore } from "../../lib/store/task-store";
 import { decompose } from "../../lib/ai/decomposer";
+import { GlassScreen, GlassSurface } from "../../components/GlassSurface";
 import { colors, radii, spacing, typography } from "../../lib/theme";
 
 export default function NewTaskScreen() {
@@ -24,7 +25,7 @@ export default function NewTaskScreen() {
   const [context, setContext] = useState(params.context ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const contextRef = useRef<TextInput>(null);
+  const contextRef = useRef<ComponentRef<typeof TextInput>>(null);
 
   const handleCreate = async () => {
     const trimmed = title.trim();
@@ -46,45 +47,48 @@ export default function NewTaskScreen() {
   const canSubmit = title.trim().length > 0 && !loading;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+    <GlassScreen>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Text style={styles.heading}>What feels hard to start?</Text>
-        <Text style={styles.subheading}>
-          Describe it in your own words. You can keep it simple; Beginora will find one small first step.
-        </Text>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.heading}>What feels hard to start?</Text>
+          <Text style={styles.subheading}>
+            Describe it in your own words. You can keep it simple; Beginora will find one small first step.
+          </Text>
 
-        <TextInput
-          style={styles.titleInput}
-          placeholder="e.g. Write my project proposal"
-          placeholderTextColor={colors.textPlaceholder}
-          value={title}
-          onChangeText={setTitle}
-          returnKeyType="next"
-          onSubmitEditing={() => contextRef.current?.focus()}
-          autoFocus={!params.title}
-          maxLength={200}
-          accessibilityLabel="Task title"
-        />
+          <GlassSurface style={styles.formCard}>
+            <TextInput
+              style={styles.titleInput}
+              placeholder="e.g. Write my project proposal"
+              placeholderTextColor={colors.textPlaceholder}
+              value={title}
+              onChangeText={setTitle}
+              returnKeyType="next"
+              onSubmitEditing={() => contextRef.current?.focus()}
+              autoFocus={!params.title}
+              maxLength={200}
+              accessibilityLabel="Task title"
+            />
 
-        <Text style={styles.contextLabel}>Anything that makes it feel hard? (optional)</Text>
-        <TextInput
-          ref={contextRef}
-          style={styles.contextInput}
-          placeholder="e.g. I don’t know where to start"
-          placeholderTextColor={colors.textPlaceholder}
-          value={context}
-          onChangeText={setContext}
-          multiline
-          maxLength={500}
-          accessibilityLabel="Additional context"
-        />
+            <Text style={styles.contextLabel}>Anything that makes it feel hard? (optional)</Text>
+            <TextInput
+              ref={contextRef}
+              style={styles.contextInput}
+              placeholder="e.g. I don’t know where to start"
+              placeholderTextColor={colors.textPlaceholder}
+              value={context}
+              onChangeText={setContext}
+              multiline
+              maxLength={500}
+              accessibilityLabel="Additional context"
+            />
+          </GlassSurface>
 
         {error && <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>}
 
@@ -118,32 +122,34 @@ export default function NewTaskScreen() {
         <Text style={styles.hint}>
           The basic task flow works offline. If a local model is available, it can help shape the plan.
         </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: "transparent" },
   content: { padding: spacing.xl, paddingBottom: 48 },
   heading: { ...typography.heading, color: colors.textPrimary, marginBottom: 8 },
   subheading: { fontSize: 15, color: colors.textSecondary, lineHeight: 22, marginBottom: 28 },
+  formCard: { padding: spacing.lg, marginBottom: spacing.md, borderRadius: radii.xl, gap: 7 },
   titleInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.lg,
     paddingVertical: 14,
     fontSize: 17,
     color: colors.textPrimary,
-    marginBottom: 20,
+    marginBottom: spacing.sm,
   },
   contextLabel: { fontSize: 14, fontWeight: "600", color: colors.textSecondary, marginBottom: 8 },
   contextInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.lg,
@@ -152,7 +158,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     minHeight: 100,
     textAlignVertical: "top",
-    marginBottom: 22,
+    marginBottom: 0,
   },
   btn: {
     backgroundColor: colors.accent,

@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTaskStore } from "../../lib/store/task-store";
 import { FOCUS_DURATION_SECONDS, formatFocusTime, getRemainingSeconds } from "../../lib/ai/focus-timer";
+import { GlassScreen, GlassSurface } from "../../components/GlassSurface";
 import { colors, radii, spacing, typography } from "../../lib/theme";
 
 export default function FocusScreen() {
@@ -13,16 +14,20 @@ export default function FocusScreen() {
   const recordOutcome = useTaskStore((s) => s.recordOutcome);
   const [remaining, setRemaining] = useState(FOCUS_DURATION_SECONDS);
   const [running, setRunning] = useState(true);
-  const endAt = useRef(Date.now() + FOCUS_DURATION_SECONDS * 1000);
+  const endAt = useRef<number | null>(null);
 
   useEffect(() => {
+    if (endAt.current === null) {
+      endAt.current = Date.now() + FOCUS_DURATION_SECONDS * 1000;
+    }
     if (!running) return;
     const tick = () => {
-      const next = getRemainingSeconds(endAt.current);
+      const deadline = endAt.current;
+      if (deadline === null) return;
+      const next = getRemainingSeconds(deadline);
       setRemaining(next);
       if (next === 0) setRunning(false);
     };
-    tick();
     const interval = setInterval(tick, 250);
     return () => clearInterval(interval);
   }, [running]);
@@ -50,7 +55,8 @@ export default function FocusScreen() {
 
   const toggleTimer = () => {
     if (running) {
-      setRemaining(getRemainingSeconds(endAt.current));
+      const deadline = endAt.current ?? (endAt.current = Date.now() + FOCUS_DURATION_SECONDS * 1000);
+      setRemaining(getRemainingSeconds(deadline));
       setRunning(false);
       return;
     }
@@ -77,13 +83,14 @@ export default function FocusScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.eyebrow}>A small focus session</Text>
-      <Text style={styles.taskTitle} numberOfLines={2}>{task.title}</Text>
-      <View style={styles.stepCard}>
-        <Text style={styles.stepLabel}>START HERE</Text>
-        <Text style={styles.stepText}>{task.firstAction ?? "Begin with one small action."}</Text>
-      </View>
+    <GlassScreen>
+      <View style={styles.container}>
+        <Text style={styles.eyebrow}>A small focus session</Text>
+        <Text style={styles.taskTitle} numberOfLines={2}>{task.title}</Text>
+        <GlassSurface style={styles.stepCard}>
+          <Text style={styles.stepLabel}>START HERE</Text>
+          <Text style={styles.stepText}>{task.firstAction ?? "Begin with one small action."}</Text>
+        </GlassSurface>
       <Text style={styles.timer} accessibilityLabel={`${displayTime} remaining`}>
         {displayTime}
       </Text>
@@ -92,7 +99,7 @@ export default function FocusScreen() {
           ? "Five minutes are up. You can stop here or keep going."
           : "You only need to begin. There’s no penalty for stopping early."}
       </Text>
-      <View style={styles.controls}>
+        <View style={styles.controls}>
         <TouchableOpacity style={styles.primaryButton} onPress={toggleTimer} accessibilityRole="button">
           <Text style={styles.primaryText}>
             {remaining === 0 ? "Continue for 5 minutes" : running ? "Pause" : "Resume"}
@@ -104,16 +111,17 @@ export default function FocusScreen() {
         <TouchableOpacity style={styles.stopButton} onPress={stopForNow} accessibilityRole="button">
           <Text style={styles.stopText}>Stop for now</Text>
         </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl, alignItems: "center", justifyContent: "center" },
+  container: { flex: 1, backgroundColor: "transparent", padding: spacing.xl, alignItems: "center", justifyContent: "center" },
   eyebrow: { color: colors.accent, fontSize: 13, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 },
   taskTitle: { ...typography.heading, color: colors.textPrimary, textAlign: "center", marginBottom: 24 },
-  stepCard: { backgroundColor: colors.accentMuted, borderWidth: 1, borderColor: colors.accentSoft, borderRadius: radii.lg, padding: spacing.xl, width: "100%", marginBottom: 26 },
+  stepCard: { borderRadius: radii.xl, padding: spacing.xl, width: "100%", marginBottom: 26 },
   stepLabel: { color: colors.accent, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 8 },
   stepText: { color: colors.textPrimary, fontSize: 18, lineHeight: 27, fontWeight: "600" },
   timer: { fontSize: 64, fontVariant: ["tabular-nums"], color: colors.textPrimary, fontWeight: "300", marginBottom: 8 },

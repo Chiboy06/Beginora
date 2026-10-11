@@ -6,9 +6,11 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "android": { "buildType": "apk" },
       "env": {
-        "ENABLE_CLOUD_SYNC": "false"
+        "ENABLE_CLOUD_SYNC": "false",
+        "EAS_UPDATE_CHANNEL": "preview"
       }
     },
     "development": {
@@ -21,16 +23,20 @@
     },
     "staging": {
       "distribution": "internal",
+      "channel": "preview",
       "android": { "buildType": "apk" },
       "env": {
-        "ENABLE_CLOUD_SYNC": "false"
+        "ENABLE_CLOUD_SYNC": "false",
+        "EAS_UPDATE_CHANNEL": "preview"
       }
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "android": { "buildType": "app-bundle" },
       "env": {
-        "ENABLE_CLOUD_SYNC": "false"
+        "ENABLE_CLOUD_SYNC": "false",
+        "EAS_UPDATE_CHANNEL": "production"
       }
     }
   },

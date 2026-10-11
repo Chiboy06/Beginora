@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "beginora",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F7F4EF"
-    },
     "android": {
       "package": "app.beginora.android",
       "versionCode": 1,
@@ -48,7 +43,17 @@
       "expo-sqlite",
       "expo-router",
       "expo-notifications",
+      "expo-updates",
       "expo-secure-store",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F4EF"
+        }
+      ],
       [
         "expo-calendar",
         {

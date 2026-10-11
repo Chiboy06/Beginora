@@ -38,10 +38,14 @@ export function installMcpRequestListener(): () => void {
   const emitter = new NativeEventEmitter(NativeModules.McpServerModule);
   const sub = emitter.addListener(
     "mcpRequest",
-    (e: { id: string; token: string; body: string }) => {
-      handleJsonRpc(e.body, e.token)
-        .then((body) => getMod().respondMcp(e.id, 200, body))
-        .catch(() => getMod().respondMcp(e.id, 500, ""));
+    (payload: unknown) => {
+      if (!payload || typeof payload !== "object") return;
+      const event = payload as { id?: unknown; token?: unknown; body?: unknown };
+      const { id, token, body } = event;
+      if (typeof id !== "string" || typeof token !== "string" || typeof body !== "string") return;
+      handleJsonRpc(body, token)
+        .then((response) => getMod().respondMcp(id, 200, response))
+        .catch(() => getMod().respondMcp(id, 500, ""));
     },
   );
   return () => sub.remove();

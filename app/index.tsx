@@ -17,6 +17,7 @@ import { ChatInput } from "../components/ChatInput";
 import type { ChatInputHandle } from "../components/ChatInput";
 import { FlameIndicator } from "../components/FlameIndicator";
 import { NoticeBanner } from "../components/NoticeBanner";
+import { GlassScreen, GlassSurface } from "../components/GlassSurface";
 import { colors, spacing, typography, radii } from "../lib/theme";
 import type { Message } from "../lib/orchestrator/types";
 
@@ -84,6 +85,15 @@ export default function ChatScreen() {
       ),
       headerRight: () => (
         <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={() => router.push("/connectors")}
+            style={styles.headerBtn}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Connections"
+          >
+            <Text style={styles.headerBtnText}>◈</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={clearConversation}
             style={styles.headerBtn}
@@ -203,6 +213,7 @@ export default function ChatScreen() {
         keyboardDismissMode="interactive"
         ListEmptyComponent={
           <View style={styles.empty}>
+            <GlassSurface style={styles.heroSurface}>
             <View style={styles.logoCircle}>
               <Text style={styles.logoEmoji}>🌱</Text>
             </View>
@@ -246,8 +257,18 @@ export default function ChatScreen() {
               accessibilityRole="button"
               accessibilityLabel="Prepare for the next calendar event"
             >
-              <Text style={styles.calendarCtaText}>Prepare for my next event (optional)</Text>
+              <Text style={styles.calendarCtaText}>Review appointments & prepare</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.calendarCta}
+              onPress={() => router.push("/email")}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Draft an email in your email app"
+            >
+              <Text style={styles.calendarCtaText}>Draft an email</Text>
+            </TouchableOpacity>
+            </GlassSurface>
           </View>
         }
         ListFooterComponent={
@@ -267,27 +288,31 @@ export default function ChatScreen() {
 
   if (Platform.OS === "android") {
     return (
-      <View style={[styles.container, { paddingBottom: keyboardHeight }]}>
-        {chatContent}
-      </View>
+      <GlassScreen>
+        <View style={[styles.container, { paddingBottom: keyboardHeight }]}>
+          {chatContent}
+        </View>
+      </GlassScreen>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior="padding"
-      keyboardVerticalOffset={90}
-    >
-      {chatContent}
-    </KeyboardAvoidingView>
+    <GlassScreen>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior="padding"
+        keyboardVerticalOffset={90}
+      >
+        {chatContent}
+      </KeyboardAvoidingView>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
   },
   banner: {
     backgroundColor: colors.accentSoft,
@@ -323,9 +348,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 80,
+    paddingTop: 24,
     paddingHorizontal: spacing.xl,
   },
+  heroSurface: { width: "100%", padding: spacing.xl, borderRadius: 28 },
   logoCircle: {
     width: 72,
     height: 72,

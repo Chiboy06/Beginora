@@ -1,114 +1,188 @@
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
-import { getNextCalendarEvent, type UpcomingCalendarEvent } from "../lib/native/calendar";
+import { GlassScreen, GlassSurface } from "../components/GlassSurface";
+import {
+  getUpcomingCalendarEvents,
+  type UpcomingCalendarEvent,
+} from "../lib/native/calendar";
+import {
+  getAppointmentReminder,
+  scheduleAppointmentReminder,
+  type AppointmentReminderLead,
+} from "../lib/native/appointment-reminders";
 import { colors, radii, spacing, typography } from "../lib/theme";
+
+function eventKey(event: UpcomingCalendarEvent): string {
+  return `${event.id}:${event.start}`;
+}
 
 export default function CalendarPreparationScreen() {
   const router = useRouter();
-  const [checked, setChecked] = useState(false);
+  const [reviewed, setReviewed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [event, setEvent] = useState<UpcomingCalendarEvent | null>(null);
+  const [events, setEvents] = useState<UpcomingCalendarEvent[]>([]);
+  const [reminded, setReminded] = useState<Record<string, boolean>>({});
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const handleCheckCalendar = async () => {
+  const handleReviewCalendar = async () => {
     setLoading(true);
-    setChecked(true);
+    setReviewed(true);
     setMessage(null);
     try {
-      const result = await getNextCalendarEvent();
+      const result = await getUpcomingCalendarEvents(30, 12);
       if (!result.success) {
+        setEvents([]);
         setMessage(result.message);
-        setEvent(null);
-      } else if (!result.event) {
-        setMessage("There isn’t an upcoming event in the next 30 days. You can add a task manually.");
-        setEvent(null);
-      } else {
-        setEvent(result.event);
+        return;
+      }
+      setEvents(result.events);
+      const saved = await Promise.all(result.events.map(async (event) => [
+        eventKey(event), Boolean(await getAppointmentReminder(event)),
+      ] as const));
+      setReminded(Object.fromEntries(saved));
+      if (result.events.length === 0) {
+        setMessage("No upcoming appointments were found in the next 30 days. You can add one or keep working on tasks.");
       }
     } catch {
-      setMessage("I couldn’t read the calendar just now. You can add a task manually instead.");
-      setEvent(null);
+      setEvents([]);
+      setMessage("I couldn’t read your calendar just now. You can still add a task manually.");
     } finally {
       setLoading(false);
     }
   };
 
-  const prepareForEvent = (selected: UpcomingCalendarEvent) => {
-    const when = selected.allDay
-      ? "All-day event"
-      : new Date(selected.start).toLocaleString();
+  const prepareForEvent = (event: UpcomingCalendarEvent) => {
+    const when = event.allDay ? "All-day event" : new Date(event.start).toLocaleString();
     router.push({
       pathname: "/task/new",
       params: {
-        title: `Prepare for ${selected.title}`.slice(0, 200),
-        context: `Calendar event time: ${when}`.slice(0, 500),
+        title: `Prepare for ${event.title}`.slice(0, 200),
+        context: `Selected calendar event time: ${when}${event.location ? `; location: ${event.location}` : ""}`.slice(0, 500),
       },
     });
   };
 
+  const scheduleReminder = async (event: UpcomingCalendarEvent, leadMinutes: AppointmentReminderLead) => {
+    const key = eventKey(event);
+    setBusyKey(key);
+    const result = await scheduleAppointmentReminder(event, leadMinutes);
+    setMessage(result.message);
+    if (result.success) setReminded((current) => ({ ...current, [key]: true }));
+    setBusyKey(null);
+  };
+
+  const chooseReminder = (event: UpcomingCalendarEvent) => {
+    Alert.alert(
+      "One appointment reminder",
+      "Choose a quiet local notification. Nothing is sent to a service.",
+      [
+        { text: "15 minutes before", onPress: () => void scheduleReminder(event, 15) },
+        { text: "1 hour before", onPress: () => void scheduleReminder(event, 60) },
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Prepare for your next event</Text>
-      <Text style={styles.body}>
-        If you choose to continue, Beginora will look only for your next event and use its title and time to help you prepare. Calendar access is optional; your task flow works without it.
-      </Text>
+    <GlassScreen>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <Text style={styles.eyebrow}>Your schedule, on your device</Text>
+        <Text style={styles.heading}>Appointments & prep</Text>
+        <Text style={styles.body}>
+          Review up to 12 events in the next 30 days. Calendar access is requested only when you tap below; Beginora uses only the event details shown here.
+        </Text>
 
-      {!checked && (
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleCheckCalendar}
-          disabled={loading}
-          accessibilityRole="button"
-        >
-          <Text style={styles.primaryText}>Check my calendar</Text>
-        </TouchableOpacity>
-      )}
-
-      {loading && <ActivityIndicator style={styles.loader} color={colors.accent} />}
-      {message && <Text style={styles.message}>{message}</Text>}
-
-      {event && (
-        <View style={styles.eventCard}>
-          <Text style={styles.eventLabel}>NEXT EVENT</Text>
-          <Text style={styles.eventTitle}>{event.title}</Text>
-          <Text style={styles.eventTime}>
-            {event.allDay ? "All day" : new Date(event.start).toLocaleString()}
-          </Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => prepareForEvent(event)} accessibilityRole="button">
-            <Text style={styles.primaryText}>Prepare for this</Text>
+        {!reviewed && (
+          <TouchableOpacity style={styles.primaryButton} onPress={handleReviewCalendar} disabled={loading} accessibilityRole="button">
+            <Text style={styles.primaryText}>Review my appointments</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+        {loading && <ActivityIndicator style={styles.loader} color={colors.accent} />}
+        {!!message && <Text style={styles.message} accessibilityRole="text">{message}</Text>}
 
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => router.push("/task/new")}
-        accessibilityRole="button"
-      >
-        <Text style={styles.secondaryText}>Add a task manually instead</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton} accessibilityRole="button">
-        <Text style={styles.cancelText}>Back</Text>
-      </TouchableOpacity>
-    </View>
+        {events.map((event) => {
+          const key = eventKey(event);
+          return (
+            <GlassSurface key={key} style={styles.eventCard}>
+              <Text style={styles.eventLabel}>{event.allDay ? "ALL DAY" : "UPCOMING APPOINTMENT"}</Text>
+              <Text style={styles.eventTitle}>{event.title}</Text>
+              <Text style={styles.eventTime}>{event.allDay ? "All day" : new Date(event.start).toLocaleString()}</Text>
+              {!!event.location && <Text style={styles.eventLocation}>{event.location}</Text>}
+              <View style={styles.actions}>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => prepareForEvent(event)} accessibilityRole="button">
+                  <Text style={styles.secondaryText}>Prepare</Text>
+                </TouchableOpacity>
+                {!event.allDay && (
+                  <TouchableOpacity
+                    style={[styles.reminderButton, (reminded[key] || busyKey === key) && styles.disabled]}
+                    onPress={() => chooseReminder(event)}
+                    disabled={reminded[key] || busyKey === key}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.reminderText}>{busyKey === key ? "Setting…" : reminded[key] ? "Reminder set" : "Set reminder"}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </GlassSurface>
+          );
+        })}
+
+        <GlassSurface style={styles.addCard}>
+          <Text style={styles.addTitle}>Need to add an appointment?</Text>
+          <Text style={styles.bodySmall}>
+            Beginora can prepare an event in your device calendar. It cannot book with a clinic or provider; use their official booking flow for that.
+          </Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={() => router.push("/appointment/new")} accessibilityRole="button">
+            <Text style={styles.primaryText}>Add to device calendar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryButtonWide} onPress={() => router.push("/task/new")} accessibilityRole="button">
+            <Text style={styles.secondaryText}>Add a task manually instead</Text>
+          </TouchableOpacity>
+        </GlassSurface>
+
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button">
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
-  heading: { ...typography.heading, color: colors.textPrimary, marginBottom: 10 },
-  body: { color: colors.textSecondary, fontSize: 15, lineHeight: 23, marginBottom: 22 },
-  primaryButton: { backgroundColor: colors.accent, paddingVertical: 14, paddingHorizontal: 16, borderRadius: radii.md, alignItems: "center", marginTop: 12 },
+  scroll: { flex: 1, backgroundColor: "transparent" },
+  content: { padding: spacing.lg, paddingBottom: 42, gap: spacing.md },
+  eyebrow: { color: colors.accent, fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", marginTop: spacing.sm },
+  heading: { ...typography.heading, color: colors.textPrimary },
+  body: { color: colors.textSecondary, fontSize: 14, lineHeight: 22, marginBottom: spacing.sm },
+  bodySmall: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginBottom: 4 },
+  primaryButton: { backgroundColor: colors.accent, paddingVertical: 14, paddingHorizontal: 16, borderRadius: radii.lg, alignItems: "center", marginTop: 8 },
   primaryText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  secondaryButton: { backgroundColor: colors.surface, padding: 14, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, alignItems: "center", marginTop: 12 },
-  secondaryText: { color: colors.textPrimary, fontSize: 14, fontWeight: "600" },
-  cancelButton: { paddingVertical: 14, alignItems: "center" },
-  cancelText: { color: colors.textMuted, fontSize: 14 },
-  eventCard: { backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, marginTop: 10 },
-  eventLabel: { color: colors.accent, fontSize: 11, letterSpacing: 1, fontWeight: "700", marginBottom: 8 },
-  eventTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "600", lineHeight: 25 },
+  loader: { marginVertical: spacing.md },
+  message: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginVertical: 3 },
+  eventCard: { padding: spacing.lg, borderRadius: radii.xl },
+  eventLabel: { color: colors.accent, fontSize: 11, letterSpacing: 1, fontWeight: "700", marginBottom: 7 },
+  eventTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "700", lineHeight: 25 },
   eventTime: { color: colors.textSecondary, fontSize: 14, marginTop: 6 },
-  loader: { marginVertical: 18 },
-  message: { color: colors.textSecondary, fontSize: 14, lineHeight: 21, marginTop: 16 },
+  eventLocation: { color: colors.textMuted, fontSize: 13, marginTop: 3 },
+  actions: { flexDirection: "row", gap: 9, marginTop: spacing.md },
+  secondaryButton: { flex: 1, backgroundColor: "rgba(255,255,255,0.82)", padding: 12, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, alignItems: "center" },
+  secondaryButtonWide: { backgroundColor: "rgba(255,255,255,0.82)", padding: 13, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, alignItems: "center", marginTop: 9 },
+  secondaryText: { color: colors.textPrimary, fontSize: 13, fontWeight: "600" },
+  reminderButton: { flex: 1, backgroundColor: colors.accentMuted, padding: 12, borderRadius: radii.md, alignItems: "center" },
+  reminderText: { color: colors.accent, fontSize: 13, fontWeight: "700" },
+  disabled: { opacity: 0.65 },
+  addCard: { padding: spacing.lg, borderRadius: radii.xl, marginTop: spacing.sm },
+  addTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginBottom: 6 },
+  backButton: { paddingVertical: 12, alignItems: "center" },
+  backText: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
 });
