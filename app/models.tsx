@@ -68,7 +68,7 @@ export default function ModelsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.notice}>
-        Browsing or downloading a model is the only time Vesta uses the network, and only when you tap. Everything else stays on your device.
+        Browsing or downloading a model is the only time Beginora uses the network, and only when you tap. Everything else stays on your device.
       </Text>
       <View style={styles.deviceRow}>
         <Text style={styles.deviceText}>

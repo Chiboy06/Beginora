@@ -104,7 +104,7 @@ export const useChatStore = create<ChatState>((set, get) => {
 
   init: async () => {
     const lang = await getConfig("language");
-    if (lang === "en") set({ language: lang });
+    if (lang === "en" || lang === "it") set({ language: lang as Language });
 
     // Try to restore the latest conversation
     const latest = await getLatestConversation();

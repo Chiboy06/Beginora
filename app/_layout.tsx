@@ -1,4 +1,4 @@
-import { Stack, useRouter } from "expo-router";
+import { Stack, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState, useEffect } from "react";
 import {
@@ -18,20 +18,18 @@ import { colors } from "../lib/theme";
 export default function RootLayout() {
   const init = useChatStore((s) => s.init);
   const loadTasks = useTaskStore((s) => s.loadTasks);
-  const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
     Promise.all([
       init().catch((err) => console.error("Chat init failed:", err)),
       loadTasks().catch((err) => console.error("Task load failed:", err)),
     ]).finally(() => {
+      setNeedsOnboarding(!prefs.onboardingDone);
       setReady(true);
-      if (!prefs.onboardingDone) {
-        router.replace("/onboarding");
-      }
     });
-  }, [init, loadTasks, router]);
+  }, [init, loadTasks]);
 
   // Release embedding model RAM when backgrounded — reloads lazily on next use
   useEffect(() => {
@@ -62,6 +60,15 @@ export default function RootLayout() {
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color={colors.accent} />
       </View>
+    );
+  }
+
+  if (needsOnboarding) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <Redirect href="/onboarding" />
+      </SafeAreaProvider>
     );
   }
 

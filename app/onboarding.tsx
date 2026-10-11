@@ -70,14 +70,14 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
   cardBody: { fontSize: 15, color: colors.textSecondary, lineHeight: 23 },
   disclaimerCard: {
-    backgroundColor: colors.warningBg,
+    backgroundColor: colors.accentMuted,
     borderRadius: radii.lg,
     padding: spacing.xl,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: colors.warning,
+    borderColor: colors.accentSoft,
   },
-  disclaimerTitle: { fontSize: 14, fontWeight: "700", color: colors.warning, marginBottom: 8 },
+  disclaimerTitle: { fontSize: 14, fontWeight: "700", color: colors.accent, marginBottom: 8 },
   disclaimerBody: { fontSize: 14, color: colors.textSecondary, lineHeight: 22 },
   footer: {
     padding: spacing.xl,

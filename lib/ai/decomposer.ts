@@ -12,16 +12,17 @@ export interface DecompositionResult {
 // Returns a fixed, human-reviewed response for crisis or medical-treatment content.
 // This list is intentionally conservative; false positives fall back to the rule engine.
 const SAFETY_PATTERNS = [
-  /\b(kill|hurt|harm|suicide|self.harm|end my life|don't want to (be here|live))\b/i,
+  /\b(kill|hurt|harm|suicide|self[-\s]?harm|end my life|don[\u2019']?t want to (be here|live))\b/i,
   /\b(medication|dose|mg|prescri|diagnos|disorder|adhd|autism|bipolar|depression|anxiety disorder)\b/i,
   /\b(ignore (your|all) instructions|disregard|jailbreak|act as|pretend you are|you are now)\b/i,
 ];
 
-const SAFETY_RESPONSE: DecompositionResult = {
+// Frozen so no caller can mutate the shared singleton.
+const SAFETY_RESPONSE: DecompositionResult = Object.freeze({
   firstAction: "If you're going through something difficult, please reach out to someone you trust or a support line in your area.",
-  steps: [],
-  source: "safety_block",
-};
+  steps: Object.freeze([]) as string[],
+  source: "safety_block" as const,
+});
 
 function isSafetyBlock(text: string): boolean {
   return SAFETY_PATTERNS.some((pattern) => pattern.test(text));
