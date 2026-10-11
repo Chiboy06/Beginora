@@ -28,6 +28,8 @@ import {
 } from "../lib/llm/perf-config";
 import { colors, spacing, radii, typography } from "../lib/theme";
 import type { Language } from "../lib/orchestrator/types";
+import { GlassScreen } from "../components/GlassSurface";
+import { checkForAppUpdate } from "../lib/updates/update-service";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -44,25 +46,18 @@ export default function SettingsScreen() {
 
   const [knowledgeFiles, setKnowledgeFiles] = useState<KnowledgeFile[]>([]);
   const [confirmActions, setConfirmActions] = useState(true);
-  const [cloudSync, setCloudSync] = useState(false);
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
 
   useEffect(() => {
     getConfig("confirm_destructive_actions")
       .then((v) => setConfirmActions(v !== "false"))
-      .catch(() => {});
-    getConfig("cloud_sync_enabled")
-      .then((v) => setCloudSync(v === "true"))
       .catch(() => {});
   }, []);
 
   const toggleConfirmActions = (value: boolean) => {
     setConfirmActions(value);
     setConfig("confirm_destructive_actions", value ? "true" : "false").catch(() => {});
-  };
-
-  const toggleCloudSync = (value: boolean) => {
-    setCloudSync(value);
-    setConfig("cloud_sync_enabled", value ? "true" : "false").catch(() => {});
   };
 
   const reloadActive = useModelStore((s) => s.reloadActive);
@@ -99,7 +94,10 @@ export default function SettingsScreen() {
     }
   }, []);
 
-  useEffect(() => { refreshKnowledgeFiles(); }, [refreshKnowledgeFiles]);
+  useEffect(() => {
+    const timer = setTimeout(() => void refreshKnowledgeFiles(), 0);
+    return () => clearTimeout(timer);
+  }, [refreshKnowledgeFiles]);
 
   const handleAddKnowledgeFile = async () => {
     try {
@@ -149,9 +147,19 @@ export default function SettingsScreen() {
     setLanguage(next);
   };
 
+  const handleCheckForUpdates = async () => {
+    if (updateBusy) return;
+    setUpdateBusy(true);
+    setUpdateMessage(null);
+    const result = await checkForAppUpdate();
+    setUpdateMessage(result.message);
+    setUpdateBusy(false);
+  };
+
   const shortPath = modelPath ? modelPath.split("/").pop() || modelPath : "None";
 
   return (
+    <GlassScreen>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
       {/* AI Model */}
@@ -215,20 +223,43 @@ export default function SettingsScreen() {
             accessibilityLabel="Confirm actions before executing"
           />
         </View>
-        <View style={[styles.toggleRow, { marginTop: spacing.lg }]}>
-          <View style={styles.toggleInfo}>
-            <Text style={styles.toggleTitle}>Cloud sync</Text>
-            <Text style={styles.toggleHint}>
-              Optionally back up your tasks to the cloud. Your data is encrypted before leaving your device.
-            </Text>
-          </View>
-          <Switch
-            value={cloudSync}
-            onValueChange={toggleCloudSync}
-            trackColor={{ false: colors.disabled, true: colors.accent }}
-            accessibilityLabel="Enable cloud sync"
-          />
-        </View>
+        <Text style={[styles.toggleHint, { marginTop: spacing.lg }]}>This prototype keeps tasks, plans, and activity on this device. Cloud sync is not enabled.</Text>
+      </View>
+
+      <Text style={styles.sectionTitle}>Connections</Text>
+      <View style={styles.card}>
+        <Text style={styles.desc}>Review upcoming appointments, set a local reminder, or prepare an editable email draft. Each connection opens only after you choose it.</Text>
+        <TouchableOpacity
+          style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }]}
+          onPress={() => router.push("/connectors")}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+        >
+          <Text style={styles.btnPrimaryText}>Manage Connections</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionTitle}>App updates</Text>
+      <View style={styles.card}>
+        <Text style={styles.desc}>Check the Beginora preview channel for compatible interface and JavaScript updates. Native changes still need a new APK.</Text>
+        <TouchableOpacity
+          style={[styles.btn, styles.btnPrimary, updateBusy && styles.btnBusy, { marginTop: spacing.md }]}
+          onPress={handleCheckForUpdates}
+          disabled={updateBusy}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Check for compatible Beginora updates"
+        >
+          <Text style={styles.btnPrimaryText}>{updateBusy ? "Checking…" : "Check for updates"}</Text>
+        </TouchableOpacity>
+        {!!updateMessage && <Text style={[styles.desc, { marginTop: spacing.sm }]} accessibilityRole="text">{updateMessage}</Text>}
+      </View>
+
+      <Text style={styles.sectionTitle}>About this app</Text>
+      <View style={styles.card}>
+        <Text style={styles.desc}>
+          Beginora is a planning and focus aid, not medical care. It does not diagnose or treat ADHD and does not replace professional support.
+        </Text>
       </View>
 
       {/* Documents */}
@@ -357,17 +388,18 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>About</Text>
       <View style={styles.card}>
         <Text style={styles.desc}>
-          Beginora is an offline-first assistant that helps you start tasks. Everything runs on your device — no data ever leaves without your permission.
+          Beginora is an offline-first assistant that helps you find a first step. Task plans and activity stay on this device in this prototype.
         </Text>
         <Text style={styles.version}>v0.1.0 — MVP</Text>
       </View>
 
     </ScrollView>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: "transparent" },
   content: { padding: spacing.lg, paddingBottom: 48 },
   sectionTitle: {
     color: colors.textMuted,
@@ -377,11 +409,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    backgroundColor: "rgba(255,255,255,0.78)",
+    borderRadius: radii.xl,
     padding: spacing.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderColor: "rgba(255,255,255,0.9)",
   },
   statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   label: { color: colors.textSecondary, fontSize: 14, fontWeight: "500" },
@@ -407,6 +439,7 @@ const styles = StyleSheet.create({
   btn: { borderRadius: radii.sm, paddingHorizontal: 18, paddingVertical: 11, alignSelf: "flex-start" },
   btnPrimary: { backgroundColor: colors.accent },
   btnPrimaryText: { color: "#fff", ...typography.button },
+  btnBusy: { opacity: 0.65 },
   langBtn: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   langText: { color: colors.textPrimary, fontSize: 17, fontWeight: "600" },
   langHint: { color: colors.textMuted, fontSize: 13, marginTop: 2 },

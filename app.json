@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "beginora",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F7F4EF"
-    },
     "android": {
       "package": "app.beginora.android",
       "versionCode": 1,
@@ -48,7 +43,17 @@
       "expo-sqlite",
       "expo-router",
       "expo-notifications",
+      "expo-updates",
       "expo-secure-store",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F4EF"
+        }
+      ],
       [
         "expo-calendar",
         {
@@ -61,21 +66,11 @@
           "contactsPermission": "Allow Beginora to access your contacts to help you delegate and schedule with people."
         }
       ],
-      [
-        "expo-av",
-        {
-          "microphonePermission": "Allow Beginora to use the microphone for voice task input."
-        }
-      ],
       "llama.rn",
-      "react-native-reanimated",
       "./plugins/with-system-actions"
     ],
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "beginora-app"
-      }
+      "router": {}
     }
   }
 }

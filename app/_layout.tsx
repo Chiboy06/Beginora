@@ -24,7 +24,7 @@ export default function RootLayout() {
       init().catch((err) => console.error("Chat init failed:", err)),
       loadTasks().catch((err) => console.error("Task load failed:", err)),
     ]).finally(() => setReady(true));
-  }, []);
+  }, [init, loadTasks]);
 
   // Release embedding model RAM when backgrounded — reloads lazily on next use
   useEffect(() => {
@@ -41,9 +41,9 @@ export default function RootLayout() {
     const mod = NativeModules.SystemActionsModule;
     if (!mod) return;
     const emitter = new NativeEventEmitter(mod);
-    const sub = emitter.addListener("memoryWarning", (level: number) => {
+    const sub = emitter.addListener("memoryWarning", (level: unknown) => {
       if (isEmbeddingLoaded()) {
-        console.log(`[MemoryPressure] releasing embed context (trim level ${level})`);
+        console.log(`[MemoryPressure] releasing embed context (trim level ${String(level)})`);
       }
       unloadEmbeddingModel().catch(() => {});
     });
@@ -76,8 +76,13 @@ export default function RootLayout() {
         {/* Task screens */}
         <Stack.Screen name="task/new" options={{ title: "New Task", presentation: "modal" }} />
         <Stack.Screen name="task/[id]" options={{ title: "Task" }} />
+        <Stack.Screen name="task/focus" options={{ title: "Focus", presentation: "modal" }} />
+        <Stack.Screen name="calendar" options={{ title: "Calendar preparation", presentation: "modal" }} />
+        <Stack.Screen name="appointment/new" options={{ title: "Add appointment", presentation: "modal" }} />
+        <Stack.Screen name="email" options={{ title: "Email draft", presentation: "modal" }} />
 
         {/* Utility screens */}
+        <Stack.Screen name="connectors" options={{ title: "Connections" }} />
         <Stack.Screen name="history" options={{ title: "Conversations" }} />
         <Stack.Screen name="models" options={{ title: "Models" }} />
         <Stack.Screen name="documents" options={{ title: "Documents" }} />

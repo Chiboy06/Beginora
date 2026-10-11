@@ -1,7 +1,5 @@
-// Reminders via expo-notifications — schedules a real local notification that
-// fires at the requested time, fully offline (Android AlarmManager under the
-// hood). This replaces the old calendar-insert approach, which did not reliably
-// alert. No native code needed; POST_NOTIFICATIONS is already declared.
+// Local notifications are optional and fully on-device. Permission is requested
+// only after a user explicitly asks for a reminder.
 
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
@@ -12,7 +10,6 @@ let configured = false;
 
 async function ensureConfigured(): Promise<void> {
   if (configured) return;
-  // Show reminders even when the app is foregrounded.
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -24,7 +21,7 @@ async function ensureConfigured(): Promise<void> {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
       name: "Reminders",
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.DEFAULT,
     });
   }
   configured = true;
@@ -37,47 +34,53 @@ async function ensurePermission(): Promise<boolean> {
   return requested.granted;
 }
 
-export async function scheduleReminder(
+export interface ScheduledReminderResult {
+  success: boolean;
+  message: string;
+  identifier?: string;
+}
+
+export async function scheduleLocalReminder(
   text: string,
   datetime: string,
-): Promise<ToolCallResult> {
+  replaceIdentifier?: string | null,
+): Promise<ScheduledReminderResult> {
   const when = new Date(datetime);
-  if (isNaN(when.getTime())) {
-    return {
-      success: false,
-      message: "Invalid reminder time",
-      error: `Could not parse datetime "${datetime}"`,
-    };
-  }
-  // Allow a small grace window for "now"-ish times; reject genuine past times.
+  if (Number.isNaN(when.getTime())) return { success: false, message: "Invalid reminder time." };
   if (when.getTime() <= Date.now() + 1000) {
-    return {
-      success: false,
-      message: "That time has already passed",
-      error: "Reminder time must be in the future",
-    };
+    return { success: false, message: "That reminder time has already passed." };
   }
 
   try {
     await ensureConfigured();
     if (!(await ensurePermission())) {
-      return {
-        success: false,
-        message: "Notifications are turned off",
-        error: "Enable notifications to use reminders.",
-      };
+      return { success: false, message: "Notifications are off. You can still use Beginora without reminders." };
     }
-    await Notifications.scheduleNotificationAsync({
-      content: { title: "Vesta reminder", body: text, sound: true },
+    if (replaceIdentifier) {
+      await Notifications.cancelScheduledNotificationAsync(replaceIdentifier).catch(() => {});
+    }
+    const identifier = await Notifications.scheduleNotificationAsync({
+      content: { title: "Beginora reminder", body: text, sound: false },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: when,
         channelId: CHANNEL_ID,
       },
     });
-    return { success: true, message: `Reminder set: "${text}"` };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, message: "Failed to set reminder", error: message };
+    return { success: true, message: "One local reminder is scheduled.", identifier };
+  } catch {
+    return { success: false, message: "I couldn’t set a reminder. You can still return to this task whenever you’re ready." };
   }
+}
+
+export async function scheduleReminder(
+  text: string,
+  datetime: string,
+): Promise<ToolCallResult> {
+  const result = await scheduleLocalReminder(text, datetime);
+  return {
+    success: result.success,
+    message: result.message,
+    ...(result.success ? {} : { error: result.message }),
+  };
 }

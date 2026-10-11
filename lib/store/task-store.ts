@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import { v4 as uuid } from "uuid";
-import type { Task } from "../storage/database";
+import type { Task, TaskOutcome } from "../storage/database";
 import {
   saveTask,
   getTasks,
   updateTaskStatus,
-  updateTaskFirstAction,
+  updateTaskPlan,
+  updateTaskReminderId,
+  recordTaskOutcome,
   deleteTask,
 } from "../storage/database";
 
@@ -15,9 +17,12 @@ interface TaskState {
   error: string | null;
 
   loadTasks: () => Promise<void>;
-  addTask: (title: string, description?: string) => Promise<Task>;
+  addTask: (title: string) => Promise<Task>;
+  setPlan: (id: string, firstAction: string, steps: string[]) => Promise<void>;
   setFirstAction: (id: string, firstAction: string) => Promise<void>;
   setStatus: (id: string, status: Task["status"]) => Promise<void>;
+  setReminderId: (id: string, reminderId: string | null) => Promise<void>;
+  recordOutcome: (id: string, outcome: TaskOutcome) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
   clearError: () => void;
 }
@@ -37,12 +42,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  addTask: async (title, description) => {
+  addTask: async (title) => {
     const now = Date.now();
     const task: Task = {
       id: uuid(),
       title,
       firstAction: null,
+      steps: [],
+      reminderId: null,
       status: "pending",
       priority: 0,
       dueAt: null,
@@ -50,50 +57,97 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       createdAt: now,
       updatedAt: now,
     };
-    // Optimistic update
-    set((s) => ({ tasks: [task, ...s.tasks] }));
+    set((s) => ({ tasks: [task, ...s.tasks], error: null }));
     try {
       await saveTask(task);
-    } catch (err) {
-      // Rollback on failure
-      set((s) => ({ tasks: s.tasks.filter((t) => t.id !== task.id), error: "Failed to save task" }));
+      return task;
+    } catch {
+      set((s) => ({
+        tasks: s.tasks.filter((t) => t.id !== task.id),
+        error: "Failed to save task",
+      }));
+      throw new Error("Failed to save task");
     }
-    return task;
   },
 
-  setFirstAction: async (id, firstAction) => {
-    // Optimistic update
+  setPlan: async (id, firstAction, steps) => {
+    const previous = get().tasks.find((task) => task.id === id);
     set((s) => ({
-      tasks: s.tasks.map((t) => t.id === id ? { ...t, firstAction, updatedAt: Date.now() } : t),
+      tasks: s.tasks.map((task) =>
+        task.id === id ? { ...task, firstAction, steps, updatedAt: Date.now() } : task,
+      ),
     }));
     try {
-      await updateTaskFirstAction(id, firstAction);
-    } catch (err) {
-      set({ error: "Failed to save first action" });
+      await updateTaskPlan(id, firstAction, steps);
+    } catch {
+      if (previous) {
+        set((s) => ({ tasks: s.tasks.map((task) => task.id === id ? previous : task) }));
+      }
+      set({ error: "Failed to save task plan" });
+      throw new Error("Failed to save task plan");
     }
+  },
+
+  // Kept as a narrow compatibility wrapper for the existing chat tool route.
+  setFirstAction: async (id, firstAction) => {
+    const steps = get().tasks.find((task) => task.id === id)?.steps ?? [];
+    await get().setPlan(id, firstAction, steps);
   },
 
   setStatus: async (id, status) => {
-    const completedAt = status === "done" ? Date.now() : null;
+    const previous = get().tasks.find((task) => task.id === id);
+    const now = Date.now();
     set((s) => ({
-      tasks: s.tasks.map((t) =>
-        t.id === id ? { ...t, status, completedAt, updatedAt: Date.now() } : t,
+      tasks: s.tasks.map((task) =>
+        task.id === id
+          ? { ...task, status, completedAt: status === "done" ? now : null, updatedAt: now }
+          : task,
       ),
     }));
     try {
       await updateTaskStatus(id, status);
-    } catch (err) {
+    } catch {
+      if (previous) {
+        set((s) => ({ tasks: s.tasks.map((task) => task.id === id ? previous : task) }));
+      }
       set({ error: "Failed to update task status" });
+      throw new Error("Failed to update task status");
+    }
+  },
+
+  setReminderId: async (id, reminderId) => {
+    const previous = get().tasks.find((task) => task.id === id);
+    set((s) => ({
+      tasks: s.tasks.map((task) => task.id === id ? { ...task, reminderId } : task),
+    }));
+    try {
+      await updateTaskReminderId(id, reminderId);
+    } catch {
+      if (previous) {
+        set((s) => ({ tasks: s.tasks.map((task) => task.id === id ? previous : task) }));
+      }
+      set({ error: "Failed to save reminder" });
+      throw new Error("Failed to save reminder");
+    }
+  },
+
+  recordOutcome: async (id, outcome) => {
+    try {
+      await recordTaskOutcome(id, outcome);
+    } catch {
+      set({ error: "Failed to save task activity" });
+      throw new Error("Failed to save task activity");
     }
   },
 
   removeTask: async (id) => {
-    const prev = get().tasks;
-    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
+    const previous = get().tasks;
+    set((s) => ({ tasks: s.tasks.filter((task) => task.id !== id) }));
     try {
       await deleteTask(id);
-    } catch (err) {
-      set({ tasks: prev, error: "Failed to delete task" });
+    } catch {
+      set({ tasks: previous, error: "Failed to delete task" });
+      throw new Error("Failed to delete task");
     }
   },
 

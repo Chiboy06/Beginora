@@ -134,4 +134,13 @@ describe("MIGRATIONS — well-formedness", () => {
     expect(v1).toBeDefined();
     expect(v1!.sql).toMatch(/CREATE TABLE IF NOT EXISTS models/i);
   });
+
+  it("the v5 migration persists task steps, one reminder ID, and local outcomes", () => {
+    const v5 = MIGRATIONS.find((m) => m.version === 5);
+    expect(v5).toBeDefined();
+    expect(v5!.sql).toMatch(/ADD COLUMN steps TEXT/i);
+    expect(v5!.sql).toMatch(/ADD COLUMN reminder_id TEXT/i);
+    expect(v5!.sql).toMatch(/CREATE TABLE IF NOT EXISTS task_outcomes/i);
+    expect(v5!.sql).toMatch(/wrong_moment/i);
+  });
 });

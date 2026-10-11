@@ -1,4 +1,4 @@
-import { useState, useRef, useImperativeHandle, forwardRef } from "react";
+import { useState, useRef, useImperativeHandle, forwardRef, type ComponentRef } from "react";
 import {
   View,
   TextInput,
@@ -26,7 +26,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(
   function ChatInput({ onSend, onStop, isGenerating = false, disabled }, ref) {
     const [text, setText] = useState("");
     const insets = useSafeAreaInsets();
-    const inputRef = useRef<TextInput>(null);
+    const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
 
     useImperativeHandle(ref, () => ({
       focus: () => inputRef.current?.focus(),

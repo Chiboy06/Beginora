@@ -5,9 +5,9 @@ import { sqliteTable, text, integer, real, blob } from "drizzle-orm/sqlite-core"
 export const tasks = sqliteTable("tasks", {
   id:          text("id").primaryKey(),
   title:       text("title").notNull(),
-  description: text("description"),
   firstAction: text("first_action"),           // AI-generated doable first step
   steps:       text("steps"),                  // JSON array of breakdown steps
+  reminderId:  text("reminder_id"),
   status:      text("status", {
     enum: ["pending", "active", "done", "snoozed"],
   }).notNull().default("pending"),
@@ -16,16 +16,14 @@ export const tasks = sqliteTable("tasks", {
   completedAt: integer("completed_at"),
   createdAt:   integer("created_at").notNull(),
   updatedAt:   integer("updated_at").notNull(),
-  syncedAt:    integer("synced_at"),           // null = not yet synced to cloud
-  isDeleted:   integer("is_deleted").default(0), // soft delete for sync safety
 });
 
-export const taskSteps = sqliteTable("task_steps", {
-  id:        text("id").primaryKey(),
+export const taskOutcomes = sqliteTable("task_outcomes", {
+  id:        integer("id").primaryKey({ autoIncrement: true }),
   taskId:    text("task_id").notNull().references(() => tasks.id),
-  step:      text("step").notNull(),
-  order:     integer("order").notNull(),
-  doneAt:    integer("done_at"),
+  outcome:   text("outcome", {
+    enum: ["started", "completed", "snoozed", "wrong_moment", "stopped", "retried"],
+  }).notNull(),
   createdAt: integer("created_at").notNull(),
 });
 

@@ -45,15 +45,15 @@ async function parseDocx(uri: string): Promise<string> {
 // worker module and expose its WorkerMessageHandler on globalThis, which pdfjs'
 // fake-worker path picks up to run entirely on the JS thread.
 let pdfWorkerReady = false;
-async function ensurePdfWorker(pdfjs: typeof import("pdfjs-dist/legacy/build/pdf")) {
+async function ensurePdfWorker(pdfjs: typeof import("pdfjs-dist/legacy/build/pdf.mjs")) {
   if (pdfWorkerReady) return;
-  const worker = await import("pdfjs-dist/legacy/build/pdf.worker");
+  const worker = await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
   const g = globalThis as { pdfjsWorker?: unknown };
   // The worker module's exports include WorkerMessageHandler.
   g.pdfjsWorker = worker;
   // Must be non-empty or pdfjs throws "No workerSrc specified" before falling
   // back to the main-thread handler.
-  (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc = "vesta-inline";
+  (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc = "beginora-inline";
   pdfWorkerReady = true;
 }
 
@@ -69,12 +69,11 @@ async function parsePdf(uri: string): Promise<string> {
     installPdfPolyfills();
 
     // Lazy-load pdfjs so its bulk + Hermes quirks never touch app boot.
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf");
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     await ensurePdfWorker(pdfjs);
 
     const loadingTask = pdfjs.getDocument({
       data,
-      isEvalSupported: false,
       useSystemFonts: false,
       disableFontFace: true,
     });

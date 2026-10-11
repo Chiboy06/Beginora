@@ -144,6 +144,23 @@ export const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Task-start prototype: persist validated follow-up steps, one local reminder,
+    // and an auditable local-only outcome trail.
+    version: 5,
+    sql: `
+      ALTER TABLE tasks ADD COLUMN steps TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE tasks ADD COLUMN reminder_id TEXT;
+
+      CREATE TABLE IF NOT EXISTS task_outcomes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        outcome TEXT NOT NULL CHECK(outcome IN ('started','completed','snoozed','wrong_moment','stopped','retried')),
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_task_outcomes_task ON task_outcomes(task_id, created_at DESC);
+    `,
+  },
 ];
 
 // Exported for testing. Applies every migration whose version exceeds the DB's
@@ -814,6 +831,8 @@ export interface Task {
   id: string;
   title: string;
   firstAction: string | null;
+  steps: string[];
+  reminderId: string | null;
   status: "pending" | "active" | "done" | "snoozed";
   priority: number;
   dueAt: number | null;
@@ -826,12 +845,25 @@ export async function saveTask(task: Task): Promise<void> {
   const d = await getDatabase();
   await d.runAsync(
     `INSERT OR REPLACE INTO tasks
-       (id, title, first_action, status, priority, due_at, completed_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    task.id, task.title, task.firstAction ?? null, task.status,
+       (id, title, first_action, steps, reminder_id, status, priority, due_at, completed_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    task.id, task.title, task.firstAction ?? null, JSON.stringify(task.steps), task.reminderId,
+    task.status,
     task.priority, task.dueAt ?? null, task.completedAt ?? null,
     task.createdAt, task.updatedAt,
   );
+}
+
+function parseTaskSteps(value: unknown): string[] {
+  if (typeof value !== "string") return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((step): step is string => typeof step === "string" && step.trim().length > 0)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getTasks(status?: Task["status"]): Promise<Task[]> {
@@ -846,6 +878,7 @@ export async function getTasks(status?: Task["status"]): Promise<Task[]> {
       );
   return rows.map((r) => ({
     id: r.id, title: r.title, firstAction: r.first_action,
+    steps: parseTaskSteps(r.steps), reminderId: r.reminder_id ?? null,
     status: r.status, priority: r.priority, dueAt: r.due_at,
     completedAt: r.completed_at, createdAt: r.created_at, updatedAt: r.updated_at,
   }));
@@ -874,7 +907,86 @@ export async function updateTaskFirstAction(
   );
 }
 
+export async function updateTaskPlan(
+  id: string,
+  firstAction: string,
+  steps: string[],
+): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync(
+    "UPDATE tasks SET first_action = ?, steps = ?, updated_at = ? WHERE id = ?",
+    firstAction,
+    JSON.stringify(steps),
+    Date.now(),
+    id,
+  );
+}
+
+export async function updateTaskReminderId(
+  id: string,
+  reminderId: string | null,
+): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync(
+    "UPDATE tasks SET reminder_id = ?, updated_at = ? WHERE id = ?",
+    reminderId,
+    Date.now(),
+    id,
+  );
+}
+
+export type TaskOutcome =
+  | "started"
+  | "completed"
+  | "snoozed"
+  | "wrong_moment"
+  | "stopped"
+  | "retried";
+
+export interface TaskOutcomeRecord {
+  id: number;
+  taskId: string;
+  outcome: TaskOutcome;
+  createdAt: number;
+}
+
+export async function recordTaskOutcome(
+  taskId: string,
+  outcome: TaskOutcome,
+): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync(
+    "INSERT INTO task_outcomes (task_id, outcome, created_at) VALUES (?, ?, ?)",
+    taskId,
+    outcome,
+    Date.now(),
+  );
+}
+
+export async function getTaskOutcomes(taskId: string, limit = 10): Promise<TaskOutcomeRecord[]> {
+  const d = await getDatabase();
+  const rows = await d.getAllAsync<{
+    id: number;
+    task_id: string;
+    outcome: TaskOutcome;
+    created_at: number;
+  }>(
+    "SELECT id, task_id, outcome, created_at FROM task_outcomes WHERE task_id = ? ORDER BY created_at DESC LIMIT ?",
+    taskId,
+    limit,
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    taskId: row.task_id,
+    outcome: row.outcome,
+    createdAt: row.created_at,
+  }));
+}
+
 export async function deleteTask(id: string): Promise<void> {
   const d = await getDatabase();
-  await d.runAsync("DELETE FROM tasks WHERE id = ?", id);
+  await d.withTransactionAsync(async () => {
+    await d.runAsync("DELETE FROM task_outcomes WHERE task_id = ?", id);
+    await d.runAsync("DELETE FROM tasks WHERE id = ?", id);
+  });
 }

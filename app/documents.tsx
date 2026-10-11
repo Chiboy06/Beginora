@@ -97,7 +97,8 @@ export default function DocumentsScreen() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    const timer = setTimeout(() => void refresh(), 0);
+    return () => clearTimeout(timer);
   }, [refresh]);
 
   const handleImport = async () => {

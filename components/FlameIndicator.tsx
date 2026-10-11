@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react";
-import { View, Text, Animated, Image, StyleSheet, Easing } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Animated, StyleSheet, Easing } from "react-native";
 import { colors } from "../lib/theme";
 
 const flameLogo = require("../assets/brand/vesta-flame-logo-1024x1024.png");
@@ -9,13 +9,13 @@ const flameLogo = require("../assets/brand/vesta-flame-logo-1024x1024.png");
  * Pulsing flame + bouncing dots in a bubble.
  */
 export function FlameIndicator() {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0.7)).current;
-  const glowScale = useRef(new Animated.Value(0.8)).current;
-  const glowOpacity = useRef(new Animated.Value(0.3)).current;
-  const dot1 = useRef(new Animated.Value(0)).current;
-  const dot2 = useRef(new Animated.Value(0)).current;
-  const dot3 = useRef(new Animated.Value(0)).current;
+  const [scale] = useState(() => new Animated.Value(1));
+  const [opacity] = useState(() => new Animated.Value(0.7));
+  const [glowScale] = useState(() => new Animated.Value(0.8));
+  const [glowOpacity] = useState(() => new Animated.Value(0.3));
+  const [dot1] = useState(() => new Animated.Value(0));
+  const [dot2] = useState(() => new Animated.Value(0));
+  const [dot3] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const flamePulse = Animated.loop(
@@ -121,7 +121,7 @@ export function FlameIndicator() {
       dotAnim2.stop();
       dotAnim3.stop();
     };
-  }, []);
+  }, [dot1, dot2, dot3, glowOpacity, glowScale, opacity, scale]);
 
   const dotStyle = (dot: Animated.Value) => ({
     opacity: dot.interpolate({

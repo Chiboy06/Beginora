@@ -10,6 +10,11 @@
 jest.mock("../document-retriever", () => ({
   queryDocuments: jest.fn(),
 }));
+jest.mock("../../native/system-actions", () => ({}));
+jest.mock("../../native/reminders", () => ({}));
+jest.mock("../../native/contacts", () => ({}));
+jest.mock("../../native/communication", () => ({}));
+jest.mock("../../native/calendar", () => ({}));
 
 import { normalizeToolParams } from "../tool-dispatcher";
 

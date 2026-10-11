@@ -170,7 +170,7 @@ function withSystemActions(config) {
 
     // Quick chat dialog (floating input over home screen)
     const hasQuickChat = mainApplication.activity.some(
-      (a) => a.$?.["android:name"] === ".VestaQuickChatActivity"
+      (a) => a.$?.["android:name"] === ".BeginoraQuickChatActivity"
     );
     if (!hasQuickChat) {
       mainApplication.activity.push({
@@ -187,7 +187,7 @@ function withSystemActions(config) {
 
     // Voice input activity
     const hasVoiceActivity = mainApplication.activity.some(
-      (a) => a.$?.["android:name"] === ".VestaVoiceActivity"
+      (a) => a.$?.["android:name"] === ".BeginoraVoiceActivity"
     );
     if (!hasVoiceActivity) {
       mainApplication.activity.push({
@@ -202,7 +202,7 @@ function withSystemActions(config) {
     }
 
     const hasWidget = mainApplication.receiver.some(
-      (r) => r.$?.["android:name"] === ".VestaWidgetProvider"
+      (r) => r.$?.["android:name"] === ".BeginoraWidgetProvider"
     );
 
     if (!hasWidget) {
@@ -240,7 +240,7 @@ function withSystemActions(config) {
     }
 
     const hasService = mainApplication.service.some(
-      (s) => s.$?.["android:name"] === ".VestaService"
+      (s) => s.$?.["android:name"] === ".BeginoraService"
     );
     if (!hasService) {
       mainApplication.service.push({
