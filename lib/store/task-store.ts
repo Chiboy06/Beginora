@@ -3,8 +3,10 @@ import { v4 as uuid } from "uuid";
 import type { Task, TaskOutcome } from "../storage/database";
 import {
   saveTask,
+  saveTaskWithPlan,
   getTasks,
   updateTaskStatus,
+  updateTaskStatusAndRecordOutcome,
   updateTaskPlan,
   updateTaskReminderId,
   recordTaskOutcome,
@@ -19,10 +21,13 @@ interface TaskState {
 
   loadTasks: () => Promise<void>;
   addTask: (title: string) => Promise<Task>;
+  createTaskWithPlan: (title: string, firstAction: string, steps: string[]) => Promise<Task>;
   setPlan: (id: string, firstAction: string, steps: string[]) => Promise<void>;
   setFirstAction: (id: string, firstAction: string) => Promise<void>;
   setStatus: (id: string, status: Task["status"]) => Promise<void>;
+  setStatusWithOutcome: (id: string, status: Task["status"], outcome: TaskOutcome) => Promise<void>;
   setReminderId: (id: string, reminderId: string | null) => Promise<void>;
+  cancelReminder: (id: string) => Promise<void>;
   recordOutcome: (id: string, outcome: TaskOutcome) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
   clearError: () => void;
@@ -58,15 +63,37 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       createdAt: now,
       updatedAt: now,
     };
-    set((s) => ({ tasks: [task, ...s.tasks], error: null }));
     try {
       await saveTask(task);
+      set((s) => ({ tasks: [task, ...s.tasks], error: null }));
       return task;
     } catch {
-      set((s) => ({
-        tasks: s.tasks.filter((t) => t.id !== task.id),
-        error: "Failed to save task",
-      }));
+      set({ error: "Failed to save task" });
+      throw new Error("Failed to save task");
+    }
+  },
+
+  createTaskWithPlan: async (title, firstAction, steps) => {
+    const now = Date.now();
+    const task: Task = {
+      id: uuid(),
+      title,
+      firstAction,
+      steps,
+      reminderId: null,
+      status: "pending",
+      priority: 0,
+      dueAt: null,
+      completedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    try {
+      await saveTaskWithPlan(task, firstAction, steps);
+      set((s) => ({ tasks: [task, ...s.tasks], error: null }));
+      return task;
+    } catch {
+      set({ error: "Failed to save task" });
       throw new Error("Failed to save task");
     }
   },
@@ -98,6 +125,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   setStatus: async (id, status) => {
     const previous = get().tasks.find((task) => task.id === id);
     const now = Date.now();
+    try {
+      await updateTaskStatus(id, status, now);
+    } catch {
+      set({ error: "Failed to update task status" });
+      throw new Error("Failed to update task status");
+    }
     set((s) => ({
       tasks: s.tasks.map((task) =>
         task.id === id
@@ -105,9 +138,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           : task,
       ),
     }));
-    try {
-      await updateTaskStatus(id, status);
-      if (status === "done" && previous?.reminderId) {
+    if (status === "done" && previous?.reminderId) {
+      try {
         if (await cancelLocalReminder(previous.reminderId)) {
           try {
             await updateTaskReminderId(id, null);
@@ -118,13 +150,43 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         } else {
           set({ error: "Task completed, but its reminder could not be cancelled." });
         }
+      } catch {
+        set({ error: "Task completed, but its reminder could not be cancelled." });
       }
+    }
+  },
+
+  setStatusWithOutcome: async (id, status, outcome) => {
+    const previous = get().tasks.find((task) => task.id === id);
+    const now = Date.now();
+    try {
+      await updateTaskStatusAndRecordOutcome(id, status, outcome, now);
     } catch {
-      if (previous) {
-        set((s) => ({ tasks: s.tasks.map((task) => task.id === id ? previous : task) }));
+      set({ error: "Failed to update task status and activity" });
+      throw new Error("Failed to update task status and activity");
+    }
+    set((s) => ({
+      tasks: s.tasks.map((task) =>
+        task.id === id
+          ? { ...task, status, completedAt: status === "done" ? now : null, updatedAt: now }
+          : task,
+      ),
+    }));
+    if (status === "done" && previous?.reminderId) {
+      try {
+        if (await cancelLocalReminder(previous.reminderId)) {
+          try {
+            await updateTaskReminderId(id, null);
+            set((s) => ({ tasks: s.tasks.map((task) => task.id === id ? { ...task, reminderId: null } : task) }));
+          } catch {
+            set({ error: "Task completed, but reminder state could not be cleared." });
+          }
+        } else {
+          set({ error: "Task completed, but its reminder could not be cancelled." });
+        }
+      } catch {
+        set({ error: "Task completed, but its reminder could not be cancelled." });
       }
-      set({ error: "Failed to update task status" });
-      throw new Error("Failed to update task status");
     }
   },
 
@@ -141,6 +203,27 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
       set({ error: "Failed to save reminder" });
       throw new Error("Failed to save reminder");
+    }
+  },
+
+  cancelReminder: async (id) => {
+    const reminderId = get().tasks.find((task) => task.id === id)?.reminderId;
+    if (!reminderId) return;
+    let notificationCancelled = false;
+    try {
+      notificationCancelled = await cancelLocalReminder(reminderId);
+      if (!notificationCancelled) throw new Error("Notification cancellation failed");
+      await updateTaskReminderId(id, null);
+      set((s) => ({
+        tasks: s.tasks.map((task) => task.id === id ? { ...task, reminderId: null } : task),
+      }));
+    } catch {
+      set({ error: notificationCancelled
+        ? "Reminder cancelled, but its saved state could not be cleared. You can retry from this task."
+        : "Could not cancel this reminder; its saved state was kept." });
+      throw new Error(notificationCancelled
+        ? "Reminder cancelled, but saved state could not be cleared"
+        : "Could not cancel task reminder");
     }
   },
 

@@ -6,7 +6,7 @@ Beginora is an Android-first, offline-first task-starting and focus aid. It help
 
 You describe something you want to work on. Beginora finds one concrete first action — something you can start in about 30 seconds and do in about five minutes. Then it offers a low-pressure five-minute focus session.
 
-Manual task planning and focus work offline after any on-device model is installed. Calendar, reminders, voice recognition, Telegram, model downloads, and app-code updates are optional and are invoked only through their user-visible actions or explicit Settings choices. Some providers may process data online according to their own policies.
+Manual task planning and focus work offline, with a deterministic fallback when no on-device model is installed. Calendar, reminders, voice recognition, Telegram, and model downloads are user-selected; when EAS Updates are configured, the app checks automatically while online and asks before restarting. Some providers may process user-selected data online according to their own policies.
 
 ## Current prototype
 
@@ -35,8 +35,8 @@ Cloud sync and authentication are intentionally off. Core task data is local. Us
 | Task detail | First action hero, start focus session, done, snooze, retry, reminder, email handoff |
 | Focus | Five-minute timer, pause, resume, finish early, stop |
 | Calendar prep | User-requested calendar review, event selection, prepare-for-this flow |
-| Settings | Model manager, language, permissions, data export, delete all data, disclaimer |
-| Models | Download, pause, resume, delete on-device models |
+| Settings | Model manager, language, permissions, connections, and disclaimer; no all-data export/delete control is currently exposed |
+| Models | Download, select, cancel an active download, and delete on-device models; recovery after process restart is limited |
 | Onboarding | First-run disclaimer and product explanation |
 
 ## Development
@@ -103,12 +103,12 @@ Key points:
 - Domain code (rule engine, validator, safety pre-check) imports no React Native or Expo module.
 - The model has no tools and cannot trigger device actions. Task text and model output are untrusted data.
 - Device actions come only from application code through an allowlist.
-- Core task planning is local. Optional service calls happen only when enabled/used, and their data boundaries are disclosed in the UI.
+- Core task planning is local. User-selected integrations are disclosed in the UI; when EAS Updates are enabled for a linked build, the app checks online automatically and requests confirmation only before restart.
 - All model output is validated before display. Unvalidated output is never rendered.
 
 ## Data
 
-Core task data is stored in a local SQLite database (`beginora.db`) and is not cloud-synced. Calendar/email/Telegram interactions send only user-selected information to the target provider; voice recognition is handled by the chosen Android speech provider. EAS update checks contact Expo only when an EAS-linked release build is online. The Settings screen provides export (JSON via the system share sheet) and delete-all-data options.
+Core task data is stored in a local SQLite database (`beginora.db`) and is not cloud-synced. The current database opener does not configure SQLCipher or an app-managed encryption key. Calendar/email/Telegram interactions send user-selected information to the target provider; voice recognition is handled by the chosen Android speech provider. EAS update checks contact Expo automatically only when an EAS-linked release build is online. The current Settings screen does not expose all-data export or delete-all controls; do not rely on those capabilities until implemented.
 
 ## Verification and project notes
 

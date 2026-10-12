@@ -851,8 +851,7 @@ export interface Task {
   updatedAt: number;
 }
 
-export async function saveTask(task: Task): Promise<void> {
-  const d = await getDatabase();
+async function insertTaskRow(d: SQLite.SQLiteDatabase, task: Task): Promise<void> {
   await d.runAsync(
     `INSERT OR REPLACE INTO tasks
        (id, title, first_action, steps, reminder_id, status, priority, due_at, completed_at, created_at, updated_at)
@@ -862,6 +861,30 @@ export async function saveTask(task: Task): Promise<void> {
     task.priority, task.dueAt ?? null, task.completedAt ?? null,
     task.createdAt, task.updatedAt,
   );
+}
+
+export async function saveTask(task: Task): Promise<void> {
+  const d = await getDatabase();
+  await insertTaskRow(d, task);
+}
+
+export async function saveTaskWithPlan(
+  task: Task,
+  firstAction: string,
+  steps: string[],
+): Promise<void> {
+  const d = await getDatabase();
+  const unplannedTask: Task = { ...task, firstAction: null, steps: [] };
+  await d.withTransactionAsync(async () => {
+    await insertTaskRow(d, unplannedTask);
+    await d.runAsync(
+      "UPDATE tasks SET first_action = ?, steps = ?, updated_at = ? WHERE id = ?",
+      firstAction,
+      JSON.stringify(steps),
+      task.updatedAt,
+      task.id,
+    );
+  });
 }
 
 function parseTaskSteps(value: unknown): string[] {
@@ -897,12 +920,13 @@ export async function getTasks(status?: Task["status"]): Promise<Task[]> {
 export async function updateTaskStatus(
   id: string,
   status: Task["status"],
+  updatedAt = Date.now(),
 ): Promise<void> {
   const d = await getDatabase();
-  const completedAt = status === "done" ? Date.now() : null;
+  const completedAt = status === "done" ? updatedAt : null;
   await d.runAsync(
     `UPDATE tasks SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?`,
-    status, completedAt, Date.now(), id,
+    status, completedAt, updatedAt, id,
   );
 }
 
@@ -971,6 +995,31 @@ export async function recordTaskOutcome(
     outcome,
     Date.now(),
   );
+}
+
+export async function updateTaskStatusAndRecordOutcome(
+  id: string,
+  status: Task["status"],
+  outcome: TaskOutcome,
+  updatedAt = Date.now(),
+): Promise<void> {
+  const d = await getDatabase();
+  const completedAt = status === "done" ? updatedAt : null;
+  await d.withTransactionAsync(async () => {
+    await d.runAsync(
+      "UPDATE tasks SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?",
+      status,
+      completedAt,
+      updatedAt,
+      id,
+    );
+    await d.runAsync(
+      "INSERT INTO task_outcomes (task_id, outcome, created_at) VALUES (?, ?, ?)",
+      id,
+      outcome,
+      updatedAt,
+    );
+  });
 }
 
 export async function getTaskOutcomes(taskId: string, limit = 10): Promise<TaskOutcomeRecord[]> {

@@ -1,7 +1,9 @@
 import * as Updates from "expo-updates";
+import * as Network from "expo-network";
 
 export type AppUpdateResult =
   | { status: "unavailable"; message: string }
+  | { status: "offline"; message: string }
   | { status: "up_to_date"; message: string }
   | { status: "update_ready"; message: string }
   | { status: "failed"; message: string };
@@ -22,6 +24,14 @@ export async function checkForAppUpdate(): Promise<AppUpdateResult> {
   }
 
   try {
+    const network = await Network.getNetworkStateAsync();
+    if (network.isConnected === false || network.isInternetReachable === false) {
+      return {
+        status: "offline",
+        message: "Connect to the internet to check for a compatible Beginora update. Your app and local tasks are unchanged.",
+      };
+    }
+
     const check = await Updates.checkForUpdateAsync();
     if (!check.isAvailable) {
       return { status: "up_to_date", message: "You’re already using the latest available version." };

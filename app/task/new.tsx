@@ -19,8 +19,7 @@ import { colors, radii, spacing, typography } from "../../lib/theme";
 export default function NewTaskScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ title?: string; context?: string }>();
-  const addTask = useTaskStore((s) => s.addTask);
-  const setPlan = useTaskStore((s) => s.setPlan);
+  const createTaskWithPlan = useTaskStore((s) => s.createTaskWithPlan);
   const [title, setTitle] = useState(params.title ?? "");
   const [context, setContext] = useState(params.context ?? "");
   const [loading, setLoading] = useState(false);
@@ -34,9 +33,8 @@ export default function NewTaskScreen() {
     setLoading(true);
     setError(null);
     try {
-      const task = await addTask(trimmed.slice(0, 200));
       const result = await decompose(trimmed, context.trim() || undefined);
-      await setPlan(task.id, result.firstAction, result.steps);
+      const task = await createTaskWithPlan(trimmed.slice(0, 200), result.firstAction, result.steps);
       router.replace(`/task/${task.id}`);
     } catch {
       setError("I couldn’t save that task just now. Please try again.");

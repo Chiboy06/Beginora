@@ -3,8 +3,9 @@ import { ExpoConfig, ConfigContext } from "expo/config";
 export default ({ config }: ConfigContext): ExpoConfig => {
   const projectId = process.env.EAS_PROJECT_ID?.trim();
   const updateChannel = process.env.EAS_UPDATE_CHANNEL?.trim() || "preview";
+  const updatesEnabled = process.env.EAS_UPDATES_ENABLED === "true" && !!projectId;
   const existingExtra = config.extra ?? {};
-  const updates = projectId
+  const updates = updatesEnabled
     ? {
         enabled: true,
         url: `https://u.expo.dev/${projectId}`,
@@ -18,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: "Beginora",
     slug: "beginora",
-    ...(projectId ? { runtimeVersion: { policy: "appVersion" as const } } : {}),
+    ...(updatesEnabled ? { runtimeVersion: { policy: "appVersion" as const } } : {}),
     updates,
     extra: {
       ...existingExtra,

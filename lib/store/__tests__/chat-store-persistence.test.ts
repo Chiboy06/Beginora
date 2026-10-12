@@ -109,6 +109,7 @@ function resetStore() {
     isGenerating: false,
     streamingText: "",
     modelLoaded: false,
+    modelLoading: false,
     modelPath: null,
     error: null,
     notice: null,
@@ -203,8 +204,8 @@ describe("chat-store — persistence failures surface a notice", () => {
   });
 });
 
-describe("chat-store — startup model-load failure", () => {
-  it("surfaces a model-load notice (not the misleading 'no model' state) when a selected model fails to load", async () => {
+describe("chat-store — background startup model-load failure", () => {
+  it("surfaces a model-load notice after a selected model fails without blocking init", async () => {
     mockGetLatest.mockResolvedValue(null);
     mockGetActiveModel.mockResolvedValue({
       id: "qwen",
@@ -218,6 +219,9 @@ describe("chat-store — startup model-load failure", () => {
     mockLoadModel.mockRejectedValueOnce(new Error("OOM"));
 
     await useChatStore.getState().init();
+    // Restoration is intentionally fire-and-forget; let its mocked native
+    // promises settle before checking the eventual failure notice.
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const s = useChatStore.getState();
     expect(s.notice).toBe(modelLoadFailureNotice("it", "Qwen3 4B"));

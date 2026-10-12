@@ -4,6 +4,8 @@ Version: 1.0 | Priority: Scalability · Security · Accessibility
 
 ---
 
+> **Implementation-status notice (reviewed for the v0.2.3 candidate on 2026-10-12):** This document is a target architecture plan, not evidence that every listed component or security control is shipped. The current Android prototype uses Expo SDK 58/React Native 0.88, with screens under `app/` and implementation under `lib/`. Core data uses the Expo SQLite database opener without SQLCipher/key configuration; cloud authentication/task sync and Neon are not active, and EAS Updates remain disabled until a real project/explicit enablement is supplied. Cognito/Supabase, encrypted sync, biometric keying, and other choices below are proposals or planned controls unless verified in the current source and release environment. See [current prototype notes](../README.md), [cloud sync status](CLOUD_SYNC_STATUS.md), and [OTA setup](OTA_UPDATES.md).
+
 ## 1. Product Context
 
 | Attribute | Detail |
