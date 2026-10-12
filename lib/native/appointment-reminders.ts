@@ -1,5 +1,5 @@
 import * as Notifications from "expo-notifications";
-import { getConfig, setConfig } from "../storage/database";
+import { deleteConfig, getConfig, setConfig } from "../storage/database";
 import { scheduleLocalReminder } from "./reminders";
 import type { UpcomingCalendarEvent } from "./calendar";
 
@@ -48,18 +48,77 @@ function parseRecord(value: string | null): AppointmentReminderRecord | null {
 export async function getAppointmentReminder(
   event: UpcomingCalendarEvent,
 ): Promise<AppointmentReminderRecord | null> {
+  const record = await getStoredAppointmentReminder(event);
+  return record?.startAt === event.start ? record : null;
+}
+
+// Unlike getAppointmentReminder, this includes a saved reminder for an older
+// start time. The calendar UI needs that record to identify stale OS alerts and
+// offer cancellation or replacement rather than silently showing no reminder.
+export async function getStoredAppointmentReminder(
+  event: UpcomingCalendarEvent,
+): Promise<AppointmentReminderRecord | null> {
   try {
-    const record = parseRecord(await getConfig(reminderKey(event)));
-    return record?.startAt === event.start ? record : null;
+    return parseRecord(await getConfig(reminderKey(event)));
   } catch {
     return null;
+  }
+}
+
+export interface AppointmentReminderActionResult {
+  success: boolean;
+  message: string;
+  // Returned when the action can determine the reminder state, including when
+  // a failed replacement leaves the prior notification and record untouched.
+  reminder?: AppointmentReminderRecord | null;
+  notificationCancelled?: boolean;
+}
+
+export async function cancelAppointmentReminder(
+  event: UpcomingCalendarEvent,
+): Promise<AppointmentReminderActionResult> {
+  const key = reminderKey(event);
+  let existing: AppointmentReminderRecord | null = null;
+  let stateLoaded = false;
+  try {
+    existing = parseRecord(await getConfig(key));
+    stateLoaded = true;
+    if (!existing) {
+      return { success: true, message: "There is no saved reminder for this appointment.", reminder: null };
+    }
+
+    // Cancel at the OS first. If that rejects, retain the local record so the
+    // UI does not forget about a notification that may still be scheduled.
+    await Notifications.cancelScheduledNotificationAsync(existing.notificationId);
+    try {
+      await deleteConfig(key);
+    } catch {
+      return {
+        success: false,
+        message: "The notification was cancelled, but I couldn’t clear its saved reminder on this device.",
+        reminder: null,
+        notificationCancelled: true,
+      };
+    }
+    return {
+      success: true,
+      message: "Appointment reminder cancelled.",
+      reminder: null,
+      notificationCancelled: true,
+    };
+  } catch {
+    return {
+      success: false,
+      message: "I couldn’t cancel this appointment reminder. Its saved state was kept.",
+      ...(stateLoaded ? { reminder: existing } : {}),
+    };
   }
 }
 
 export async function scheduleAppointmentReminder(
   event: UpcomingCalendarEvent,
   leadMinutes: AppointmentReminderLead = 15,
-): Promise<{ success: boolean; message: string; reminder?: AppointmentReminderRecord }> {
+): Promise<AppointmentReminderActionResult> {
   if (event.allDay) {
     return { success: false, message: "Choose a timed appointment to set an advance reminder." };
   }
@@ -69,8 +128,11 @@ export async function scheduleAppointmentReminder(
   }
 
   const key = reminderKey(event);
+  let existing: AppointmentReminderRecord | null = null;
+  let stateLoaded = false;
   try {
-    const existing = parseRecord(await getConfig(key));
+    existing = parseRecord(await getConfig(key));
+    stateLoaded = true;
     if (existing && existing.startAt === event.start && existing.leadMinutes === leadMinutes) {
       return { success: true, message: `A reminder is already set ${leadMinutes} minutes before this appointment.`, reminder: existing };
     }
@@ -81,7 +143,25 @@ export async function scheduleAppointmentReminder(
       undefined,
       { kind: "appointment", eventId: event.id },
     );
-    if (!result.success || !result.identifier) return { success: false, message: result.message };
+    if (!result.success || !result.identifier) {
+      return { success: false, message: result.message, reminder: existing };
+    }
+
+    // Do not persist a replacement until the prior OS alert has been cancelled.
+    // On cancellation failure, discard the new notification and keep the old
+    // local record so a later attempt can retry without hiding the old alert.
+    if (existing) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(existing.notificationId);
+      } catch {
+        await Notifications.cancelScheduledNotificationAsync(result.identifier).catch(() => {});
+        return {
+          success: false,
+          message: "I couldn’t replace the previous reminder, so its saved state was kept.",
+          reminder: existing,
+        };
+      }
+    }
 
     const reminder: AppointmentReminderRecord = {
       notificationId: result.identifier,
@@ -92,13 +172,21 @@ export async function scheduleAppointmentReminder(
       await setConfig(key, JSON.stringify(reminder));
     } catch {
       await Notifications.cancelScheduledNotificationAsync(result.identifier).catch(() => {});
-      return { success: false, message: "I couldn’t save this reminder on the device, so I cancelled it." };
-    }
-    if (existing && existing.notificationId !== reminder.notificationId) {
-      await Notifications.cancelScheduledNotificationAsync(existing.notificationId).catch(() => {});
+      return {
+        success: false,
+        message: existing
+          ? "I cancelled the previous alert, but couldn’t save its replacement on this device."
+          : "I couldn’t save this reminder on the device, so I cancelled it.",
+        reminder: null,
+        notificationCancelled: Boolean(existing),
+      };
     }
     return { success: true, message: `One local reminder is set ${leadMinutes} minutes before this appointment.`, reminder };
   } catch {
-    return { success: false, message: "I couldn’t set that appointment reminder. You can still use the event in your calendar." };
+    return {
+      success: false,
+      message: "I couldn’t set that appointment reminder. You can still use the event in your calendar.",
+      ...(stateLoaded ? { reminder: existing } : {}),
+    };
   }
 }

@@ -25,6 +25,16 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Generate Android native project
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Export production Android bundle
+        run: |
+          output_dir="$RUNNER_TEMP/beginora-android-export"
+          npx expo export --platform android --output-dir "$output_dir"
+          bundle=$(find "$output_dir" -type f -name '*.hbc' -print -quit)
+          test -n "$bundle" && test -s "$bundle"
+
       - name: TypeScript check
         run: npm run typecheck
 

@@ -2,22 +2,27 @@ jest.mock("expo-notifications", () => ({
   cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("../../storage/database", () => ({
+  deleteConfig: jest.fn().mockResolvedValue(undefined),
   getConfig: jest.fn(),
   setConfig: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("../reminders", () => ({ scheduleLocalReminder: jest.fn() }));
 
 import * as Notifications from "expo-notifications";
-import { getConfig, setConfig } from "../../storage/database";
+import { deleteConfig, getConfig, setConfig } from "../../storage/database";
 import { scheduleLocalReminder } from "../reminders";
 import {
+  cancelAppointmentReminder,
+  getAppointmentReminder,
   getAppointmentReminderTime,
+  getStoredAppointmentReminder,
   scheduleAppointmentReminder,
   type AppointmentReminderRecord,
 } from "../appointment-reminders";
 import type { UpcomingCalendarEvent } from "../calendar";
 
 const mockedGetConfig = jest.mocked(getConfig);
+const mockedDeleteConfig = jest.mocked(deleteConfig);
 const mockedSetConfig = jest.mocked(setConfig);
 const mockedScheduleReminder = jest.mocked(scheduleLocalReminder);
 const mockedCancelNotification = jest.mocked(Notifications.cancelScheduledNotificationAsync);
@@ -33,6 +38,7 @@ describe("appointment reminder timing and persistence", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedGetConfig.mockResolvedValue(null);
+    mockedDeleteConfig.mockResolvedValue(undefined);
     mockedSetConfig.mockResolvedValue(undefined);
     mockedScheduleReminder.mockResolvedValue({ success: true, message: "One local reminder is scheduled.", identifier: "notification-1" });
   });
@@ -79,13 +85,79 @@ describe("appointment reminder timing and persistence", () => {
     expect(mockedScheduleReminder).not.toHaveBeenCalled();
   });
 
-  it("keeps the old notification until a replacement is persisted, then cancels it", async () => {
+  it("cancels the prior notification before persisting a replacement", async () => {
     const event = makeEvent();
     mockedGetConfig.mockResolvedValue(JSON.stringify({ notificationId: "old-id", startAt: event.start, leadMinutes: 15 }));
     mockedScheduleReminder.mockResolvedValue({ success: true, message: "One local reminder is scheduled.", identifier: "new-id" });
     const result = await scheduleAppointmentReminder(event, 60);
     expect(result.success).toBe(true);
     expect(mockedCancelNotification).toHaveBeenCalledWith("old-id");
+    expect(mockedCancelNotification.mock.invocationCallOrder[0]).toBeLessThan(mockedSetConfig.mock.invocationCallOrder[0]);
+  });
+
+  it("cancels the OS notification before removing saved reminder state", async () => {
+    const event = makeEvent();
+    mockedGetConfig.mockResolvedValue(JSON.stringify({ notificationId: "old-id", startAt: event.start, leadMinutes: 15 }));
+
+    const result = await cancelAppointmentReminder(event);
+
+    expect(result.success).toBe(true);
+    expect(result.reminder).toBeNull();
+    expect(mockedCancelNotification).toHaveBeenCalledWith("old-id");
+    expect(mockedDeleteConfig).toHaveBeenCalledWith(`appointment_reminder:${event.id}`);
+    expect(mockedCancelNotification.mock.invocationCallOrder[0]).toBeLessThan(mockedDeleteConfig.mock.invocationCallOrder[0]);
+  });
+
+  it("preserves saved state and does not delete it when OS cancellation fails", async () => {
+    const event = makeEvent();
+    const existing: AppointmentReminderRecord = { notificationId: "old-id", startAt: event.start, leadMinutes: 15 };
+    mockedGetConfig.mockResolvedValue(JSON.stringify(existing));
+    mockedCancelNotification.mockRejectedValueOnce(new Error("native cancel failed"));
+
+    const result = await cancelAppointmentReminder(event);
+
+    expect(result.success).toBe(false);
+    expect(result.reminder).toEqual(existing);
+    expect(mockedDeleteConfig).not.toHaveBeenCalled();
+  });
+
+  it("reports a same-ID changed-start reminder as stale and cancels it before persisting its replacement", async () => {
+    const oldEvent = makeEvent();
+    const movedEvent: UpcomingCalendarEvent = {
+      ...oldEvent,
+      start: new Date(new Date(oldEvent.start).getTime() + 2 * 60 * 60 * 1000).toISOString(),
+    };
+    const existing: AppointmentReminderRecord = { notificationId: "old-id", startAt: oldEvent.start, leadMinutes: 15 };
+    mockedGetConfig.mockResolvedValue(JSON.stringify(existing));
+    mockedScheduleReminder.mockResolvedValue({ success: true, message: "One local reminder is scheduled.", identifier: "replacement-id" });
+
+    expect(await getStoredAppointmentReminder(movedEvent)).toEqual(existing);
+    expect(await getAppointmentReminder(movedEvent)).toBeNull();
+    const result = await scheduleAppointmentReminder(movedEvent, 15);
+
+    expect(result.success).toBe(true);
+    expect(mockedCancelNotification).toHaveBeenCalledWith("old-id");
+    expect(mockedCancelNotification.mock.invocationCallOrder[0]).toBeLessThan(mockedSetConfig.mock.invocationCallOrder[0]);
+    expect(mockedSetConfig).toHaveBeenCalledWith(
+      `appointment_reminder:${movedEvent.id}`,
+      expect.stringContaining(movedEvent.start),
+    );
+  });
+
+  it("keeps the old record if cancelling it during replacement fails", async () => {
+    const event = makeEvent();
+    const existing: AppointmentReminderRecord = { notificationId: "old-id", startAt: event.start, leadMinutes: 15 };
+    mockedGetConfig.mockResolvedValue(JSON.stringify(existing));
+    mockedCancelNotification.mockRejectedValueOnce(new Error("native cancel failed"));
+    mockedScheduleReminder.mockResolvedValue({ success: true, message: "One local reminder is scheduled.", identifier: "replacement-id" });
+
+    const result = await scheduleAppointmentReminder(event, 60);
+
+    expect(result.success).toBe(false);
+    expect(result.reminder).toEqual(existing);
+    expect(mockedSetConfig).not.toHaveBeenCalled();
+    expect(mockedCancelNotification).toHaveBeenNthCalledWith(1, "old-id");
+    expect(mockedCancelNotification).toHaveBeenNthCalledWith(2, "replacement-id");
   });
 
   it("does not schedule a reminder for all-day events", async () => {

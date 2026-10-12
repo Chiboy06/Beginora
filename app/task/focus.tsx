@@ -12,7 +12,7 @@ export default function FocusScreen() {
   const router = useRouter();
   const task = useTaskStore((s) => s.tasks.find((item) => item.id === id));
   const setStatus = useTaskStore((s) => s.setStatus);
-  const recordOutcome = useTaskStore((s) => s.recordOutcome);
+  const setStatusWithOutcome = useTaskStore((s) => s.setStatusWithOutcome);
 
   const [remaining, setRemaining] = useState(FOCUS_DURATION_SECONDS);
   const [running, setRunning] = useState(true);
@@ -69,8 +69,7 @@ export default function FocusScreen() {
   const stopForNow = async () => {
     try {
       if (task) {
-        await recordOutcome(task.id, "stopped");
-        await setStatus(task.id, "pending");
+        await setStatusWithOutcome(task.id, "pending", "stopped");
       }
       router.replace(`/task/${id}`);
     } catch {

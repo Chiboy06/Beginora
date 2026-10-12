@@ -116,7 +116,7 @@ export async function getModelById(id: string): Promise<InstalledModel | null> {
 export async function getActiveModel(): Promise<InstalledModel | null> {
   const d = await getDatabase();
   const row = await d.getFirstAsync<ModelRow>(
-    `${SELECT} WHERE is_active = 1 AND state = 'ready' LIMIT 1`,
+    `${SELECT} WHERE is_active = 1 AND state = 'ready' AND role = 'primary' LIMIT 1`,
   );
   return row ? mapRow(row) : null;
 }
@@ -167,6 +167,13 @@ export async function finalizeModel(
 
 export async function setActiveModel(id: string): Promise<void> {
   const d = await getDatabase();
+  const candidate = await d.getFirstAsync<Pick<ModelRow, "role" | "state">>(
+    "SELECT role, state FROM models WHERE id = ?",
+    id,
+  );
+  if (!candidate || candidate.role !== "primary" || candidate.state !== "ready") {
+    throw new Error("Only ready primary models can be selected for chat.");
+  }
   await d.withTransactionAsync(async () => {
     await d.runAsync("UPDATE models SET is_active = 0 WHERE is_active = 1");
     await d.runAsync("UPDATE models SET is_active = 1 WHERE id = ?", id);

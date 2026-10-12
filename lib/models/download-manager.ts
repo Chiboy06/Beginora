@@ -15,8 +15,10 @@ import { computeRate, etaSeconds, hasEnoughSpace } from "./format";
 
 export const MODELS_DIR = FileSystem.documentDirectory + "models/";
 
-export function modelPathFor(fileName: string): string {
-  return MODELS_DIR + fileName;
+export function modelPathFor(fileName: string, modelId?: string): string {
+  // Preserve the historic basename path when no id is supplied; new downloads
+  // pass their registry id so same-named files from different repos never clash.
+  return MODELS_DIR + (modelId ? `${modelId}-` : "") + fileName;
 }
 
 export function tempPathFor(finalPath: string): string {
@@ -39,6 +41,7 @@ export interface DownloadParams {
   modelId: string;
   url: string;
   fileName: string; // final name inside MODELS_DIR
+  filePath?: string; // explicit path for new per-model downloads
   expectedBytes: number; // 0 = unknown (skip preflight + size verify)
   // Whether expectedBytes is authoritative (from the HF tree API) and may be
   // used to reject a truncated download. False for the catalog's approximate
@@ -91,6 +94,7 @@ export async function downloadModel(
     modelId,
     url,
     fileName,
+    filePath,
     expectedBytes,
     verifySize = true,
     headers,
@@ -113,7 +117,7 @@ export async function downloadModel(
     }
   }
 
-  const finalPath = modelPathFor(fileName);
+  const finalPath = filePath ?? modelPathFor(fileName);
   const tempPath = tempPathFor(finalPath);
 
   // Throttled progress + sliding-window rate/ETA.

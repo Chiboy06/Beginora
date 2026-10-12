@@ -1,6 +1,6 @@
 import { Stack, Redirect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   ActivityIndicator,
@@ -26,6 +26,7 @@ import { disableMcpServer } from "../lib/mcp/mcp-lifecycle";
 import { FloatingBubble } from "../components/FloatingBubble";
 import { applyDownloadedAppUpdate, checkForAppUpdate } from "../lib/updates/update-service";
 import { STARTUP_READY_TIMEOUT_MS, waitForStartupTasks } from "../lib/startup/startup-readiness";
+import { createNativeSplashHideController } from "../lib/startup/native-splash";
 import { colors, spacing, typography } from "../lib/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -37,11 +38,20 @@ export default function RootLayout() {
   const onboardingDone = useOnboardingStore((s) => s.done);
   const modelLoaded = useChatStore((s) => s.modelLoaded);
   const [ready, setReady] = useState(false);
-  const splashHidden = useRef(false);
-  const hideNativeSplash = useCallback(() => {
-    if (splashHidden.current) return;
-    splashHidden.current = true;
-    void SplashScreen.hideAsync().catch(() => {});
+  const splashHide = useRef<ReturnType<typeof createNativeSplashHideController> | null>(null);
+  if (splashHide.current === null) {
+    splashHide.current = createNativeSplashHideController(
+      () => SplashScreen.hideAsync(),
+      (attempt, maxAttempts) => {
+        console.warn(`[startup] native splash hide failed (attempt ${attempt}/${maxAttempts})`);
+      },
+    );
+  }
+
+  // Effects run after the first React commit, regardless of whether startup
+  // readiness has already advanced beyond the transient loading view.
+  useEffect(() => {
+    void splashHide.current?.();
   }, []);
 
   useEffect(() => {
@@ -169,7 +179,6 @@ export default function RootLayout() {
   if (!ready) {
     return (
       <View
-        onLayout={hideNativeSplash}
         style={styles.splash}
       >
         <StatusBar style="dark" />

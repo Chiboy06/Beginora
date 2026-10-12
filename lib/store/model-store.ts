@@ -3,6 +3,7 @@
 // download progress to the Models screen.
 
 import { create } from "zustand";
+import { v4 as uuid } from "uuid";
 import * as FileSystem from "expo-file-system/legacy";
 import type { CatalogModel, DownloadProgress, InstalledModel } from "../models/types";
 import {
@@ -56,6 +57,23 @@ export function pickFile(
 
 function baseName(path: string): string {
   return path.split("/").pop() ?? path;
+}
+
+// Older installs may have multiple registry rows pointing at the same shared
+// basename path. Keep that file until the last row referencing it is removed.
+async function deleteFileIfUnreferenced(
+  filePath: string,
+  excludingModelId?: string,
+): Promise<void> {
+  const models = await listInstalled();
+  if (
+    models.some(
+      (model) => model.id !== excludingModelId && model.filePath === filePath,
+    )
+  ) {
+    return;
+  }
+  await deleteModelFile(filePath);
 }
 
 interface ModelState {
@@ -157,8 +175,10 @@ export const useModelStore = create<ModelState>((set, get) => ({
     set({ busy: true, error: null });
     try {
       await ensureModelsDir();
-      const fileName = name.endsWith(".gguf") ? name : `${name}.gguf`;
-      const finalPath = modelPathFor(fileName);
+      const pickedName = name.replace(/\\/g, "/").split("/").pop() || "model.gguf";
+      const fileName = pickedName.endsWith(".gguf") ? pickedName : `${pickedName}.gguf`;
+      const modelId = uuid();
+      const finalPath = modelPathFor(fileName, modelId);
       // Single copy straight to the final path (no temp-then-load double write).
       const existing = await FileSystem.getInfoAsync(finalPath);
       if (!existing.exists) {
@@ -167,13 +187,14 @@ export const useModelStore = create<ModelState>((set, get) => ({
 
       const valid = await validateGguf(finalPath);
       if (!valid.ok) {
-        await deleteModelFile(finalPath);
+        await deleteFileIfUnreferenced(finalPath);
         set({ error: valid.error ?? "Invalid GGUF file." });
         return;
       }
 
       const info = await FileSystem.getInfoAsync(finalPath);
       const model = await insertModel({
+        id: modelId,
         displayName: fileName.replace(/\.gguf$/i, ""),
         filePath: finalPath,
         hfFile: fileName,
@@ -198,6 +219,10 @@ export const useModelStore = create<ModelState>((set, get) => ({
     const model = await getModelById(id);
     if (!model || model.state !== "ready") {
       set({ error: "Model is not ready." });
+      return;
+    }
+    if (model.role !== "primary") {
+      set({ error: "Only primary models can be activated for chat." });
       return;
     }
     const info = await FileSystem.getInfoAsync(model.filePath);
@@ -254,14 +279,14 @@ export const useModelStore = create<ModelState>((set, get) => ({
       await unloadModel().catch(() => {});
       useChatStore.getState().updateModelStatus();
     }
-    await deleteModelFile(model.filePath);
+    await deleteFileIfUnreferenced(model.filePath, id);
     await removeModel(id);
 
     // Removing the active model: promote another ready model so the app isn't
     // left with no model loaded while others are installed (M1).
     if (wasActive) {
       const replacement = (await listInstalled()).find(
-        (m) => m.id !== id && m.state === "ready",
+        (m) => m.id !== id && m.state === "ready" && m.role === "primary",
       );
       if (replacement) await get().activate(replacement.id);
     }
@@ -272,7 +297,7 @@ export const useModelStore = create<ModelState>((set, get) => ({
     await cancelTask(id);
     const model = await getModelById(id);
     if (model) {
-      await deleteModelFile(model.filePath);
+      await deleteFileIfUnreferenced(model.filePath, id);
       await removeModel(id);
     }
     set((s) => {
@@ -302,11 +327,14 @@ async function runDownload(
   },
 ): Promise<void> {
   const fileName = baseName(args.file.path);
+  const modelId = uuid();
+  const filePath = modelPathFor(fileName, modelId);
   const model = await insertModel({
+    id: modelId,
     displayName: args.displayName,
     hfRepo: args.repo,
     hfFile: fileName,
-    filePath: modelPathFor(fileName),
+    filePath,
     quant: args.quant,
     sizeBytes: args.file.sizeBytes,
     minRamMb: args.minRamMb,
@@ -336,6 +364,7 @@ async function runDownload(
     modelId: id,
     url: resolveUrl(args.repo, args.file.path),
     fileName,
+    filePath,
     expectedBytes: args.file.sizeBytes,
     verifySize: args.exactSize,
     onProgress: (p) =>
@@ -354,14 +383,14 @@ async function runDownload(
   // the download may have committed in the cancel race so it can't orphan (C1).
   const stillExists = await getModelById(id);
   if (!stillExists) {
-    await deleteModelFile(modelPathFor(fileName));
+    await deleteFileIfUnreferenced(filePath);
     return;
   }
 
   // Canceled: drop the row + partial entirely (cancel() usually already did,
   // but cover the race where downloadModel returned canceled first).
   if (outcome.canceled) {
-    await deleteModelFile(stillExists.filePath);
+    await deleteFileIfUnreferenced(stillExists.filePath, id);
     await removeModel(id);
     set((s) => {
       const progress = { ...s.progress };
@@ -403,7 +432,7 @@ async function runDownload(
   // Verify it actually loads as a GGUF before marking ready.
   const valid = await validateGguf(outcome.filePath!);
   if (!valid.ok) {
-    await deleteModelFile(outcome.filePath!);
+    await deleteFileIfUnreferenced(outcome.filePath!, id);
     await setModelState(id, "error");
     await get().refresh();
     set({ error: valid.error ?? "Downloaded file is not a valid model." });
@@ -423,7 +452,7 @@ async function runDownload(
 
   // Auto-activate the first model the user installs. Guarded so concurrent
   // downloads don't both pass the no-active-model check and double-load (H1).
-  if (!autoActivateInFlight) {
+  if (args.role === "primary" && !autoActivateInFlight) {
     autoActivateInFlight = true;
     try {
       const active = await getActiveModel();

@@ -35,8 +35,9 @@ export default function TaskDetailScreen() {
   const navigation = useNavigation();
   const task = useTaskStore((s) => s.tasks.find((item) => item.id === id));
   const setPlan = useTaskStore((s) => s.setPlan);
-  const setStatus = useTaskStore((s) => s.setStatus);
+  const setStatusWithOutcome = useTaskStore((s) => s.setStatusWithOutcome);
   const setReminderId = useTaskStore((s) => s.setReminderId);
+  const cancelReminder = useTaskStore((s) => s.cancelReminder);
   const recordOutcome = useTaskStore((s) => s.recordOutcome);
   const removeTask = useTaskStore((s) => s.removeTask);
   const [decomposing, setDecomposing] = useState(false);
@@ -78,8 +79,7 @@ export default function TaskDetailScreen() {
     if (!task) return;
     setBusy(true);
     try {
-      await setStatus(task.id, "done");
-      await recordOutcome(task.id, "completed");
+      await setStatusWithOutcome(task.id, "done", "completed");
       await refreshOutcomes();
     } catch {
       Alert.alert("Couldn’t save that yet", "Please try again in a moment.");
@@ -92,8 +92,7 @@ export default function TaskDetailScreen() {
     if (!task) return;
     setBusy(true);
     try {
-      await setStatus(task.id, "snoozed");
-      await recordOutcome(task.id, "snoozed");
+      await setStatusWithOutcome(task.id, "snoozed", "snoozed");
       router.back();
     } catch {
       Alert.alert("Couldn’t snooze this task", "Please try again in a moment.");
@@ -123,8 +122,7 @@ export default function TaskDetailScreen() {
     if (!task) return;
     setBusy(true);
     try {
-      await setStatus(task.id, "active");
-      await recordOutcome(task.id, "started");
+      await setStatusWithOutcome(task.id, "active", "started");
       router.push({ pathname: "/task/focus", params: { id: task.id } });
     } catch {
       Alert.alert("Couldn’t start the focus session", "Please try again in a moment.");
@@ -156,6 +154,19 @@ export default function TaskDetailScreen() {
       Alert.alert("Reminder not set", "You can still return to this task whenever you’re ready.");
     } finally {
       if (unpersistedReminderId) await cancelLocalReminder(unpersistedReminderId);
+      setBusy(false);
+    }
+  };
+
+  const handleCancelReminder = async () => {
+    if (!task?.reminderId) return;
+    setBusy(true);
+    try {
+      await cancelReminder(task.id);
+      Alert.alert("Reminder cancelled", "The local notification was cancelled on this device.");
+    } catch {
+      Alert.alert("Reminder status", useTaskStore.getState().error ?? "I couldn’t update this reminder. Please try again.");
+    } finally {
       setBusy(false);
     }
   };
@@ -276,6 +287,20 @@ export default function TaskDetailScreen() {
           {task.reminderId ? "One reminder is set" : "Remind me once in 15 minutes"}
         </Text>
       </TouchableOpacity>
+      {task.reminderId && (
+        <>
+          <Text style={styles.reminderHint}>Snoozing the task does not cancel this separate reminder.</Text>
+          <TouchableOpacity
+            style={styles.quietButton}
+            onPress={handleCancelReminder}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel the scheduled task reminder"
+          >
+            <Text style={styles.quietButtonText}>Cancel reminder</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
       {isEmailTask && (
         <TouchableOpacity
@@ -375,6 +400,7 @@ const styles = StyleSheet.create({
   quietButtonText: { color: colors.accent, fontSize: 14, fontWeight: "600" },
   reminderButton: { backgroundColor: colors.surface, borderRadius: radii.md, padding: 13, alignItems: "center", borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   reminderText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
+  reminderHint: { color: colors.textMuted, fontSize: 12, textAlign: "center", lineHeight: 18, marginBottom: 4 },
   emailButton: { backgroundColor: "rgba(228,237,232,0.86)", borderRadius: radii.md, padding: 13, alignItems: "center", borderWidth: 1, borderColor: colors.accentSoft, marginTop: 6 },
   emailButtonText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
   disabledButton: { opacity: 0.5 },

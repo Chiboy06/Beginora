@@ -15,8 +15,10 @@ import {
   type UpcomingCalendarEvent,
 } from "../lib/native/calendar";
 import {
-  getAppointmentReminder,
+  cancelAppointmentReminder,
+  getStoredAppointmentReminder,
   scheduleAppointmentReminder,
+  type AppointmentReminderRecord,
   type AppointmentReminderLead,
 } from "../lib/native/appointment-reminders";
 import { colors, radii, spacing, typography } from "../lib/theme";
@@ -30,7 +32,7 @@ export default function CalendarPreparationScreen() {
   const [reviewed, setReviewed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<UpcomingCalendarEvent[]>([]);
-  const [reminded, setReminded] = useState<Record<string, boolean>>({});
+  const [reminders, setReminders] = useState<Record<string, AppointmentReminderRecord | null>>({});
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -47,9 +49,9 @@ export default function CalendarPreparationScreen() {
       }
       setEvents(result.events);
       const saved = await Promise.all(result.events.map(async (event) => [
-        eventKey(event), Boolean(await getAppointmentReminder(event)),
+        eventKey(event), await getStoredAppointmentReminder(event),
       ] as const));
-      setReminded(Object.fromEntries(saved));
+      setReminders(Object.fromEntries(saved));
       if (result.events.length === 0) {
         setMessage("No upcoming appointments were found in the next 30 days. You can add one or keep working on tasks.");
       }
@@ -75,10 +77,42 @@ export default function CalendarPreparationScreen() {
   const scheduleReminder = async (event: UpcomingCalendarEvent, leadMinutes: AppointmentReminderLead) => {
     const key = eventKey(event);
     setBusyKey(key);
-    const result = await scheduleAppointmentReminder(event, leadMinutes);
-    setMessage(result.message);
-    if (result.success) setReminded((current) => ({ ...current, [key]: true }));
-    setBusyKey(null);
+    try {
+      const result = await scheduleAppointmentReminder(event, leadMinutes);
+      setMessage(result.message);
+      if (result.success || result.reminder !== undefined) {
+        setReminders((current) => ({ ...current, [key]: result.reminder ?? null }));
+      }
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const cancelReminder = async (event: UpcomingCalendarEvent) => {
+    const key = eventKey(event);
+    setBusyKey(key);
+    try {
+      const result = await cancelAppointmentReminder(event);
+      setMessage(result.message);
+      if (result.success || result.notificationCancelled) {
+        setReminders((current) => ({ ...current, [key]: null }));
+      } else if (result.reminder !== undefined) {
+        setReminders((current) => ({ ...current, [key]: result.reminder ?? null }));
+      }
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const confirmCancelReminder = (event: UpcomingCalendarEvent) => {
+    Alert.alert(
+      "Cancel appointment reminder?",
+      "This cancels the local notification on this device. It does not change the calendar event.",
+      [
+        { text: "Keep reminder", style: "cancel" },
+        { text: "Cancel reminder", style: "destructive", onPress: () => void cancelReminder(event) },
+      ],
+    );
   };
 
   const chooseReminder = (event: UpcomingCalendarEvent) => {
@@ -112,24 +146,46 @@ export default function CalendarPreparationScreen() {
 
         {events.map((event) => {
           const key = eventKey(event);
+          const reminder = reminders[key] ?? null;
+          const reminderIsStale = reminder !== null && reminder.startAt !== event.start;
+          const reminderIsCurrent = reminder !== null && !reminderIsStale;
           return (
             <GlassSurface key={key} style={styles.eventCard}>
               <Text style={styles.eventLabel}>{event.allDay ? "ALL DAY" : "UPCOMING APPOINTMENT"}</Text>
               <Text style={styles.eventTitle}>{event.title}</Text>
               <Text style={styles.eventTime}>{event.allDay ? "All day" : new Date(event.start).toLocaleString()}</Text>
               {!!event.location && <Text style={styles.eventLocation}>{event.location}</Text>}
+              {reminderIsCurrent && <Text style={styles.reminderStatus}>A reminder is set for this appointment.</Text>}
+              {reminderIsStale && (
+                <Text style={styles.staleReminderStatus} accessibilityRole="text">
+                  This event’s start time changed. The saved reminder is for {new Date(reminder.startAt).toLocaleString()} and may still alert then.
+                </Text>
+              )}
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.secondaryButton} onPress={() => prepareForEvent(event)} accessibilityRole="button">
                   <Text style={styles.secondaryText}>Prepare</Text>
                 </TouchableOpacity>
                 {!event.allDay && (
                   <TouchableOpacity
-                    style={[styles.reminderButton, (reminded[key] || busyKey === key) && styles.disabled]}
+                    style={[styles.reminderButton, (reminderIsCurrent || busyKey === key) && styles.disabled]}
                     onPress={() => chooseReminder(event)}
-                    disabled={reminded[key] || busyKey === key}
+                    disabled={reminderIsCurrent || busyKey === key}
                     accessibilityRole="button"
                   >
-                    <Text style={styles.reminderText}>{busyKey === key ? "Setting…" : reminded[key] ? "Reminder set" : "Set reminder"}</Text>
+                    <Text style={styles.reminderText}>
+                      {busyKey === key ? "Updating…" : reminderIsCurrent ? "Reminder set" : reminderIsStale ? "Replace reminder" : "Set reminder"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {reminder && (
+                  <TouchableOpacity
+                    style={[styles.cancelReminderButton, busyKey === key && styles.disabled]}
+                    onPress={() => confirmCancelReminder(event)}
+                    disabled={busyKey === key}
+                    accessibilityRole="button"
+                    accessibilityLabel={reminderIsStale ? "Cancel stale appointment reminder" : "Cancel appointment reminder"}
+                  >
+                    <Text style={styles.cancelReminderText}>Cancel</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -174,12 +230,16 @@ const styles = StyleSheet.create({
   eventTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "700", lineHeight: 25 },
   eventTime: { color: colors.textSecondary, fontSize: 14, marginTop: 6 },
   eventLocation: { color: colors.textMuted, fontSize: 13, marginTop: 3 },
+  reminderStatus: { color: colors.accent, fontSize: 13, lineHeight: 19, marginTop: 7, fontWeight: "600" },
+  staleReminderStatus: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 7 },
   actions: { flexDirection: "row", gap: 9, marginTop: spacing.md },
   secondaryButton: { flex: 1, backgroundColor: "rgba(255,255,255,0.82)", padding: 12, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, alignItems: "center" },
   secondaryButtonWide: { backgroundColor: "rgba(255,255,255,0.82)", padding: 13, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, alignItems: "center", marginTop: 9 },
   secondaryText: { color: colors.textPrimary, fontSize: 13, fontWeight: "600" },
   reminderButton: { flex: 1, backgroundColor: colors.accentMuted, padding: 12, borderRadius: radii.md, alignItems: "center" },
   reminderText: { color: colors.accent, fontSize: 13, fontWeight: "700" },
+  cancelReminderButton: { backgroundColor: "rgba(255,255,255,0.82)", padding: 12, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, alignItems: "center" },
+  cancelReminderText: { color: colors.textSecondary, fontSize: 13, fontWeight: "600" },
   disabled: { opacity: 0.65 },
   addCard: { padding: spacing.lg, borderRadius: radii.xl, marginTop: spacing.sm },
   addTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginBottom: 6 },
