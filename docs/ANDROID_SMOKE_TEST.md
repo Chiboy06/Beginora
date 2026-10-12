@@ -1,4 +1,4 @@
-# Android phone smoke test — Beginora 0.2.1
+# Android phone smoke test — Beginora 0.2.2
 
 Use this checklist with the refreshed APK after installing it over the earlier test build. Beginora has no bundled model; downloaded models remain in app-private storage. The build uses the existing sandbox debug signing key. If Android reports a signature conflict, stop before uninstalling the earlier build so local task/model data can be preserved.
 
@@ -30,7 +30,7 @@ Use this checklist with the refreshed APK after installing it over the earlier t
 - **Background model:** verify the setting is off by default. Enable it only after reading the persistent-notification/battery disclosure and accepting notification permission; confirm the notification uses generic text, not the task title. Turn it off and confirm the service stops.
 - **Connections/MCP:** verify live calendar/contact/notification readiness and provider data disclosures. MCP must show unavailable; no plaintext LAN pairing endpoint should start.
 - **EAS updates:** without a linked project ID, expect the update status to report unavailable and normal app usage to work. Once EAS/GitHub setup is completed, test a preview update: connect to the internet, wait for download, choose **Later** and confirm no restart, then choose **Restart now** and confirm the compatible JS update applies while local task data remains.
-- **Settings:** confirm the planning-aid/non-clinical disclaimer, local task storage, optional provider boundaries, permission status, and version 0.2.1.
+- **Settings:** confirm the planning-aid/non-clinical disclaimer, local task storage, optional provider boundaries, permission status, and version 0.2.2.
 
 ## What to send back
 

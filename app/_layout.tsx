@@ -5,6 +5,7 @@ import {
   View,
   ActivityIndicator,
   Text,
+  StyleSheet,
   Alert,
   AppState,
   Platform,
@@ -25,7 +26,7 @@ import { disableMcpServer } from "../lib/mcp/mcp-lifecycle";
 import { FloatingBubble } from "../components/FloatingBubble";
 import { applyDownloadedAppUpdate, checkForAppUpdate } from "../lib/updates/update-service";
 import { STARTUP_READY_TIMEOUT_MS, waitForStartupTasks } from "../lib/startup/startup-readiness";
-import { colors } from "../lib/theme";
+import { colors, spacing, typography } from "../lib/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -169,12 +170,14 @@ export default function RootLayout() {
     return (
       <View
         onLayout={hideNativeSplash}
-        style={{ flex: 1, backgroundColor: colors.bg, justifyContent: "center", alignItems: "center", gap: 16 }}
+        style={styles.splash}
       >
         <StatusBar style="dark" />
-        <Text style={{ color: colors.accent, fontSize: 28, fontWeight: "700" }}>Beginora</Text>
-        <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Getting your tasks ready…</Text>
+        <View style={styles.splashInner}>
+          <Text style={styles.splashWordmark}>Beginora</Text>
+          <Text style={styles.splashTagline}>Getting your tasks ready…</Text>
+          <ActivityIndicator size="large" color={colors.accent} style={styles.splashSpinner} />
+        </View>
       </View>
     );
   }
@@ -227,3 +230,27 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+  },
+  splashInner: { alignItems: "center" },
+  splashWordmark: {
+    fontSize: 38,
+    fontWeight: "700",
+    color: colors.accent,
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  splashTagline: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: 40,
+  },
+  splashSpinner: { marginTop: 8 },
+});

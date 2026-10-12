@@ -1,101 +1,187 @@
 /**
- * Beginora Design System
+ * Beginora Design System — Apple HIG aligned
  *
- * Tone: Calm, respectful, practical, non-clinical.
- * Palette: Soft sage + warm stone. No red urgency signals.
- * Audience: People who struggle with task initiation — nothing should feel
- * pressuring, alarming, or overwhelming.
+ * Principles: Clarity · Deference · Depth
+ * Palette: Calm sage + warm stone. No red urgency signals.
+ * Typography: SF-style scale with proper optical sizing.
+ * Touch targets: minimum 44pt per HIG.
  */
 
 export const colors = {
   // ── Backgrounds ──────────────────────────────────
-  bg:              "#F7F4EF",   // Warm linen
-  surface:         "#FFFFFF",   // Cards, header, input
-  surfaceMuted:    "#EFF0EB",   // Assistant bubbles
-  surfaceHover:    "#E8E9E3",   // Pressed states
+  bg:              "#F2F2F7",   // iOS systemGroupedBackground
+  surface:         "#FFFFFF",   // iOS secondarySystemGroupedBackground
+  surfaceMuted:    "#F2F2F7",
+  surfaceHover:    "#E5E5EA",   // iOS tertiarySystemFill
 
   // ── User messages ───────────────────────────────
-  userBubble:      "#5C7A6B",   // Calm sage green
-  userBubbleLight: "#7A9A8A",
+  userBubble:      "#4A7A6A",   // Calm sage — slightly deeper for contrast
+  userBubbleLight: "#6A9A8A",
   userText:        "#FFFFFF",
 
   // ── Assistant messages ──────────────────────────
-  assistantBubble: "#EFF0EB",   // Soft stone
-  assistantText:   "#2E3028",   // Deep warm near-black
+  assistantBubble: "#FFFFFF",
+  assistantText:   "#1C1C1E",   // iOS label
 
-  // ── Accent (sage / focus) ───────────────────────
-  accent:          "#5C7A6B",   // Sage — calm, not urgent
-  accentSoft:      "#C8D8D0",   // Light sage tint
-  accentMuted:     "#E4EDE8",   // Very light sage bg
+  // ── Accent (sage) ───────────────────────────────
+  accent:          "#4A7A6A",
+  accentSoft:      "#C8D8D0",
+  accentMuted:     "#EAF0ED",
 
-  // ── Semantic — no red for errors (too alarming) ─
-  success:         "#6A9E7F",   // Muted green
-  successBg:       "rgba(106,158,127,0.12)",
-  error:           "#A07060",   // Warm brown-red (not alarming)
-  errorBg:         "rgba(160,112,96,0.10)",
-  warning:         "#B89A5A",   // Warm amber
-  warningBg:       "rgba(184,154,90,0.12)",
-  info:            "#7A9AB0",   // Dusty blue
+  // ── Semantic ────────────────────────────────────
+  success:         "#34C759",   // iOS systemGreen
+  successBg:       "rgba(52,199,89,0.10)",
+  error:           "#8B5E52",   // Warm brown — not alarming
+  errorBg:         "rgba(139,94,82,0.10)",
+  warning:         "#B89A5A",
+  warningBg:       "rgba(184,154,90,0.10)",
+  info:            "#5A8FAA",
 
   // ── Text ────────────────────────────────────────
-  textPrimary:     "#2E3028",   // Near black, warm
-  textSecondary:   "#6B6E62",   // Warm medium gray
-  textMuted:       "#9A9D90",   // Warm light gray
-  textPlaceholder: "#BEC0B5",   // Subtle
+  textPrimary:     "#1C1C1E",   // iOS label
+  textSecondary:   "#3C3C43",   // iOS secondaryLabel (60% opacity equivalent)
+  textMuted:       "#8E8E93",   // iOS tertiaryLabel
+  textPlaceholder: "#C7C7CC",   // iOS quaternaryLabel
 
-  // ── Borders & Dividers ──────────────────────────
-  border:          "#DFE0D8",   // Warm border
-  borderLight:     "#EFF0EB",   // Subtle divider
-  divider:         "rgba(46,48,40,0.06)",
+  // ── Borders & Separators ────────────────────────
+  border:          "#C6C6C8",   // iOS separator
+  borderLight:     "#E5E5EA",   // iOS opaqueSeparator
+  divider:         "rgba(60,60,67,0.12)",
 
   // ── Misc ────────────────────────────────────────
-  disabled:        "#CCCEC5",
-  overlay:         "rgba(46,48,40,0.4)",
+  disabled:        "#C7C7CC",
+  overlay:         "rgba(0,0,0,0.4)",
 } as const;
 
+// 8pt grid — matches iOS HIG spacing
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
+  xs:  4,
+  sm:  8,
+  md:  12,
+  lg:  16,
+  xl:  20,
   xxl: 24,
+  xxxl: 32,
 } as const;
 
 export const radii = {
-  sm: 8,
-  md: 12,
-  lg: 18,
-  xl: 22,
+  sm:   6,
+  md:   10,
+  lg:   14,
+  xl:   18,
+  xxl:  22,
   full: 999,
 } as const;
 
+// SF-style type scale — optical sizes match iOS Dynamic Type
 export const typography = {
-  body: {
-    fontSize: 16,
-    lineHeight: 24,
+  largeTitle: {
+    fontSize: 34,
+    fontWeight: "700" as const,
+    letterSpacing: 0.37,
+    lineHeight: 41,
   },
-  bodySmall: {
-    fontSize: 14,
+  title1: {
+    fontSize: 28,
+    fontWeight: "700" as const,
+    letterSpacing: 0.36,
+    lineHeight: 34,
+  },
+  title2: {
+    fontSize: 22,
+    fontWeight: "700" as const,
+    letterSpacing: 0.35,
+    lineHeight: 28,
+  },
+  title3: {
+    fontSize: 20,
+    fontWeight: "600" as const,
+    letterSpacing: 0.38,
+    lineHeight: 25,
+  },
+  headline: {
+    fontSize: 17,
+    fontWeight: "600" as const,
+    letterSpacing: -0.41,
+    lineHeight: 22,
+  },
+  body: {
+    fontSize: 17,
+    fontWeight: "400" as const,
+    letterSpacing: -0.41,
+    lineHeight: 22,
+  },
+  callout: {
+    fontSize: 16,
+    fontWeight: "400" as const,
+    letterSpacing: -0.32,
+    lineHeight: 21,
+  },
+  subheadline: {
+    fontSize: 15,
+    fontWeight: "400" as const,
+    letterSpacing: -0.24,
     lineHeight: 20,
+  },
+  footnote: {
+    fontSize: 13,
+    fontWeight: "400" as const,
+    letterSpacing: -0.08,
+    lineHeight: 18,
   },
   caption: {
     fontSize: 12,
+    fontWeight: "400" as const,
+    letterSpacing: 0,
     lineHeight: 16,
   },
+  // Legacy aliases used across existing screens
   heading: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "700" as const,
-    letterSpacing: 0.3,
+    letterSpacing: 0.36,
+    lineHeight: 34,
+  },
+  bodySmall: {
+    fontSize: 15,
+    fontWeight: "400" as const,
+    letterSpacing: -0.24,
+    lineHeight: 20,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600" as const,
-    letterSpacing: 1.1,
+    letterSpacing: -0.08,
     textTransform: "uppercase" as const,
   },
   button: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "600" as const,
+    letterSpacing: -0.41,
+  },
+} as const;
+
+// Elevation — depth through shadow, not borders
+export const shadow = {
+  sm: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  md: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  lg: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
 } as const;

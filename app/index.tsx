@@ -9,6 +9,7 @@ import {
   Keyboard,
   Platform,
   Linking,
+  Pressable,
 } from "react-native";
 import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useChatStore } from "../lib/store/chat-store";
@@ -17,9 +18,15 @@ import { ChatInput } from "../components/ChatInput";
 import type { ChatInputHandle } from "../components/ChatInput";
 import { FlameIndicator } from "../components/FlameIndicator";
 import { NoticeBanner } from "../components/NoticeBanner";
-import { GlassScreen, GlassSurface } from "../components/GlassSurface";
-import { colors, spacing, typography, radii } from "../lib/theme";
+import { GlassScreen } from "../components/GlassSurface";
+import { colors, spacing, typography, radii, shadow } from "../lib/theme";
 import type { Message } from "../lib/orchestrator/types";
+
+const PROMPT_CHIPS = [
+  "I need to start my report",
+  "Help me break down a big task",
+  "I keep putting off something",
+];
 
 const StreamingFooter = React.memo(function StreamingFooter({
   isGenerating,
@@ -37,13 +44,112 @@ function useKeyboardHeight() {
   const [height, setHeight] = useState(0);
   useEffect(() => {
     if (Platform.OS !== "android") return;
-    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
-      setHeight(e.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => setHeight(0));
-    return () => { showSub.remove(); hideSub.remove(); };
+    const show = Keyboard.addListener("keyboardDidShow", (e) =>
+      setHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener("keyboardDidHide", () => setHeight(0));
+    return () => { show.remove(); hide.remove(); };
   }, []);
   return height;
+}
+
+function EmptyState({
+  onChipPress,
+  onTaskPress,
+  onCalendarPress,
+  onEmailPress,
+}: {
+  onChipPress: (text: string) => void;
+  onTaskPress: () => void;
+  onCalendarPress: () => void;
+  onEmailPress: () => void;
+}) {
+  return (
+    <View style={es.root}>
+      {/* Hero */}
+      <View style={es.hero}>
+        <View style={es.iconWrap}>
+          <Text style={es.icon}>🌱</Text>
+        </View>
+        <Text style={es.title}>Beginora</Text>
+        <Text style={es.subtitle}>
+          What&apos;s one thing you&apos;d like to get started on?
+        </Text>
+      </View>
+
+      {/* Suggestion chips */}
+      <View style={es.section}>
+        <Text style={es.sectionLabel}>SUGGESTIONS</Text>
+        <View style={es.chipGroup}>
+          {PROMPT_CHIPS.map((chip) => (
+            <Pressable
+              key={chip}
+              style={({ pressed }) => [es.chip, pressed && es.chipPressed]}
+              onPress={() => onChipPress(chip)}
+              accessibilityRole="button"
+            >
+              <Text style={es.chipText}>{chip}</Text>
+              <Text style={es.chipArrow}>›</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      {/* Quick actions */}
+      <View style={es.section}>
+        <Text style={es.sectionLabel}>QUICK ACTIONS</Text>
+        <View style={es.actionGroup}>
+          <Pressable
+            style={({ pressed }) => [es.actionRow, pressed && es.actionPressed]}
+            onPress={onTaskPress}
+            accessibilityRole="button"
+            accessibilityLabel="Start with one small step"
+          >
+            <View style={[es.actionIcon, { backgroundColor: colors.accentMuted }]}>
+              <Text style={es.actionIconText}>✦</Text>
+            </View>
+            <View style={es.actionContent}>
+              <Text style={es.actionTitle}>Start with one small step</Text>
+              <Text style={es.actionSub}>Break any task into a first action</Text>
+            </View>
+            <Text style={es.actionChevron}>›</Text>
+          </Pressable>
+          <View style={es.separator} />
+          <Pressable
+            style={({ pressed }) => [es.actionRow, pressed && es.actionPressed]}
+            onPress={onCalendarPress}
+            accessibilityRole="button"
+            accessibilityLabel="Review appointments"
+          >
+            <View style={[es.actionIcon, { backgroundColor: "#EEF2FF" }]}>
+              <Text style={es.actionIconText}>📅</Text>
+            </View>
+            <View style={es.actionContent}>
+              <Text style={es.actionTitle}>Review appointments</Text>
+              <Text style={es.actionSub}>Prepare for what&apos;s coming up</Text>
+            </View>
+            <Text style={es.actionChevron}>›</Text>
+          </Pressable>
+          <View style={es.separator} />
+          <Pressable
+            style={({ pressed }) => [es.actionRow, pressed && es.actionPressed]}
+            onPress={onEmailPress}
+            accessibilityRole="button"
+            accessibilityLabel="Draft an email"
+          >
+            <View style={[es.actionIcon, { backgroundColor: "#FFF0E8" }]}>
+              <Text style={es.actionIconText}>✉️</Text>
+            </View>
+            <View style={es.actionContent}>
+              <Text style={es.actionTitle}>Draft an email</Text>
+              <Text style={es.actionSub}>Open an editable draft in your mail app</Text>
+            </View>
+            <Text style={es.actionChevron}>›</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export default function ChatScreen() {
@@ -76,46 +182,40 @@ export default function ChatScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: conversationTitle || "Beginora",
+      title: conversationTitle || "Today",
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => router.push("/history")}
           style={styles.headerBtn}
-          activeOpacity={0.7}
+          activeOpacity={0.6}
           accessibilityRole="button"
           accessibilityLabel="Conversation history"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.headerBtnText}>&#9776;</Text>
+          <Text style={styles.headerBtnText}>≡</Text>
         </TouchableOpacity>
       ),
       headerRight: () => (
         <View style={styles.headerRight}>
           <TouchableOpacity
-            onPress={() => router.push("/connectors")}
-            style={styles.headerBtn}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Connections"
-          >
-            <Text style={styles.headerBtnText}>◈</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             onPress={clearConversation}
             style={styles.headerBtn}
-            activeOpacity={0.7}
+            activeOpacity={0.6}
             accessibilityRole="button"
             accessibilityLabel="New conversation"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.headerBtnText}>+</Text>
+            <Text style={styles.headerBtnText}>⊕</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push("/settings")}
             style={styles.headerBtn}
-            activeOpacity={0.7}
+            activeOpacity={0.6}
             accessibilityRole="button"
             accessibilityLabel="Settings"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.headerBtnText}>&#9881;</Text>
+            <Text style={styles.headerBtnText}>⚙</Text>
           </TouchableOpacity>
         </View>
       ),
@@ -131,9 +231,8 @@ export default function ChatScreen() {
         const voiceText = parsed.searchParams.get("voice_text");
         const focus = parsed.searchParams.get("focus");
         if (voiceText) {
-          const prefill = voiceText.slice(0, 1000);
           setTimeout(() => {
-            chatInputRef.current?.setText(prefill);
+            chatInputRef.current?.setText(voiceText.slice(0, 1000));
             chatInputRef.current?.focus();
           }, 300);
         } else if (focus) {
@@ -154,9 +253,8 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (typeof voiceTextParam === "string" && voiceTextParam) {
-      const prefill = voiceTextParam.slice(0, 1000);
       const timer = setTimeout(() => {
-        chatInputRef.current?.setText(prefill);
+        chatInputRef.current?.setText(voiceTextParam.slice(0, 1000));
         chatInputRef.current?.focus();
       }, 300);
       return () => clearTimeout(timer);
@@ -201,12 +299,12 @@ export default function ChatScreen() {
           accessibilityLabel={modelLoading ? "Preparing the on-device model" : "No model loaded. Tap to download one."}
         >
           <Text style={styles.bannerText}>
-            {modelLoading ? "Preparing your on-device model…" : "No model yet — tap to download one"}
+            {modelLoading ? "Preparing your on-device model…" : "No AI model yet — tap to download one"}
           </Text>
         </TouchableOpacity>
       )}
 
-      {error && (
+      {!!error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
@@ -233,64 +331,15 @@ export default function ChatScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <GlassSurface style={styles.heroSurface}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoEmoji}>🌱</Text>
-            </View>
-            <Text style={styles.emptyTitle}>Beginora</Text>
-            <Text style={styles.emptySubtitle}>
-              What’s one thing you’d like to get started on?
-            </Text>
-            <View style={styles.promptChips}>
-              {[
-                "I need to start my report",
-                "Help me break down a big task",
-                "I keep putting off something",
-              ].map((prompt) => (
-                <TouchableOpacity
-                  key={prompt}
-                  style={styles.chip}
-                  onPress={() => {
-                    chatInputRef.current?.setText(prompt);
-                    chatInputRef.current?.focus();
-                  }}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.chipText}>{prompt}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity
-              style={styles.taskCta}
-              onPress={() => router.push("/task/new")}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Start an offline task and find its first step"
-            >
-              <Text style={styles.taskCtaText}>Start with one small step</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.calendarCta}
-              onPress={() => router.push("/calendar")}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Prepare for the next calendar event"
-            >
-              <Text style={styles.calendarCtaText}>Review appointments & prepare</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.calendarCta}
-              onPress={() => router.push("/email")}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Draft an email in your email app"
-            >
-              <Text style={styles.calendarCtaText}>Draft an email</Text>
-            </TouchableOpacity>
-            </GlassSurface>
-          </View>
+          <EmptyState
+            onChipPress={(text) => {
+              chatInputRef.current?.setText(text);
+              chatInputRef.current?.focus();
+            }}
+            onTaskPress={() => router.push("/task/new")}
+            onCalendarPress={() => router.push("/calendar")}
+            onEmailPress={() => router.push("/email")}
+          />
         }
         ListFooterComponent={
           <StreamingFooter isGenerating={isGenerating} streamingText={streamingText} />
@@ -330,115 +379,157 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+// ── Empty state styles ────────────────────────────────────────────────────────
+const es = StyleSheet.create({
+  root: {
     flex: 1,
-    backgroundColor: "transparent",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xxxl,
+    paddingBottom: spacing.xxl,
   },
+  hero: {
+    alignItems: "center",
+    marginBottom: spacing.xxxl,
+  },
+  iconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 22,
+    backgroundColor: colors.accentMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.lg,
+    ...shadow.sm,
+  },
+  icon: { fontSize: 38 },
+  title: {
+    ...typography.title1,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  subtitle: {
+    ...typography.callout,
+    color: colors.textSecondary,
+    textAlign: "center",
+    maxWidth: 280,
+  },
+  section: { marginBottom: spacing.xxl },
+  sectionLabel: {
+    ...typography.footnote,
+    color: colors.textMuted,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.sm,
+  },
+  chipGroup: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    overflow: "hidden",
+    ...shadow.sm,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
+    minHeight: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderLight,
+  },
+  chipPressed: { backgroundColor: colors.surfaceHover },
+  chipText: {
+    flex: 1,
+    ...typography.callout,
+    color: colors.textPrimary,
+  },
+  chipArrow: {
+    fontSize: 20,
+    color: colors.textMuted,
+    fontWeight: "300",
+  },
+  actionGroup: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    overflow: "hidden",
+    ...shadow.sm,
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    minHeight: 60,
+    gap: spacing.md,
+  },
+  actionPressed: { backgroundColor: colors.surfaceHover },
+  actionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  actionIconText: { fontSize: 18 },
+  actionContent: { flex: 1 },
+  actionTitle: {
+    ...typography.callout,
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  actionSub: {
+    ...typography.footnote,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  actionChevron: {
+    fontSize: 20,
+    color: colors.textMuted,
+    fontWeight: "300",
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderLight,
+    marginLeft: 52 + spacing.lg,
+  },
+});
+
+// ── Screen styles ─────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "transparent" },
   banner: {
-    backgroundColor: colors.accentSoft,
-    paddingVertical: 10,
+    backgroundColor: colors.accentMuted,
+    paddingVertical: 11,
     paddingHorizontal: spacing.lg,
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
   },
   bannerText: {
+    ...typography.footnote,
     color: colors.accent,
     fontWeight: "600",
-    fontSize: 14,
   },
   errorBanner: {
     backgroundColor: colors.errorBg,
     paddingVertical: 8,
     paddingHorizontal: spacing.lg,
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.error,
   },
   errorText: {
+    ...typography.footnote,
     color: colors.error,
-    fontSize: 13,
     fontWeight: "500",
   },
-  list: {
-    paddingVertical: spacing.md,
-    flexGrow: 1,
-  },
-  empty: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 24,
-    paddingHorizontal: spacing.xl,
-  },
-  heroSurface: { width: "100%", padding: spacing.xl, borderRadius: 28 },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.accentMuted,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  logoEmoji: {
-    fontSize: 36,
-  },
-  emptyTitle: {
-    color: colors.textPrimary,
-    ...typography.heading,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    color: colors.textSecondary,
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 28,
-  },
-  promptChips: {
-    gap: 10,
-    width: "100%",
-  },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.lg,
-  },
-  chipText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  taskCta: {
-    width: "100%",
-    marginTop: spacing.md,
-    paddingVertical: 15,
-    paddingHorizontal: spacing.lg,
-    alignItems: "center",
-    borderRadius: radii.md,
-    backgroundColor: colors.accent,
-  },
-  taskCtaText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  calendarCta: { width: "100%", paddingVertical: 13, alignItems: "center" },
-  calendarCtaText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
+  list: { paddingVertical: spacing.sm, flexGrow: 1 },
   headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.accentMuted,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: 4,
   },
   headerBtnText: {
-    fontSize: 18,
+    fontSize: 20,
     color: colors.accent,
-    fontWeight: "600",
   },
   headerRight: {
     flexDirection: "row",
