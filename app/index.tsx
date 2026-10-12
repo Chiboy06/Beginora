@@ -63,6 +63,7 @@ export default function ChatScreen() {
   const isGenerating = useChatStore((s) => s.isGenerating);
   const streamingText = useChatStore((s) => s.streamingText);
   const modelLoaded = useChatStore((s) => s.modelLoaded);
+  const modelLoading = useChatStore((s) => s.modelLoading);
   const error = useChatStore((s) => s.error);
   const notice = useChatStore((s) => s.notice);
   const dismissNotice = useChatStore((s) => s.dismissNotice);
@@ -194,12 +195,13 @@ export default function ChatScreen() {
         <TouchableOpacity
           style={styles.banner}
           onPress={() => router.push("/models")}
+          disabled={modelLoading}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="No model loaded. Tap to download one."
+          accessibilityLabel={modelLoading ? "Preparing the on-device model" : "No model loaded. Tap to download one."}
         >
           <Text style={styles.bannerText}>
-            No model yet — tap to download one
+            {modelLoading ? "Preparing your on-device model…" : "No model yet — tap to download one"}
           </Text>
         </TouchableOpacity>
       )}

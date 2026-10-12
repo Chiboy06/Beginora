@@ -58,6 +58,7 @@ interface ChatState {
   isGenerating: boolean;
   streamingText: string;
   modelLoaded: boolean;
+  modelLoading: boolean;
   modelPath: string | null;
   error: string | null;
   // Non-fatal warning (a save failed, a model didn't load). The turn succeeded
@@ -80,12 +81,57 @@ interface ChatState {
 }
 
 export const useChatStore = create<ChatState>((set, get) => {
+  let modelRestorePromise: Promise<void> | null = null;
+
   // A persistence write failed. Log it (for `adb logcat`) AND surface it, so a
   // save failure is never silent — the in-memory turn is fine, but the SQLite
   // copy isn't, and the user deserves to know it may not survive a restart.
   const notePersistFailure = (scope: string, err: unknown) => {
     console.error(`Failed to persist ${scope}:`, err);
     set({ notice: persistFailureNotice(get().language) });
+  };
+
+  const restoreSelectedModel = (): Promise<void> => {
+    if (modelRestorePromise) return modelRestorePromise;
+    modelRestorePromise = (async () => {
+      let active: InstalledModel | null = null;
+      try {
+        await ensureLegacyMigration();
+        active = await getActiveModel();
+        if (active && !isLoaded()) {
+          set({ modelLoading: true });
+          const fileInfo = await FileSystem.getInfoAsync(active.filePath);
+          if (fileInfo.exists) {
+            const perf = perfToLlmOptions(await getPerfSettings());
+            await loadModel(active.filePath, {
+              ...perf,
+              contextSize: active.contextSize,
+              gpuLayers: 0,
+              chatTemplate: active.chatTemplate ?? undefined,
+            });
+            // This cache is an optimization only; it must never gate the app UI.
+            await warmSessionCache();
+          } else {
+            await setModelState(active.id, "error");
+            set({ notice: modelLoadFailureNotice(get().language, active.displayName) });
+          }
+        }
+      } catch (err) {
+        console.warn("[chat-store] model auto-load failed:", err);
+        if (active) {
+          set({ notice: modelLoadFailureNotice(get().language, active.displayName) });
+        }
+      } finally {
+        const info = getModelInfo();
+        set({
+          modelLoaded: info.loaded,
+          modelPath: info.path ?? null,
+          modelLoading: false,
+        });
+        modelRestorePromise = null;
+      }
+    })();
+    return modelRestorePromise;
   };
 
   return {
@@ -96,6 +142,7 @@ export const useChatStore = create<ChatState>((set, get) => {
   isGenerating: false,
   streamingText: "",
   modelLoaded: false,
+  modelLoading: false,
   modelPath: null,
   error: null,
   notice: null,
@@ -123,47 +170,10 @@ export const useChatStore = create<ChatState>((set, get) => {
       set({ conversationId, messages: [] });
     }
 
-    // Auto-load the active model from the registry (migrating any legacy
-    // model_path on first run). Don't erase the selection on a transient load
-    // failure — only mark it errored when the file is genuinely gone, so a
-    // low-memory boot doesn't force re-downloading a multi-GB model.
-    let active: InstalledModel | null = null;
-    try {
-      await ensureLegacyMigration();
-      active = await getActiveModel();
-      if (active && !isLoaded()) {
-        const fileInfo = await FileSystem.getInfoAsync(active.filePath);
-        if (fileInfo.exists) {
-          const perf = perfToLlmOptions(await getPerfSettings());
-          await loadModel(active.filePath, {
-            ...perf,
-            contextSize: active.contextSize,
-            gpuLayers: 0,
-            chatTemplate: active.chatTemplate ?? undefined,
-          });
-          // Cold-start prefix cache: restore the stable prefix's KV state from
-          // disk BEFORE any completion, so the first turn skips the ~30s cold
-          // prefill. Awaited to guarantee the ordering; failures start cold.
-          await warmSessionCache();
-        } else {
-          await setModelState(active.id, "error");
-        }
-      }
-    } catch (err) {
-      console.warn("[chat-store] model auto-load failed:", err);
-      // A model IS selected but didn't load (transient low-memory boot, a bad
-      // session cache, etc). Say so — otherwise the chat shows the "no model —
-      // tap to download" banner and misrepresents a model that's actually there.
-      if (active) {
-        set({ notice: modelLoadFailureNotice(get().language, active.displayName) });
-      }
-    }
-
-    const info = getModelInfo();
-    set({
-      modelLoaded: info.loaded,
-      modelPath: info.path ?? null,
-    });
+    // Loading a multi-GB native model (and its optional prefix cache) can take
+    // a long time on a phone. Restore it in the background, after the UI can
+    // already render; a stalled native promise must not strand the launch view.
+    void restoreSelectedModel();
 
     // Run memory decay on startup (lightweight)
     runMemoryDecay().catch(() => {});

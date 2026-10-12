@@ -1,15 +1,17 @@
 import { Stack, Redirect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   ActivityIndicator,
+  Text,
   Alert,
   AppState,
   Platform,
   NativeEventEmitter,
   NativeModules,
 } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
 import * as Network from "expo-network";
 import * as Notifications from "expo-notifications";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -22,7 +24,10 @@ import { startBeginoraService, stopBeginoraService } from "../lib/native/vesta-s
 import { disableMcpServer } from "../lib/mcp/mcp-lifecycle";
 import { FloatingBubble } from "../components/FloatingBubble";
 import { applyDownloadedAppUpdate, checkForAppUpdate } from "../lib/updates/update-service";
+import { STARTUP_READY_TIMEOUT_MS, waitForStartupTasks } from "../lib/startup/startup-readiness";
 import { colors } from "../lib/theme";
+
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const router = useRouter();
@@ -31,15 +36,28 @@ export default function RootLayout() {
   const onboardingDone = useOnboardingStore((s) => s.done);
   const modelLoaded = useChatStore((s) => s.modelLoaded);
   const [ready, setReady] = useState(false);
+  const splashHidden = useRef(false);
+  const hideNativeSplash = useCallback(() => {
+    if (splashHidden.current) return;
+    splashHidden.current = true;
+    void SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   useEffect(() => {
-    Promise.all([
+    let mounted = true;
+    const startupWork = Promise.all([
       init().catch((err) => console.error("Chat init failed:", err)),
       loadTasks().catch((err) => console.error("Task load failed:", err)),
       disableMcpServer().catch((err) => console.warn("Legacy MCP shutdown failed:", err)),
-    ]).finally(() => {
+    ]);
+    void waitForStartupTasks(startupWork, STARTUP_READY_TIMEOUT_MS).then((result) => {
+      if (!mounted) return;
+      if (result === "timed_out") {
+        console.warn("[startup] showing the app while local initialization continues");
+      }
       setReady(true);
     });
+    return () => { mounted = false; };
   }, [init, loadTasks]);
 
   useEffect(() => {
@@ -149,8 +167,14 @@ export default function RootLayout() {
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: "center", alignItems: "center" }}>
+      <View
+        onLayout={hideNativeSplash}
+        style={{ flex: 1, backgroundColor: colors.bg, justifyContent: "center", alignItems: "center", gap: 16 }}
+      >
+        <StatusBar style="dark" />
+        <Text style={{ color: colors.accent, fontSize: 28, fontWeight: "700" }}>Beginora</Text>
         <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Getting your tasks ready…</Text>
       </View>
     );
   }
