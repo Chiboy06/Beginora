@@ -22,6 +22,7 @@ The configured splash artwork was also an Expo placeholder rather than Beginora 
 - `npx expo-doctor` — 20/20 checks passed.
 - `CI=1 npx expo install --check` — dependencies aligned.
 - `npx expo prebuild --platform android --clean --no-install` and Android production JS export — passed.
+- Release APK — built for `app.beginora.android` version `0.2.1`/code `3`; ZIP integrity and alignment passed, `assets/index.android.bundle` is present, and the v2 signing certificate matches the previous `0.2.0` APK.
 - Full Android-device launch remains to be confirmed. The sandbox's software-only Pixel 6/API 36 emulator did not finish first boot without hardware acceleration, so it could not install/run the app.
 
 If the 0.2.1 APK still blinks indefinitely on the phone, the next diagnostic should be the first-launch Android logcat (`AndroidRuntime`, `ReactNativeJS`, and Expo startup messages); that would distinguish a native crash or bundle-load error from slow local-model initialization.
