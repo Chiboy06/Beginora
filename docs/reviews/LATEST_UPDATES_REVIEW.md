@@ -24,7 +24,7 @@
 | Android JS bundle | Pass — Gradle bundled 1,488 modules; embedded `assets/index.android.bundle` is present |
 | Resolved app config | Pass — version 0.2.4/code 6; OTA disabled, no EAS URL/project ID; API URL unset and cloud sync disabled |
 | Android release APK | Pass — package `app.beginora.android`, version 0.2.4/code 6, 187,516,360 bytes. ZIP integrity and 4-byte alignment verified; SHA-256: `b8507c2965845bd8c15be443044ad0065af6664115d94b9202685887ba87331a`. Debug signer SHA-256 matches v0.2.3 (`fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`), supporting an in-place upgrade. |
-| GitHub PR #3 CI | Awaiting the current commit's push/checks. |
+| GitHub PR #3 CI | Pass — GitGuardian and CI/Quality Gates succeeded for implementation commit `15b463f`; EAS preview publishing was skipped because the repository OTA opt-in is not configured. |
 
 ## Remaining device and service setup
 
