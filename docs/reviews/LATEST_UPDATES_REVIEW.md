@@ -1,49 +1,44 @@
 # Beginora release-readiness review — 2026-10-12
 
-**Candidate:** v0.2.3 / Android `versionCode` 5 (`app.beginora.android`). This review covers the latest fetched `origin/main` UI/startup changes, the previously integrated Android-first features, and the current local reliability fixes. See the [comprehensive functional audit](COMPREHENSIVE_FUNCTIONAL_AUDIT_2026-10-12.md) for the original findings and evidence boundaries.
+**Candidate:** v0.2.4 / Android `versionCode` 6 (`app.beginora.android`). This candidate includes the focused splash-lifecycle diagnostic and a network-aware manual EAS update check. The source comparison with the original Vesta app is in [VESTA_STARTUP_COMPARISON_2026-10-12.md](VESTA_STARTUP_COMPARISON_2026-10-12.md). See the [comprehensive functional audit](COMPREHENSIVE_FUNCTIONAL_AUDIT_2026-10-12.md) for the wider MVP review and evidence boundaries.
 
-## Implemented and rechecked
+## Implemented
 
-- **Startup/splash:** chat/model restoration no longer blocks the app shell; native splash hide is retried up to three times with bounded delay, safe failure logging, and a regression-tested controller. Android splash and launcher art use the generated Beginora sprout asset.
-- **Home and onboarding:** latest main's redesigned home screen was merged with the bounded-startup/model-loading behavior; onboarding completion is reactive and persisted.
-- **Models:** chat activation is restricted to ready primary models; embedding models remain separate. Repository downloads and local imports use distinct sanitized per-model paths, with shared legacy-file deletion guarded by remaining registry references.
-- **Tasks/activity:** task-plus-plan creation and status-plus-outcome recording use SQLite transactions; the task store updates visible state after persistence succeeds. Task screens now offer explicit reminder cancellation and explain that snoozing does not cancel a separately chosen reminder.
-- **Appointments:** changed-time reminders are identified as stale; cancellation/replacement preserves saved state when OS cancellation fails and the calendar UI offers explicit cancel/replace actions.
-- **Auth safety:** the dormant client accepts only HTTPS (except loopback development), validates complete auth responses, and avoids leaving partial SecureStore sessions.
-- **Integrated Android features:** voice transcript enters an editable draft and is never auto-sent; Telegram credentials use SecureStore; local reminders route to tasks; lock-screen model notifications use generic text; background-model retention is opt-in; plaintext LAN MCP remains disabled.
-- **Updates/sync boundaries:** Expo OTA remains explicitly disabled unless a real EAS project is configured and opted in. Cloud task sync remains off and incomplete; no task data is uploaded by this candidate.
-- **CI/docs:** CI covers clean Android prebuild and JS export in addition to standard checks. Architecture, privacy, update and cloud-sync notes distinguish current behavior from planned work.
+- **Startup/splash:** removed Beginora's module-scope `SplashScreen.preventAutoHideAsync()` call so Expo's default native splash dismissal is not intentionally disabled before RootLayout mounts. The post-mount best-effort hide/retry remains; the app shell still has bounded readiness and model restoration remains in the background. This is a diagnostic mitigation, not a confirmed physical-device fix.
+- **Manual repository update:** Settings already had a manual EAS check/download action; it now explicitly detects an offline device and reports that no network check was made. The card explains that only compatible JavaScript/interface updates published from the repo to the EAS preview channel can be downloaded, and that the user chooses whether to restart. Native changes still require a new APK; task data remains local.
+- **Publishing path:** the gated GitHub Actions EAS workflow now includes the current preview branch alongside the existing publish branches. It still skips until repository variable `EAS_UPDATES_ENABLED=true` is set, and requires `EAS_PROJECT_ID` plus the `EXPO_TOKEN` secret.
+- **Other MVP behavior:** task/model/reminder reliability, onboarding, privacy boundaries, and safe offline operation remain as reviewed in the [comprehensive functional audit](COMPREHENSIVE_FUNCTIONAL_AUDIT_2026-10-12.md).
 
 ## Validation
 
 | Check | Result |
 |---|---|
-| Clean install (`npm ci --legacy-peer-deps`) | Pass; postinstall compatibility patches reapplied |
+| Dependency install / postinstall | Pass with unchanged dependency graph. The prior clean `npm ci --legacy-peer-deps` verification remains applicable; the compatibility patcher was rerun and completed idempotently. No package versions changed for 0.2.4. |
 | TypeScript | Pass |
-| Jest | Pass — 48 suites, 299 tests |
 | Expo lint | Pass |
-| Expo Doctor | Pass — 20/20 checks |
-| Expo SDK dependency check | Pass |
-| Security policy (`npm run audit:ci`) | Pass — 57 advisory instances (30 moderate, 27 high, 0 critical); two known upstream advisory IDs remain explicitly allowlisted because no patched published version was available at last registry check. This is not a vulnerability-free dependency graph. |
+| Jest | Pass — 48 suites, 300 tests |
+| Expo Doctor | Pass — 20/20 checks on the unchanged dependency graph |
+| Expo SDK dependency check | Pass — no package changes since the prior aligned SDK 58 check |
+| Security policy (`npm run audit:ci`) | Pass on the unchanged dependency graph — 57 advisory instances (30 moderate, 27 high, 0 critical). Two known upstream advisory IDs remain explicitly allowlisted because no patched published version was available at the last registry check. This is not a vulnerability-free dependency graph. |
 | Clean Expo Android prebuild | Pass |
-| Production Android JS export | Pass — 8.1 MB Hermes bundle; native voice Activity and SystemActions package registration present |
-| Resolved configuration | Pass — version 0.2.3 / code 5; EAS update URL absent and updates disabled; API URL unset and cloud sync disabled |
-| Android release APK | Pass — package `app.beginora.android`, version 0.2.3/code 5; ZIP integrity and alignment verified; embedded JS bundle present; 187,516,052 bytes. SHA-256: `8cce90315c1b44660187e3f28f933e52b716ba260d0abeb201841bf706fdc7bf`. Debug signer SHA-256 matches v0.2.2, supporting an in-place upgrade. |
-| GitHub PR #3 CI | Pass — clean install, Android prebuild/export, typecheck, lint, security gate and tests all green. |
+| Android JS bundle | Pass — Gradle bundled 1,488 modules; embedded `assets/index.android.bundle` is present |
+| Resolved app config | Pass — version 0.2.4/code 6; OTA disabled, no EAS URL/project ID; API URL unset and cloud sync disabled |
+| Android release APK | Pass — package `app.beginora.android`, version 0.2.4/code 6, 187,516,360 bytes. ZIP integrity and 4-byte alignment verified; SHA-256: `b8507c2965845bd8c15be443044ad0065af6664115d94b9202685887ba87331a`. Debug signer SHA-256 matches v0.2.3 (`fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`), supporting an in-place upgrade. |
+| GitHub PR #3 CI | Awaiting the current commit's push/checks. |
 
-## Remaining external/device work
+## Remaining device and service setup
 
-1. **Real-device launch test:** no Android device is attached to the sandbox. The reviewed Skills.sh emulator helper is installed locally, but this sandbox has no `/dev/kvm`; the software-only AVD never completed Android package-manager boot, so the APK could not be installed there. This is not evidence of an APK launch failure. Install the verified v0.2.3 APK on the owner’s phone and follow [`ANDROID_SMOKE_TEST.md`](../ANDROID_SMOKE_TEST.md); if the sprout/splash still persists, capture cold-start `AndroidRuntime`, `ReactNativeJS`, and Expo logs before clearing app data.
-2. **Repository-published app updates:** the app can check/download a compatible EAS Update only in an APK linked to a real EAS project. Enable it only after setting GitHub repository variable `EAS_PROJECT_ID`, variable `EAS_UPDATES_ENABLED=true`, secret `EXPO_TOKEN`, and building a new linked APK. The current candidate is intentionally not OTA-linked; a JS update cannot replace native code or permissions. See [`OTA_UPDATES.md`](../OTA_UPDATES.md).
-3. **Cloud task sync:** no working backend is available. `api.beginora.app` did not resolve from this environment, API/Cognito values are not configured, and local task changes are not yet enqueued/reconciled end-to-end. Sync remains disabled; the app keeps core tasks local. Do not upload personal task data until the owner supplies a live authenticated HTTPS API and Cognito pool/client (or explicitly chooses and provisions an alternative backend), plus consent, deletion, retries, and conflict behavior. See [`CLOUD_SYNC_STATUS.md`](../CLOUD_SYNC_STATUS.md).
-4. **Human release review:** store signing and Play/App Store distribution are not configured. The local APK uses the sandbox debug signing identity. Verify it installs over the prior same-key test build before relying on upgrade behavior.
+1. **Physical launch test:** no Android phone or usable emulator is attached to the sandbox; the software AVD could not boot without `/dev/kvm`. The APK build succeeding is not evidence that the phone launch loop is fixed. Install the supplied v0.2.4 APK over 0.2.3 and follow [ANDROID_SMOKE_TEST.md](../ANDROID_SMOKE_TEST.md). If it still blinks, capture cold-start Android logs before clearing app data.
+2. **Activate repository-to-app updates:** the current APK is intentionally not OTA-linked and the resolved config reports `updates.enabled=false`. The Settings button therefore reports that OTA is not connected; it cannot fetch repository changes in this APK yet. The owner must supply/configure a real EAS project ID, set GitHub Actions variables `EAS_PROJECT_ID` and `EAS_UPDATES_ENABLED=true`, add `EXPO_TOKEN` as a GitHub Actions secret, and then install a newly built APK linked to that EAS project. GitHub Actions variables/secrets could not be inspected from this session, so their saved state is unknown. See [OTA_UPDATES.md](../OTA_UPDATES.md). OTA only updates compatible JavaScript/assets; it is not task-data sync.
+3. **Cloud task sync:** no working backend is configured. `api.beginora.app` did not resolve earlier; the reachable API URL and Cognito pool/client/region remain unprovided, and local task changes are not yet enqueued/reconciled end-to-end. Sync remains disabled; no task data is uploaded. See [CLOUD_SYNC_STATUS.md](../CLOUD_SYNC_STATUS.md).
+4. **Release signing/distribution:** the APK uses the sandbox debug signing identity. Store signing and Play/App Store distribution are not configured.
 
 ## Current privacy boundaries
 
-- Task plans, activity and model files stay in local app-private storage; cloud sync is off.
-- Calendar permissions are requested only after user action; saving through the device calendar may sync with the user’s calendar provider.
+- Task plans, activity and model files remain in local app-private storage; cloud sync is off.
+- Calendar permissions are requested only after user action; events saved through the device calendar may sync with the calendar provider.
 - Email opens the device composer; Beginora does not silently send mail.
 - Voice recognition is Android/provider-dependent and may use a network, but transcripts remain editable and are not auto-submitted.
-- Telegram sends only after a user-triggered action; the selected content goes to Telegram.
-- EAS checks are unavailable until a linked, explicitly enabled build is installed.
+- Telegram sends only after a user-triggered action; selected content goes to Telegram.
+- EAS checks remain unavailable until a linked, explicitly enabled build is installed.
 - MCP remains unavailable until transport and source-level authorization are implemented and verified.

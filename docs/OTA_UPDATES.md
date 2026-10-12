@@ -2,7 +2,7 @@
 
 Beginora can receive compatible JavaScript and bundled-asset updates through **Expo EAS Update**. GitHub does not directly replace an installed APK: a repository push must first be published to EAS by the GitHub Actions workflow, and the installed binary must be linked to the same EAS project, runtime, and channel.
 
-When the app is online, a linked release build checks for a compatible update on startup/foreground/network reconnection, downloads it without interrupting the current screen, and asks the user whether to restart. The Settings screen also supports a manual check. **No restart or update install happens without the user's choice.** Core task data remains in local SQLite; this is app-code delivery, not cloud sync or a database backend.
+When the app is online, a linked release build checks for a compatible update on startup/foreground/network reconnection, downloads it without interrupting the current screen, and asks the user whether to restart. The Settings **Check for updates** button also lets the user manually check and download from the EAS preview channel; it reports when the device is offline. **No restart or update install happens without the user's choice.** Core task data remains in local SQLite; this is app-code delivery, not cloud sync or a database backend.
 
 ## One-time setup
 
@@ -12,7 +12,7 @@ When the app is online, a linked release build checks for a compatible update on
 4. Add an Expo access token as the GitHub Actions secret `EXPO_TOKEN`. Do not commit or paste the token into source files.
 5. Build/install a fresh preview APK with this project ID. Existing binaries without the matching update URL/channel cannot receive these updates.
 
-After setup, pushes to `main`, `develop`, or `manus/beginora-android-mvp` publish compatible JavaScript/assets to the `preview` channel. The workflow is intentionally skipped until `EAS_UPDATES_ENABLED` is set.
+After setup, pushes to `main`, `develop`, `manus/beginora-android-mvp`, or `fix/eas-ota-explicit-opt-in` publish compatible JavaScript/assets to the `preview` channel. The workflow is intentionally skipped until `EAS_UPDATES_ENABLED` is set.
 
 ## Important limits and current state
 

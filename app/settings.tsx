@@ -358,7 +358,7 @@ export default function SettingsScreen() {
 
       <Text style={styles.sectionTitle}>App updates</Text>
       <View style={styles.card}>
-        <Text style={styles.desc}>Check the Beginora preview channel for compatible interface and JavaScript updates. Native changes still need a new APK.</Text>
+        <Text style={styles.desc}>Check and download compatible interface and JavaScript updates published from the Beginora repository to its EAS preview channel. An internet connection and a release APK linked to that EAS project are required. You choose whether to restart; native changes still need a new APK, and tasks stay on this device.</Text>
         <TouchableOpacity
           style={[styles.btn, styles.btnPrimary, updateBusy && styles.btnBusy, { marginTop: spacing.md }]}
           onPress={handleCheckForUpdates}
@@ -592,7 +592,7 @@ export default function SettingsScreen() {
         <Text style={styles.desc}>
           Beginora is an offline-first assistant that helps you find a first step. Core task plans and activity stay on this device in this prototype; selected integrations may send the information you choose to their providers.
         </Text>
-        <Text style={styles.version}>v0.2.3 — startup and workflow fixes</Text>
+        <Text style={styles.version}>v0.2.4 — startup splash diagnostics</Text>
       </View>
 
     </ScrollView>

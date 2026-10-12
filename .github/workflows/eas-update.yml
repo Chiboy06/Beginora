@@ -2,7 +2,7 @@ name: Publish EAS Preview Update
 
 on:
   push:
-    branches: [main, develop, manus/beginora-android-mvp]
+    branches: [main, develop, manus/beginora-android-mvp, fix/eas-ota-explicit-opt-in]
   workflow_dispatch:
 
 permissions:

@@ -29,7 +29,8 @@ import { STARTUP_READY_TIMEOUT_MS, waitForStartupTasks } from "../lib/startup/st
 import { createNativeSplashHideController } from "../lib/startup/native-splash";
 import { colors, spacing, typography } from "../lib/theme";
 
-void SplashScreen.preventAutoHideAsync().catch(() => {});
+// Keep Expo's default first-frame splash dismissal. A module-level manual hold
+// can strand the user on the native splash if this tree fails before mounting.
 
 export default function RootLayout() {
   const router = useRouter();

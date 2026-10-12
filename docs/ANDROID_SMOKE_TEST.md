@@ -1,10 +1,10 @@
-# Android phone smoke test — Beginora 0.2.3
+# Android phone smoke test — Beginora 0.2.4
 
 Use this checklist with the refreshed APK after installing it over the earlier test build. Beginora has no bundled model; downloaded models remain in app-private storage. The build uses the existing sandbox debug signing key. If Android reports a signature conflict, stop before uninstalling the earlier build so local task/model data can be preserved.
 
 ## First launch and core offline task loop
 
-1. Install and launch the v0.2.3 APK. Confirm the branded native splash transitions to the app within a few seconds, even when a previously selected local model is still loading. Complete the non-clinical onboarding screen and confirm the app enters the main UI without a redirect loop. Force-stop/reopen and confirm onboarding stays complete. If it remains on the native sprout, capture startup logcat before clearing app data.
+1. Install and launch the v0.2.4 APK over v0.2.3. Confirm the branded native splash transitions to the app within a few seconds, even when a previously selected local model is still loading. Complete the non-clinical onboarding screen and confirm the app enters the main UI without a redirect loop. Force-stop/reopen and confirm onboarding stays complete. If it remains on the native sprout or loops, capture startup logcat before clearing app data.
 2. Turn on airplane mode. Enter a task such as “I need to start my report” and select **Make it smaller**.
 3. Confirm the screen shows a useful first action—not raw JSON—and the task stays usable offline (local model if installed; deterministic/manual fallback if not).
 4. Start a five-minute focus session; pause/resume, finish early, and return to the task. Try **Done**, **Snooze**, and **Another first step**; confirm task state/history survive an app restart. Set a task reminder, cancel it from the task screen, and confirm no alert fires; verify snoozing does not silently cancel a separately set reminder.
@@ -29,9 +29,24 @@ Use this checklist with the refreshed APK after installing it over the earlier t
 - **Telegram:** enter token/chat ID, save, then disable Telegram and save again. Verify the Connections badge reflects configured-but-disabled. Re-enable and use **Send task summary** only if you intend to send those selected task details to Telegram. Confirm **Remove** clears saved credentials.
 - **Background model:** verify the setting is off by default. Enable it only after reading the persistent-notification/battery disclosure and accepting notification permission; confirm the notification uses generic text, not the task title. Turn it off and confirm the service stops.
 - **Connections/MCP:** verify live calendar/contact/notification readiness and provider data disclosures. MCP must show unavailable; no plaintext LAN pairing endpoint should start.
-- **EAS updates:** without a linked project ID, expect the update status to report unavailable and normal app usage to work. Once EAS/GitHub setup is completed, test a preview update: connect to the internet, wait for download, choose **Later** and confirm no restart, then choose **Restart now** and confirm the compatible JS update applies while local task data remains.
-- **Settings:** confirm the planning-aid/non-clinical disclaimer, local task storage, optional provider boundaries, permission status, and version 0.2.3.
+- **Manual app update:** this diagnostic APK is not linked to EAS yet, so the button should report that updates are unavailable. In a future linked preview APK, tap while offline and confirm it asks for internet; reconnect and tap again to check/download a compatible repository-published update. Choose **Later** to keep using the current app, or **Restart now** to apply; confirm local tasks remain.
+- **Automatic EAS checks:** once the APK is linked and the preview channel is configured, connect to the internet and confirm checks on startup/foreground/network reconnection never block normal use. Applying a downloaded update must still wait for the user's restart choice.
+- **Settings:** confirm the planning-aid/non-clinical disclaimer, local task storage, optional provider boundaries, permission status, and version 0.2.4.
 
 ## What to send back
 
 For any issue, share the screen name, steps taken, expected versus actual behavior, Android version/model, and whether a local model was installed/active. Redact private task, calendar, email, contact, Telegram, and appointment data from screenshots and logs.
+
+### Capture startup logs (Windows PowerShell with Android Platform Tools)
+
+Connect the phone with USB debugging enabled, accept the phone's debugging prompt, then run:
+
+```powershell
+adb shell am force-stop app.beginora.android
+adb logcat -c
+adb shell monkey -p app.beginora.android 1
+Start-Sleep -Seconds 8
+adb logcat -d -v time | Select-String -Pattern 'FATAL EXCEPTION|AndroidRuntime|ReactNativeJS|MMKV|llama|Expo|SoLoader|app\.beginora\.android'
+```
+
+Send the matching error/stack-trace lines and the phone model/Android version. If you do not have ADB, use Android Studio's Logcat, filter by `app.beginora.android`, clear the log, relaunch the app, and copy the first error. Redact task text and personal data; do not clear app storage or uninstall the old build just to collect logs.
