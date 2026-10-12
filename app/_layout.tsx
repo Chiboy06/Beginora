@@ -25,7 +25,7 @@ import { startBeginoraService, stopBeginoraService } from "../lib/native/vesta-s
 import { disableMcpServer } from "../lib/mcp/mcp-lifecycle";
 import { FloatingBubble } from "../components/FloatingBubble";
 import { applyDownloadedAppUpdate, checkForAppUpdate } from "../lib/updates/update-service";
-import { STARTUP_READY_TIMEOUT_MS, waitForStartupTasks } from "../lib/startup/startup-readiness";
+import { STARTUP_READY_TIMEOUT_MS, startStartupTask, waitForStartupTasks } from "../lib/startup/startup-readiness";
 import { createNativeSplashHideController } from "../lib/startup/native-splash";
 import { colors, spacing, typography } from "../lib/theme";
 
@@ -58,17 +58,21 @@ export default function RootLayout() {
   useEffect(() => {
     let mounted = true;
     const startupWork = Promise.all([
-      init().catch((err) => console.error("Chat init failed:", err)),
-      loadTasks().catch((err) => console.error("Task load failed:", err)),
-      disableMcpServer().catch((err) => console.warn("Legacy MCP shutdown failed:", err)),
+      startStartupTask(init, (err) => console.error("Chat init failed:", err)),
+      startStartupTask(loadTasks, (err) => console.error("Task load failed:", err)),
     ]);
     void waitForStartupTasks(startupWork, STARTUP_READY_TIMEOUT_MS).then((result) => {
       if (!mounted) return;
       if (result === "timed_out") {
         console.warn("[startup] showing the app while local initialization continues");
+      } else {
+        console.info("[startup] local initialization finished");
       }
       setReady(true);
     });
+    // MCP is deliberately unavailable; shutting down any legacy server is
+    // useful cleanup, but must not gate the task/chat UI.
+    void startStartupTask(disableMcpServer, (err) => console.warn("Legacy MCP shutdown failed:", err));
     return () => { mounted = false; };
   }, [init, loadTasks]);
 

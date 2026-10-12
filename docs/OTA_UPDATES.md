@@ -1,23 +1,91 @@
-# Repository-to-app updates
+# Repository-to-app updates with EAS
 
-Beginora can receive compatible JavaScript and bundled-asset updates through **Expo EAS Update**. GitHub does not directly replace an installed APK: a repository push must first be published to EAS by the GitHub Actions workflow, and the installed binary must be linked to the same EAS project, runtime, and channel.
+Beginora can receive compatible JavaScript and bundled-asset updates through **Expo EAS Update**. A GitHub push does not directly change an installed APK: the workflow publishes the app bundle to EAS, and the installed build must already be linked to the same EAS project, runtime version, and channel.
 
-When the app is online, a linked release build checks for a compatible update on startup/foreground/network reconnection, downloads it without interrupting the current screen, and asks the user whether to restart. The Settings **Check for updates** button also lets the user manually check and download from the EAS preview channel; it reports when the device is offline. **No restart or update install happens without the user's choice.** Core task data remains in local SQLite; this is app-code delivery, not cloud sync or a database backend.
+This delivers app code only. Task data stays in local SQLite; EAS Update is not cloud sync. Native-module, permission, package-ID, or native configuration changes still require a new APK. The installed 0.2.4 APK has no EAS update URL, so it cannot be retrofitted to receive OTA updates.
 
-## One-time setup
+## 1. Create or link the Expo project
 
-1. Create or link the Beginora project in an Expo account and obtain its EAS project ID.
-2. Set `EAS_PROJECT_ID` and `EAS_UPDATES_ENABLED=true` in the local release build environment. The ID is not a secret; never commit `.env`.
-3. In the GitHub repository, add repository variable `EAS_PROJECT_ID` and repository variable `EAS_UPDATES_ENABLED=true`.
-4. Add an Expo access token as the GitHub Actions secret `EXPO_TOKEN`. Do not commit or paste the token into source files.
-5. Build/install a fresh preview APK with this project ID. Existing binaries without the matching update URL/channel cannot receive these updates.
+From the Beginora repository root, sign in and run Expo's setup command:
 
-After setup, pushes to `main`, `develop`, `manus/beginora-android-mvp`, or `fix/eas-ota-explicit-opt-in` publish compatible JavaScript/assets to the `preview` channel. The workflow is intentionally skipped until `EAS_UPDATES_ENABLED` is set.
+```sh
+npx eas-cli@latest login
+npx eas-cli@latest update:configure
+```
 
-## Important limits and current state
+When prompted, create or select the Expo project for Beginora. The command writes the project ID to `app.json` under `expo.extra.eas.projectId`, and configures the EAS update URL and runtime version. The project ID is an identifier, **not a secret**. This repo's dynamic `app.config.ts` reads that ID and still requires the explicit OTA opt-in.
 
-- **This workspace is not linked yet:** there is no configured EAS project ID or Expo token. OTA metadata is now disabled unless both `EAS_UPDATES_ENABLED=true` and a real project ID are present at native build time. The app remains offline-usable, but automatic update delivery will stay unavailable until the setup above is completed and a matching APK is installed.
-- OTA changes JavaScript and bundled assets only. Native-module changes, Android permissions, package identifiers, or native configuration require a new APK/AAB build.
-- Applying a downloaded update restarts the app only after the user confirms; local task data remains on the device.
-- A different signing key still requires uninstalling the old test build before installing the new one.
-- Cloud task sync is separate and not active; the repository has disconnected client scaffolding but no reachable authenticated backend. See [Cloud sync readiness](CLOUD_SYNC_STATUS.md). A database is not needed for OTA.
+The `preview` EAS build profile is configured to use the `preview` environment and channel and to opt in to updates once the project is linked. Local Gradle builds remain OTA-disabled unless you explicitly opt in through environment variables.
+
+## 2. Add the GitHub Actions configuration
+
+Open [Beginora's Actions settings](https://github.com/Chiboy06/Beginora/settings/secrets/actions) and select **Settings → Secrets and variables → Actions**.
+
+On the **Variables** tab, create these two repository variables:
+
+| Name | Value |
+|---|---|
+| `EAS_PROJECT_ID` | The project UUID from `app.json` / Expo dashboard |
+| `EAS_UPDATES_ENABLED` | `true` (lowercase) |
+
+On the **Secrets** tab, create this repository secret:
+
+| Name | Value |
+|---|---|
+| `EXPO_TOKEN` | An Expo access token created at [expo.dev/settings/access-tokens](https://expo.dev/settings/access-tokens) |
+
+Treat `EXPO_TOKEN` like a password. Do not paste it in chat, commit it, or add it to `.env`. If your Expo account supports it, prefer a dedicated Robot user with only the access needed for this project. The workflow reads the project ID and opt-in from GitHub **variables**, and the token from the GitHub **secret**. GitHub's [variables guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables) and [secrets guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) describe these repository-level settings.
+
+## 3. Build and install a linked preview APK
+
+For a local build, set the following in the ignored `.env` file at the repository root. The file is already listed in `.gitignore`:
+
+```dotenv
+EAS_PROJECT_ID=<your-project-uuid>
+EAS_UPDATES_ENABLED=true
+EAS_UPDATE_CHANNEL=preview
+```
+
+Do **not** put `EXPO_TOKEN` in this file. Check the resolved config before building; it should show updates enabled, an update URL containing your project UUID, and the `preview` channel:
+
+```sh
+npx expo config --type public
+```
+
+Then create the Android native project and release APK:
+
+```sh
+npx expo prebuild --platform android --clean --no-install
+cd android
+./gradlew :app:assembleRelease
+```
+
+The APK is written to `android/app/build/outputs/apk/release/app-release.apk`. Building locally from the same workspace preserves Beginora's current test signing identity. An EAS cloud build may use a different signing key; Android will reject it as an in-place upgrade if its key differs, so do not uninstall the current app until the signing identity is confirmed.
+
+For an EAS cloud build, run:
+
+```sh
+npx eas-cli@latest build --profile preview --platform android
+```
+
+The repo's `preview` profile now selects the EAS `preview` environment, APK distribution, and `preview` channel, with `EAS_UPDATES_ENABLED=true`. EAS Update environment variables are described in [Expo's EAS environment-variable guide](https://docs.expo.dev/eas/environment-variables/).
+
+## 4. Publish the first preview update
+
+Install and open a **linked preview APK** first. Then go to GitHub **Actions → Publish EAS Preview Update → Run workflow**, select `fix/eas-ota-explicit-opt-in` (or the branch you intend to publish), and run it. The workflow also runs on configured pushes to supported branches. A push made while the opt-in variable was unset was skipped; enabling the variable does not replay that earlier run.
+
+The workflow publishes to the `preview` channel and specifies the `preview` EAS environment. Expo requires an environment for SDK 55 and later. Once published, use Beginora **Settings → Check for updates** on the linked app. A downloaded update is applied only after the user chooses to restart. See [Expo's EAS Update setup guide](https://docs.expo.dev/eas-update/getting-started/) for the EAS CLI details.
+
+## Current status and boundaries
+
+- No Beginora EAS project ID or Expo token has been supplied/configured in this workspace. Until the project is linked and a new APK is installed, the Settings update action correctly reports OTA as unavailable.
+- Enabling the GitHub workflow does not enable it in already-installed APKs. Those binaries need a new linked build.
+- OTA cannot add or repair native code, permissions, or native startup configuration. The current launch-loop investigation is separate; a native fix still needs a new APK.
+- Cloud task sync remains disabled. Keep `ENABLE_CLOUD_SYNC=false`; OTA does not upload task data. See [cloud sync readiness](CLOUD_SYNC_STATUS.md).
+
+## Official references
+
+- [Expo — Get started with EAS Update](https://docs.expo.dev/eas-update/getting-started/)
+- [Expo — EAS environment variables](https://docs.expo.dev/eas/environment-variables/)
+- [GitHub — Store information in variables](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables)
+- [GitHub — Using secrets in GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)

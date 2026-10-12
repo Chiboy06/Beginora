@@ -38,4 +38,4 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Publish preview update
-        run: npx eas-cli@latest update --channel preview --message "GitHub ${GITHUB_SHA}" --non-interactive
+        run: npx eas-cli@latest update --channel preview --message "GitHub ${GITHUB_SHA}" --non-interactive --environment preview
