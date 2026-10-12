@@ -28,7 +28,8 @@
 | Clean Expo Android prebuild | Pass |
 | Production Android JS export | Pass — 8.1 MB Hermes bundle; native voice Activity and SystemActions package registration present |
 | Resolved configuration | Pass — version 0.2.3 / code 5; EAS update URL absent and updates disabled; API URL unset and cloud sync disabled |
-| Android release APK | In progress at time of this review; update this row after artifact verification. |
+| Android release APK | Pass — package `app.beginora.android`, version 0.2.3/code 5; ZIP integrity and alignment verified; embedded JS bundle present; 187,516,052 bytes. SHA-256: `8cce90315c1b44660187e3f28f933e52b716ba260d0abeb201841bf706fdc7bf`. Debug signer SHA-256 matches v0.2.2, supporting an in-place upgrade. |
+| GitHub PR #3 CI | Pass — clean install, Android prebuild/export, typecheck, lint, security gate and tests all green. |
 
 ## Remaining external/device work
 
