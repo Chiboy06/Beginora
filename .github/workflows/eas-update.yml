@@ -16,6 +16,7 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+      EAS_UPDATES_ENABLED: "true"
       EAS_UPDATE_CHANNEL: preview
       CI: "1"
     steps:
