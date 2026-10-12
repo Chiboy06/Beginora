@@ -14,7 +14,8 @@
 - There is no backend/API source directory in this repository and no deployed API implementation was found.
 - The app has no sign-up/sign-in screen or call sites for the auth client.
 - Task-store changes do not enqueue records; the sync worker has no app-start/settings call site.
-- The current worker posts to `/sync` without a Bearer token, reads `process.env.API_URL` instead of the resolved Expo runtime config, and does not implement a pull/reconciliation flow. **It must not be enabled or pointed at personal task data as-is.**
+- The worker now fails closed unless the build/runtime sync flag, local user consent, a resolved HTTPS API URL, and a stored access token are all present. It sends Bearer-authenticated requests and retries one expired-token response, but this safety layer does not connect the app to a backend.
+- The worker currently supports only a `/sync` POST. Pull/reconciliation, conflict resolution, encrypted payloads, and deletion propagation are not implemented; do not treat sync as available.
 - No local `.env` file, real Cognito pool/client IDs, or deployed API configuration are present. The example host `https://api.beginora.app` did not resolve during this check; no user data was sent.
 
 ## Safe initial data scope
