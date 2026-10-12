@@ -5,7 +5,7 @@
 
 ## Short conclusion
 
-The strongest verified code-level match to the symptom is Beginora's module-scope `SplashScreen.preventAutoHideAsync()`. Vesta does not pin the native splash; it renders a React loading indicator while initialization runs. Beginora's retryable splash-hide helper only starts after `RootLayout` commits, so it cannot release a splash held before that point. The 0.2.4 diagnostic change removes the manual hold while leaving the post-mount best-effort hide in place.
+The module-scope `SplashScreen.preventAutoHideAsync()` was a real difference from Vesta, so 0.2.4 removed that hold. However, the user's Oct 13 screenshot shows Beginora's own React “Getting your tasks ready…” view, which means `RootLayout` had rendered; the native splash was not the visible screen in that capture. The remaining investigation is therefore the app-level readiness gate or a process restart that repeatedly returns to it. The screenshot alone cannot distinguish those cases.
 
 The other major difference is the framework cohort: Vesta uses stable Expo SDK 55 / React Native 0.83.2; the current Beginora candidate uses Expo SDK 58 beta / React Native 0.88.0-rc.4. That is a legitimate native-runtime risk, but not a proven package mismatch. Expo's SDK 58 direct packages were aligned with its bundled map and Expo Doctor passed. A device log is still needed before changing the framework or third-party native packages.
 
@@ -24,13 +24,13 @@ The app was released as a Gradle production APK with an embedded JS bundle. It d
 
 ## Diagnostic change and what it does not prove
 
-Beginora 0.2.4 removes the module-level call that prevents Expo from auto-hiding the native splash. The existing `hideAsync()` retry remains as an eager best-effort after React mounts. This mirrors Vesta's default splash lifecycle and avoids intentionally trapping users on the native launch screen before the app tree can report readiness. It is a diagnostic mitigation, not evidence that the root cause is fixed: a module registration problem or other native crash may still occur.
+Beginora 0.2.4 removes the module-level call that prevents Expo from auto-hiding the native splash. The existing `hideAsync()` retry remains as an eager best-effort after React mounts. This mirrors Vesta's default splash lifecycle, but the user's later screenshot shows it did not resolve the reported launch symptom.
 
-No dependency was downgraded in this change. The SDK 58 package set is internally aligned, and a broad downgrade without device logs that identify the exception would risk changing multiple native integrations without isolating the fault. If 0.2.4 still blinks, collect cold-start Android logcat and identify the first `FATAL EXCEPTION`, `AndroidRuntime`, `ReactNativeJS`, MMKV, or `llama` error before changing SDK/RN or removing a native dependency.
+The 0.2.5 follow-up defers chat/task initialization until after the readiness timeout is armed and runs legacy MCP shutdown outside the UI readiness gate. This addresses a synchronous-startup failure path in the gate, but it remains a candidate mitigation until tested on the user's phone. No dependency was downgraded: the SDK 58 package set is aligned, and a broad downgrade without device logs would change multiple native integrations without isolating the fault.
 
 ## Evidence needed from the phone
 
-Install the diagnostic APK over 0.2.3, launch once, and capture cold-start logs using the steps in [ANDROID_SMOKE_TEST.md](../ANDROID_SMOKE_TEST.md). Please include phone model and Android version, and whether a local model had previously been downloaded/selected. Do not clear app data or uninstall the previous build before collecting logs; redact task text and other private data.
+Install 0.2.5 over 0.2.4, launch once, and capture cold-start logs using the steps in [ANDROID_SMOKE_TEST.md](../ANDROID_SMOKE_TEST.md) if “Getting your tasks ready…” remains or the app restarts. Include phone model and Android version, whether the screen stayed in place or restarted, and whether a local model had previously been selected. Do not clear app data or uninstall before collecting logs; redact task text and other private data.
 
 ## Sources
 

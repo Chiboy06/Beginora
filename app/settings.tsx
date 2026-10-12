@@ -592,7 +592,7 @@ export default function SettingsScreen() {
         <Text style={styles.desc}>
           Beginora is an offline-first assistant that helps you find a first step. Core task plans and activity stay on this device in this prototype; selected integrations may send the information you choose to their providers.
         </Text>
-        <Text style={styles.version}>v0.2.4 — startup splash diagnostics</Text>
+        <Text style={styles.version}>v0.2.5 — startup gate diagnostics</Text>
       </View>
 
     </ScrollView>

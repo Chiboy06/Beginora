@@ -3,6 +3,20 @@ export const STARTUP_READY_TIMEOUT_MS = 1_500;
 export type StartupReadiness = "finished" | "timed_out";
 
 /**
+ * Start initialization after the current stack unwinds, so callers can arm a
+ * readiness timeout before invoking code that may throw or enter native work.
+ */
+export function startStartupTask(
+  task: () => unknown,
+  onError: (error: unknown) => void,
+): Promise<void> {
+  return Promise.resolve()
+    .then(() => task())
+    .then(() => undefined)
+    .catch(onError);
+}
+
+/**
  * Wait for lightweight startup tasks, but never let a stalled native operation
  * keep the entire application behind the launch screen indefinitely.
  */

@@ -1,10 +1,12 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
-  const projectId = process.env.EAS_PROJECT_ID?.trim();
+  const existingExtra = config.extra ?? {};
+  const configuredProjectId = (existingExtra.eas as { projectId?: unknown } | undefined)?.projectId;
+  const projectId = process.env.EAS_PROJECT_ID?.trim() ||
+    (typeof configuredProjectId === "string" ? configuredProjectId.trim() : "");
   const updateChannel = process.env.EAS_UPDATE_CHANNEL?.trim() || "preview";
   const updatesEnabled = process.env.EAS_UPDATES_ENABLED === "true" && !!projectId;
-  const existingExtra = config.extra ?? {};
   const updates = updatesEnabled
     ? {
         enabled: true,
