@@ -1,4 +1,4 @@
-import { Stack, Redirect, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -196,15 +196,10 @@ export default function RootLayout() {
     );
   }
 
-  if (!onboardingDone) {
-    return (
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Redirect href="/onboarding" />
-      </SafeAreaProvider>
-    );
-  }
-
+  // The root layout must ALWAYS mount a navigator. Returning a bare <Redirect>
+  // here (no Stack/Slot) means Expo Router can never complete the redirect, so
+  // on a fresh install it remounts RootLayout forever and the startup spinner
+  // blinks. Gate screens with Stack.Protected instead.
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
@@ -217,30 +212,38 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
-        {/* Tab navigator — primary navigation */}
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* First run: onboarding is the only reachable screen until it is completed. */}
+        <Stack.Protected guard={!onboardingDone}>
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        </Stack.Protected>
 
-        {/* Onboarding */}
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        {/* Everything else is available once onboarding is done. */}
+        <Stack.Protected guard={onboardingDone}>
+          {/* Tab navigator — primary navigation */}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="chat" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ title: "Settings" }} />
 
-        {/* Task screens */}
-        <Stack.Screen name="task/new" options={{ title: "New Task", presentation: "modal" }} />
-        <Stack.Screen name="task/[id]" options={{ title: "Task" }} />
-        <Stack.Screen name="task/focus" options={{ title: "Focus", presentation: "modal" }} />
-        <Stack.Screen name="calendar" options={{ title: "Calendar preparation", presentation: "modal" }} />
-        <Stack.Screen name="appointment/new" options={{ title: "Add appointment", presentation: "modal" }} />
-        <Stack.Screen name="email" options={{ title: "Email draft", presentation: "modal" }} />
+          {/* Task screens */}
+          <Stack.Screen name="task/new" options={{ title: "New Task", presentation: "modal" }} />
+          <Stack.Screen name="task/[id]" options={{ title: "Task" }} />
+          <Stack.Screen name="task/focus" options={{ title: "Focus", presentation: "modal" }} />
+          <Stack.Screen name="calendar" options={{ title: "Calendar preparation", presentation: "modal" }} />
+          <Stack.Screen name="appointment/new" options={{ title: "Add appointment", presentation: "modal" }} />
+          <Stack.Screen name="email" options={{ title: "Email draft", presentation: "modal" }} />
 
-        {/* Utility screens */}
-        <Stack.Screen name="connectors" options={{ title: "Connections" }} />
-        <Stack.Screen name="history" options={{ title: "Conversations" }} />
-        <Stack.Screen name="models" options={{ title: "Models" }} />
-        <Stack.Screen name="documents" options={{ title: "Documents" }} />
-        <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
-        <Stack.Screen name="mcp" options={{ title: "MCP Server" }} />
+          {/* Utility screens */}
+          <Stack.Screen name="connectors" options={{ title: "Connections" }} />
+          <Stack.Screen name="history" options={{ title: "Conversations" }} />
+          <Stack.Screen name="models" options={{ title: "Models" }} />
+          <Stack.Screen name="documents" options={{ title: "Documents" }} />
+          <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
+          <Stack.Screen name="mcp" options={{ title: "MCP Server" }} />
+        </Stack.Protected>
       </Stack>
       {/* In-app active-task overlay; background model service is opt-in from Settings. */}
-      <FloatingBubble />
+      {onboardingDone ? <FloatingBubble /> : null}
     </SafeAreaProvider>
   );
 }
