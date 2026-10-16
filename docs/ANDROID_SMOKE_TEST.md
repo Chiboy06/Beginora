@@ -1,10 +1,10 @@
-# Android phone smoke test — Beginora 0.2.5
+# Android phone smoke test — Beginora 0.2.6
 
 Use this checklist with the refreshed APK after installing it over the earlier test build. Beginora has no bundled model; downloaded models remain in app-private storage. The build uses the existing sandbox debug signing key. If Android reports a signature conflict, stop before uninstalling the earlier build so local task/model data can be preserved.
 
 ## First launch and core offline task loop
 
-1. Install and launch the v0.2.5 APK over v0.2.4. Confirm the branded splash transitions out and the “Getting your tasks ready…” screen clears within a few seconds, even if a local model was previously selected. Complete the non-clinical onboarding screen and confirm the app enters the main UI without a redirect loop. Force-stop/reopen and confirm onboarding stays complete. If the readiness screen remains or the app visibly restarts, capture startup logcat before clearing app data.
+1. Install and launch the v0.2.6 APK (versionCode 8) over the installed build. If Android reports "App not installed", run `adb install -r` to get the exact `INSTALL_FAILED_*` reason before uninstalling anything. Confirm the branded splash transitions out and the “Getting your tasks ready…” screen clears within a few seconds, even if a local model was previously selected. Complete the non-clinical onboarding screen and confirm the app enters the main UI without a redirect loop. Force-stop/reopen and confirm onboarding stays complete. If the readiness screen remains or the app visibly restarts, capture startup logcat before clearing app data.
 2. Turn on airplane mode. Enter a task such as “I need to start my report” and select **Make it smaller**.
 3. Confirm the screen shows a useful first action—not raw JSON—and the task stays usable offline (local model if installed; deterministic/manual fallback if not).
 4. Start a five-minute focus session; pause/resume, finish early, and return to the task. Try **Done**, **Snooze**, and **Another first step**; confirm task state/history survive an app restart. Set a task reminder, cancel it from the task screen, and confirm no alert fires; verify snoozing does not silently cancel a separately set reminder.
@@ -31,7 +31,7 @@ Use this checklist with the refreshed APK after installing it over the earlier t
 - **Connections/MCP:** verify live calendar/contact/notification readiness and provider data disclosures. MCP must show unavailable; no plaintext LAN pairing endpoint should start.
 - **Manual app update:** this diagnostic APK is not linked to EAS yet, so the button should report that updates are unavailable. In a future linked preview APK, tap while offline and confirm it asks for internet; reconnect and tap again to check/download a compatible repository-published update. Choose **Later** to keep using the current app, or **Restart now** to apply; confirm local tasks remain.
 - **Automatic EAS checks:** once the APK is linked and the preview channel is configured, connect to the internet and confirm checks on startup/foreground/network reconnection never block normal use. Applying a downloaded update must still wait for the user's restart choice.
-- **Settings:** confirm the planning-aid/non-clinical disclaimer, local task storage, optional provider boundaries, permission status, and version 0.2.5.
+- **Settings:** confirm the planning-aid/non-clinical disclaimer, local task storage, optional provider boundaries, permission status, and version 0.2.6.
 
 ## What to send back
 

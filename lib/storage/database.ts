@@ -317,14 +317,17 @@ export async function getMessages(
   limit = 50,
 ): Promise<Message[]> {
   const d = await getDatabase();
+  // Newest `limit` messages, returned oldest-first for display.
   const rows = await d.getAllAsync<Message>(
-    `SELECT id, conversation_id AS conversationId, role, content, tool_call AS toolCall,
-            tool_result AS toolResult, model_used AS modelUsed, latency_ms AS latencyMs,
-            created_at AS createdAt
-     FROM messages
-     WHERE conversation_id = ?
-     ORDER BY created_at ASC
-     LIMIT ?`,
+    `SELECT * FROM (
+       SELECT id, conversation_id AS conversationId, role, content, tool_call AS toolCall,
+              tool_result AS toolResult, model_used AS modelUsed, latency_ms AS latencyMs,
+              created_at AS createdAt
+       FROM messages
+       WHERE conversation_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?
+     ) ORDER BY createdAt ASC`,
     conversationId,
     limit,
   );
@@ -335,14 +338,16 @@ export async function deleteConversation(
   conversationId: string,
 ): Promise<void> {
   const d = await getDatabase();
-  await d.runAsync(
-    "DELETE FROM messages WHERE conversation_id = ?",
-    conversationId,
-  );
-  await d.runAsync(
-    "DELETE FROM conversations WHERE id = ?",
-    conversationId,
-  );
+  await d.withTransactionAsync(async () => {
+    await d.runAsync(
+      "DELETE FROM messages WHERE conversation_id = ?",
+      conversationId,
+    );
+    await d.runAsync(
+      "DELETE FROM conversations WHERE id = ?",
+      conversationId,
+    );
+  });
 }
 
 // --- Config ---

@@ -70,6 +70,8 @@ export const ChatBubble = React.memo(function ChatBubble({
             <TouchableOpacity
               onPress={() => setThinkExpanded((v) => !v)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: thinkExpanded }}
             >
               <Text style={styles.thinkLabel}>
                 {thinkExpanded ? "▾ Thinking" : "▸ Thinking..."}

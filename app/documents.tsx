@@ -189,7 +189,7 @@ export default function DocumentsScreen() {
               {t.chunks(doc.chunkCount)} · {formatFileSize(doc.sizeBytes)}
             </Text>
           </View>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             onPress={() => handleRemove(doc)}
             style={styles.removeBtn}
             activeOpacity={0.7}
@@ -210,7 +210,7 @@ export default function DocumentsScreen() {
           <Text style={styles.progressText}>{progressLabel}</Text>
         </View>
       ) : (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={styles.importBtn}
           onPress={handleImport}
           activeOpacity={0.7}

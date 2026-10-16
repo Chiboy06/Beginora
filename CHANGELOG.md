@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.6] — Onboarding route fix build
+
+### Fixed
+- `app/_layout.tsx` — root always mounts the Stack and gates onboarding/app routes with `Stack.Protected` (PR #5), fixing the fresh-install startup loop
+- `lib/storage/database.ts` — `deleteConversation` now deletes messages and the conversation in one transaction
+- `scripts/check-audit-policy.js` — audit gate now runs on Windows (`npm.cmd` needs a shell)
+- `lib/storage/database.ts` — `getMessages` returned the *oldest* 50 messages, so reopening a conversation longer than 50 messages hid the newest ones; it now returns the newest 50 in chronological order
+- `app/models.tsx` — a model download interrupted by the app being killed no longer sits in an unlabeled limbo state; it is labeled as unfinished with delete/re-download guidance
+
+### Accessibility (Apple HIG foundations: 4.5:1 text contrast, 44pt targets, 11pt minimum type)
+- `lib/theme.ts` — text colors raised to pass 4.5:1: muted text `#8E8E93` 3.3:1 → `#6C6C70` 5.2:1 (45 uses), success 2.2:1 → 5.4:1, warning 2.7:1 → 5.6:1, placeholder 1.7:1 → 4.7:1; sage accent nudged `#4A7A6A` → `#467565` so regular-weight accent text passes on every surface
+- `components/FloatingBubble.tsx` — Open/Close controls raised to 44pt; 10pt label raised to the 11pt minimum
+- Screen readers: button roles on 16 unlabeled controls (Models, Documents, History, Diagnostics), a label for History's "+" button, a hint for long-press delete, and expanded state on the reasoning toggle
+
+### Changed
+- Upgraded React Native from release candidate `0.88.0-rc.4` to stable `0.88.0` and aligned 17 Expo SDK 58 packages to their expected patch versions (Expo Doctor 20/20)
+- Android `versionCode` 8 / version 0.2.6. The onboarding-fix APK had been rebuilt as 0.2.5 / 7, the same identity as a different earlier APK; every distributed build needs a unique, increasing version code
+
+---
+
 ## [Unreleased]
 
 ### Added
