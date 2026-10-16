@@ -16,10 +16,12 @@ function fail(message) {
   process.exit(1);
 }
 
-const audit = spawnSync("npm", ["audit", "--json"], {
+// Constant command through a shell: Windows ships npm as npm.cmd, which Node only spawns via a shell.
+const audit = spawnSync("npm audit --json", {
   encoding: "utf8",
   maxBuffer: 16 * 1024 * 1024,
   env: { ...process.env, NO_COLOR: "1" },
+  shell: true,
 });
 if (audit.error) fail(`could not run npm audit: ${audit.error.message}`);
 

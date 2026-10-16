@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.6] — Onboarding route fix build
+
+### Fixed
+- `app/_layout.tsx` — root always mounts the Stack and gates onboarding/app routes with `Stack.Protected` (PR #5), fixing the fresh-install startup loop
+- `lib/storage/database.ts` — `deleteConversation` now deletes messages and the conversation in one transaction
+- `scripts/check-audit-policy.js` — audit gate now runs on Windows (`npm.cmd` needs a shell)
+- `lib/storage/database.ts` — `getMessages` returned the *oldest* 50 messages, so reopening a conversation longer than 50 messages hid the newest ones; it now returns the newest 50 in chronological order
+- `app/models.tsx` — a model download interrupted by the app being killed no longer sits in an unlabeled limbo state; it is labeled as unfinished with delete/re-download guidance
+
+### Changed
+- Upgraded React Native from release candidate `0.88.0-rc.4` to stable `0.88.0` and aligned 17 Expo SDK 58 packages to their expected patch versions (Expo Doctor 20/20)
+- Android `versionCode` 8 / version 0.2.6. The onboarding-fix APK had been rebuilt as 0.2.5 / 7, the same identity as a different earlier APK; every distributed build needs a unique, increasing version code
+
+---
+
 ## [Unreleased]
 
 ### Added

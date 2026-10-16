@@ -271,7 +271,10 @@ function InstalledRow({
         <Text style={styles.rowMeta}>{formatBytes(model.sizeBytes)}</Text>
       </View>
       {model.hfRepo && <Text style={styles.rowHint}>{model.hfRepo}</Text>}
-      {model.state === "error" && <Text style={styles.rowError}>Failed — re-download or delete.</Text>}
+      {/* Also catches rows left "downloading" when Android killed the app mid-download. */}
+      {model.state !== "ready" && !downloading && (
+        <Text style={styles.rowError}>Download didn’t finish — delete it and download again.</Text>
+      )}
 
       {downloading && progress && (
         <ProgressBar written={progress.bytesWritten} total={progress.bytesTotal} etaSeconds={progress.etaSeconds} />
