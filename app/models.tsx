@@ -79,7 +79,7 @@ export default function ModelsScreen() {
       </View>
 
       {error && (
-        <TouchableOpacity style={styles.errorBanner} onPress={clearError} activeOpacity={0.8}>
+        <TouchableOpacity accessibilityRole="button" style={styles.errorBanner} onPress={clearError} activeOpacity={0.8}>
           <Text style={styles.errorText}>{error}</Text>
           <Text style={styles.errorDismiss}>Tap to dismiss</Text>
         </TouchableOpacity>
@@ -130,7 +130,7 @@ export default function ModelsScreen() {
         <Text style={styles.rowDesc}>
           Already have a .gguf file on your device? Import it directly.
         </Text>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.btn, styles.btnOutline, { marginTop: spacing.md, alignSelf: "flex-start" }]}
           onPress={handleImport}
           disabled={busy}
@@ -221,17 +221,17 @@ function CatalogRow({
 
       <View style={styles.btnRow}>
         {!installed && (
-          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={onDownload} activeOpacity={0.7}>
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={onDownload} activeOpacity={0.7}>
             <Text style={styles.btnPrimaryText}>Download</Text>
           </TouchableOpacity>
         )}
         {downloading && installed && (
-          <TouchableOpacity style={[styles.btn, styles.btnOutline]} onPress={() => onCancel(installed.id)} activeOpacity={0.7}>
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnOutline]} onPress={() => onCancel(installed.id)} activeOpacity={0.7}>
             <Text style={styles.btnOutlineText}>Cancel</Text>
           </TouchableOpacity>
         )}
         {installed && installed.state === "ready" && !installed.isActive && (
-          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => onActivate(installed.id)} activeOpacity={0.7}>
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={() => onActivate(installed.id)} activeOpacity={0.7}>
             <Text style={styles.btnPrimaryText}>Use this model</Text>
           </TouchableOpacity>
         )}
@@ -241,7 +241,7 @@ function CatalogRow({
           </View>
         )}
         {installed && !downloading && (
-          <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={() => onRemove(installed)} activeOpacity={0.7}>
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnGhost]} onPress={() => onRemove(installed)} activeOpacity={0.7}>
             <Text style={styles.btnGhostText}>Delete</Text>
           </TouchableOpacity>
         )}
@@ -282,12 +282,12 @@ function InstalledRow({
 
       <View style={styles.btnRow}>
         {downloading && (
-          <TouchableOpacity style={[styles.btn, styles.btnOutline]} onPress={() => onCancel(model.id)} activeOpacity={0.7}>
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnOutline]} onPress={() => onCancel(model.id)} activeOpacity={0.7}>
             <Text style={styles.btnOutlineText}>Cancel</Text>
           </TouchableOpacity>
         )}
         {model.state === "ready" && !model.isActive && (
-          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => onActivate(model.id)} activeOpacity={0.7}>
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={() => onActivate(model.id)} activeOpacity={0.7}>
             <Text style={styles.btnPrimaryText}>Use this model</Text>
           </TouchableOpacity>
         )}
@@ -297,7 +297,7 @@ function InstalledRow({
           </View>
         )}
         {!downloading && (
-          <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={() => onRemove(model)} activeOpacity={0.7}>
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnGhost]} onPress={() => onRemove(model)} activeOpacity={0.7}>
             <Text style={styles.btnGhostText}>Delete</Text>
           </TouchableOpacity>
         )}
@@ -352,7 +352,7 @@ function AddFromHuggingFace({
           autoCapitalize="none"
           autoCorrect={false}
         />
-        <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={browse} disabled={loading} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={browse} disabled={loading} activeOpacity={0.7}>
           {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnPrimaryText}>Browse</Text>}
         </TouchableOpacity>
       </View>
@@ -363,7 +363,7 @@ function AddFromHuggingFace({
             <Text style={styles.fileName} numberOfLines={1}>{f.path.split("/").pop()}</Text>
             <Text style={styles.fileSize}>{formatBytes(f.sizeBytes)}</Text>
           </View>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[styles.btn, styles.btnPrimary]}
             onPress={() => onDownload(repo.trim(), f, repo.trim().split("/").pop() ?? "Model")}
             activeOpacity={0.7}

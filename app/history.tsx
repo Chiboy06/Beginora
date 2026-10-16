@@ -55,13 +55,15 @@ export default function HistoryScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           onPress={() => {
             clearConversation();
             router.back();
           }}
           style={styles.headerBtn}
           activeOpacity={0.7}
+          accessibilityLabel="New conversation"
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
           <Text style={styles.headerBtnText}>+</Text>
         </TouchableOpacity>
@@ -108,11 +110,12 @@ export default function HistoryScreen() {
     const isActive = item.id === currentConversationId;
 
     return (
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={[styles.card, isActive && styles.cardActive]}
         onPress={() => handleTap(item)}
         onLongPress={() => handleDelete(item)}
         activeOpacity={0.7}
+        accessibilityHint="Long press to delete"
       >
         <View style={styles.cardTop}>
           <Text

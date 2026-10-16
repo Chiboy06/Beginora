@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11, // HIG mobile minimum
     fontWeight: "700",
     letterSpacing: 1,
     color: colors.accent,
@@ -165,14 +165,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.accent,
     paddingVertical: 8,
+    minHeight: 44,
     borderRadius: radii.full,
     alignItems: "center",
+    justifyContent: "center",
   },
   openLabel: { fontSize: 13, fontWeight: "700", color: "#fff" },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",

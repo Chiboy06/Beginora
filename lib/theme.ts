@@ -15,7 +15,7 @@ export const colors = {
   surfaceHover:    "#E5E5EA",   // iOS tertiarySystemFill
 
   // ── User messages ───────────────────────────────
-  userBubble:      "#4A7A6A",   // Calm sage — slightly deeper for contrast
+  userBubble:      "#467565",   // Calm sage; white text 5.3:1
   userBubbleLight: "#6A9A8A",
   userText:        "#FFFFFF",
 
@@ -24,24 +24,24 @@ export const colors = {
   assistantText:   "#1C1C1E",   // iOS label
 
   // ── Accent (sage) ───────────────────────────────
-  accent:          "#4A7A6A",
+  accent:          "#467565",   // 5.3:1 on surface, 4.7:1 on bg, 4.6:1 on accentMuted
   accentSoft:      "#C8D8D0",
   accentMuted:     "#EAF0ED",
 
   // ── Semantic ────────────────────────────────────
-  success:         "#34C759",   // iOS systemGreen
+  success:         "#1F7A35",   // used as text: 5.4:1 (systemGreen #34C759 was 2.2:1)
   successBg:       "rgba(52,199,89,0.10)",
   error:           "#8B5E52",   // Warm brown — not alarming
   errorBg:         "rgba(139,94,82,0.10)",
-  warning:         "#B89A5A",
+  warning:         "#7D6428",   // 5.6:1 (was 2.7:1)
   warningBg:       "rgba(184,154,90,0.10)",
   info:            "#5A8FAA",
 
   // ── Text ────────────────────────────────────────
   textPrimary:     "#1C1C1E",   // iOS label
   textSecondary:   "#3C3C43",   // iOS secondaryLabel (60% opacity equivalent)
-  textMuted:       "#8E8E93",   // iOS tertiaryLabel
-  textPlaceholder: "#C7C7CC",   // iOS quaternaryLabel
+  textMuted:       "#6C6C70",   // 5.2:1 on surface, 4.7:1 on bg (#8E8E93 was 3.3:1)
+  textPlaceholder: "#737378",   // 4.7:1 (was 1.7:1)
 
   // ── Borders & Separators ────────────────────────
   border:          "#C6C6C8",   // iOS separator

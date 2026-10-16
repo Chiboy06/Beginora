@@ -143,7 +143,7 @@ export default function DiagnosticsScreen() {
         </Text>
       </View>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={[styles.btn, styles.btnPrimary]}
         onPress={refresh}
         activeOpacity={0.8}
