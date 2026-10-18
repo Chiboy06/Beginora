@@ -128,9 +128,10 @@ No passive device monitoring, autonomous actions, direct provider booking, cloud
 
 - Dark theme and system theme support
 - iOS build and smoke test
-- Cloud sync and account (requires backend design)
-- Passive focus or paralysis detection
-- Hyperfocus detection
+- Background paralysis and hyperfocus-drift detection while the app is closed (today it runs only inside the Focus screen)
+- Consented screen-pattern signals through Android Usage Access
+- Nudges triggered by detected signals
+- Two-way Telegram agent (today Telegram is send-only)
 - Secure cloud task sync and account (requires backend design)
 - Billing
 - Clinical efficacy claims (out of scope permanently — this is a planning aid)

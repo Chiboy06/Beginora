@@ -2,6 +2,23 @@
 
 Prepared 11 October 2026 for hand-off to a coding LLM. Scope: finish and harden the Android prototype for hackathon submission. Sources: owner status summary, public repository Chiboy06/Beginora (main), upstream RisorseArtificiali/vesta, the UnivaBio challenge notes. Statements marked \[verify\] must be confirmed against the live repository before acting on them; the repository always overrides this document.
 
+## Direction update, 19 October 2026 (overrides conflicting sections below)
+
+The owner chose the **full assistant** direction. Product aim: build the executive function an ADHD brain struggles to produce on demand. A background agent watches consented signals (calendar, tasks, screen patterns), detects task paralysis and hyperfocus drift, and intervenes minimally: it breaks a daunting task into a five-minute first step, or nudges at a real decision point. It works offline and through Telegram in low-resource settings. Audience: ADHD students and adults worldwide, especially in Africa and Asia, where support is costly or absent.
+
+Superseded: section 1 "out of scope" (passive monitoring, paralysis/hyperfocus detection, Telegram); section 3.3 "the model has no tools"; the removals in section 4.1 (contacts, voice, foreground service); and the trims in section 6.3 (calls, SMS, contacts). Calls, SMS and email still only open a prefilled composer that the user sends, tools with side effects still require confirmation, and every signal source stays opt-in.
+
+| Capability | Status in code |
+| --- | --- |
+| On-device chat agent with tools (tasks, reminders, calendar, call/SMS/email handoff, documents) | Built; unit-tested with a mocked model; real-device inference needs re-verification on the v0.2.6 APK |
+| Break a task into a five-minute first step (model plus rule-engine fallback) | Built |
+| Paralysis and hyperfocus detection | Partial: `lib/focus/detection-engine.ts` scores task outcomes, but only while the Focus screen is open |
+| Background agent that runs while the app is closed | Not built: the opt-in foreground service only keeps the model loaded; there is no scheduled background job |
+| Screen-pattern signals | Not built: needs Android Usage Access (PACKAGE_USAGE_STATS) with explicit consent and a Play policy declaration |
+| Nudges from detected signals | Not built: reminders are user-scheduled only |
+| Telegram | Partial: send-only task summaries and reminders; no two-way chat |
+| Home-screen quick chat and widget | Built: translucent quick-chat box hands text to the in-app agent |
+
 ## 0. Instructions to the coding agent (read first)
 
 **Mission.** Deliver a release-candidate Android APK of Beginora, a task-starting and focus aid, with minimal permissions, safe model handling, honest documentation and a demo-ready flow.
