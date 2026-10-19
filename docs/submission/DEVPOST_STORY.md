@@ -24,11 +24,13 @@ React Native 0.88 with Expo SDK 58 and Expo Router, TypeScript throughout. On-de
 - **A startup trap:** if a model crashed the app while loading, every launch retried the same load. We added a marker that skips a load that never finished, with a test that fails on the old code.
 - **Rambling answers:** long chats overflowed the model's 4,096-token window, pushing out its instructions. We now budget the prompt and cap replies.
 - **A screen with no exit:** two files claimed the home route, so the chat opened outside the tab bar with its header hidden. A route-uniqueness test now guards against this.
+- **A frozen app:** the floating task bubble was an Android `Modal`, a separate window that swallowed every touch while a task was active. It is now a plain overlay, and the chat batches streamed tokens instead of redrawing on every one.
+- **Questions instead of answers:** the "break down a task" tool only showed the model's one-line reply, often a question. It now runs the validated planner and shows the actual first step.
 - **Background limits:** Android only runs periodic work every 15 minutes or more, and some brands stop it to save battery. We designed check-ins to be cheap and rule-based, and kept the model for when the user is present.
 
 ## Accomplishments we're proud of
 
-A useful AI assistant that works in airplane mode on a phone; proactive help that is fully opt-in and private; 55 automated test suites with 353 tests, including tests written to fail on the old code before each fix.
+A useful AI assistant that works in airplane mode on a phone; proactive help that is fully opt-in and private; 59 automated test suites with 367 tests, including tests written to fail on the old code before each fix.
 
 ## What we learned
 

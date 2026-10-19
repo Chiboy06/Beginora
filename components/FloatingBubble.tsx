@@ -5,7 +5,6 @@
 
 import { useState, useEffect } from "react";
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
@@ -41,14 +40,10 @@ export function FloatingBubble() {
   // When backgrounded, the foreground service notification handles re-entry.
   if (appInBackground || !activeTask) return null;
 
+  // A plain overlay, not a Modal: an Android Modal is its own window and swallows
+  // every touch, which froze the whole app while a task was active.
   return (
-    <Modal
-      visible={true}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={() => setExpanded(false)}
-    >
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <View style={styles.overlay} pointerEvents="box-none">
         {expanded ? (
           <View style={styles.card}>
@@ -102,7 +97,7 @@ export function FloatingBubble() {
           </TouchableOpacity>
         )}
       </View>
-    </Modal>
+    </View>
   );
 }
 

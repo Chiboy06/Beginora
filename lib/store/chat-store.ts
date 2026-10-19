@@ -35,6 +35,7 @@ import { warmSessionCache } from "../orchestrator/session-warmer";
 import { clearPrefixSessionCache } from "../llm/session-cache";
 import { persistFailureNotice, modelLoadFailureNotice } from "./notices";
 import { prefs } from "./prefs";
+import { createTokenBatcher } from "./token-batcher";
 import * as FileSystem from "expo-file-system/legacy";
 import {
   ensureLegacyMigration,
@@ -289,21 +290,29 @@ export const useChatStore = create<ChatState>((set, get) => {
     // before userMsg was appended). processMessage appends the current text
     // itself — passing post-append state here sent the user's message to the
     // model TWICE (once from history, once appended).
-    const response: OrchestratorResponse = await processMessage(
-      text,
-      currentMsgs,
-      language,
-      (token) => {
-        set((s) => ({ streamingText: s.streamingText + token }));
-      },
-      // Read tools generate twice; clear the tool-call JSON so only the
-      // grounded answer streams.
-      () => set({ streamingText: "" }),
-      // The persisted timestamp: history replays of this turn render their
-      // time context from createdAt, so the live turn must render from the
-      // same instant to keep the KV prefix byte-identical.
-      new Date(userMsg.createdAt),
-    );
+    const stream = createTokenBatcher((chunk) => set((s) => ({ streamingText: s.streamingText + chunk })));
+    let response: OrchestratorResponse;
+    try {
+      response = await processMessage(
+        text,
+        currentMsgs,
+        language,
+        stream.push,
+        // Read tools generate twice; clear the tool-call JSON so only the
+        // grounded answer streams.
+        () => {
+          stream.reset();
+          set({ streamingText: "" });
+        },
+        // The persisted timestamp: history replays of this turn render their
+        // time context from createdAt, so the live turn must render from the
+        // same instant to keep the KV prefix byte-identical.
+        new Date(userMsg.createdAt),
+      );
+    } finally {
+      // The final message replaces the stream; a late flush must not reappear.
+      stream.reset();
+    }
 
     // Create assistant message based on response type
     let assistantMsg: Message;

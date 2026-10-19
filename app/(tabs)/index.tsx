@@ -22,10 +22,14 @@ import { GlassScreen } from "../../components/GlassSurface";
 import { colors, spacing, typography, radii, shadow } from "../../lib/theme";
 import type { Message } from "../../lib/orchestrator/types";
 
+// Tapping a chip fills the message box; the user edits names and times before sending.
 const PROMPT_CHIPS = [
   "I need to start my report",
   "Help me break down a big task",
   "I keep putting off something",
+  "Set an alarm for 7:00 tomorrow",
+  "Remind me at 18:00 to start my essay",
+  "Text Mum that I'm running late",
 ];
 
 const StreamingFooter = React.memo(function StreamingFooter({

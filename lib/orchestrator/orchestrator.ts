@@ -244,7 +244,9 @@ export async function processMessage(
         type: "tool_call",
         tool: call.tool,
         parameters: call.parameters,
-        message: confirmMessage,
+        // A breakdown's answer is the plan itself; the model's own "message" is
+        // often just a question back to the user.
+        message: call.tool === "break_down_task" && toolResult.success ? toolResult.message : confirmMessage,
         result: toolResult,
       };
     };

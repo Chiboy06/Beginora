@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.8] — Responsiveness and first-step fixes
+
+### Fixed
+- `components/FloatingBubble.tsx` — the active-task bubble was a React Native `Modal`, which on Android is its own window and captures every touch; while a task was active the whole app ignored taps, including the tab bar. It is now a plain overlay that lets touches through.
+- `lib/orchestrator/tool-dispatcher.ts`, `orchestrator.ts` — `break_down_task` did nothing and the user only saw the model's one-line "confirmation", often a question back. It now runs the planner (safety pre-check, validated output, rule-engine fallback) and shows the first step and next steps.
+- `lib/store/token-batcher.ts` — streamed tokens updated the chat screen once per token (10 to 20 times a second), starving the JS thread; updates are now batched every 80 ms.
+
+### Added
+- Example chips for alarms, reminders and texts on the empty chat screen.
+- Settings > Telegram: "Find my chat ID" fills the chat ID after you message your bot.
+
+### Changed
+- Android `versionCode` 10 / version 0.2.8 (the installed test build was 0.2.7 / 9).
+
+---
+
 ## [0.2.6] — Onboarding route fix build
 
 ### Added

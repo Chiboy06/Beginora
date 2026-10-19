@@ -1,11 +1,11 @@
 # Demo video script (about 3 minutes)
 
-Record on the phone running the v0.2.6 APK, with screen recording on. Show only what you have seen working on that phone. If a shot fails, cut it rather than describe it.
+Record on the phone running the v0.2.8 APK, with screen recording on. Show only what you have seen working on that phone. If a shot fails, cut it rather than describe it.
 
 ## Before recording
 
-1. Install v0.2.6, finish onboarding, and download **Qwen3 1.7B** in Models (the safest choice for 3 to 4 GB phones). Wait until the chat banner disappears.
-2. Telegram: create a bot with @BotFather, get your chat ID (message @userinfobot), then in Settings > Telegram enter both, save, and turn on **Reply to my Telegram messages**. Send `/start` from Telegram and confirm a reply.
+1. Install v0.2.8, finish onboarding, and download **Qwen3 1.7B** in Models (the safest choice for 3 to 4 GB phones). Wait until the chat banner disappears.
+2. Telegram: create a bot with @BotFather and send it "hi". In Settings > Telegram, turn it on, paste the token, tap **Find my chat ID**, tap **Save**, then turn on **Reply to my Telegram messages**. Send `/start` from Telegram and confirm a reply.
 3. Check-ins: in Settings > Assistant, turn on **Gentle check-ins**. To have a nudge ready for the video, create a task, then tap **Snooze** on it three times (or start and stop its focus session early three times). "Not the right step? Try another" does not count: asking for a new step is treated as progress. Close the app and wait 15 to 30 minutes, phone unlocked, outside 22:00 to 08:00. Keep the notification for the video. If it does not arrive, leave this shot out.
 4. Optional: Settings > Assistant > **Notice phone-use patterns**, then allow Beginora in the Android screen that opens.
 

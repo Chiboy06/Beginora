@@ -39,6 +39,7 @@ import {
   getTelegramConfig,
   saveTelegramConfig,
   sendTelegramMessage,
+  findChatId,
   type TelegramConfig,
 } from "../../lib/telegram/telegram-service";
 import { colors, spacing, radii, typography } from "../../lib/theme";
@@ -113,6 +114,21 @@ export default function SettingsScreen() {
         { text: "Open settings", onPress: () => { void openUsageAccessSettings().catch(() => Alert.alert("Not available", "Usage access settings could not be opened on this phone.")); } },
       ],
     );
+  };
+
+  const fillChatId = async () => {
+    setTelegramBusy(true);
+    try {
+      const result = await findChatId(telegram.botToken);
+      if (!result.ok) {
+        Alert.alert("Chat ID not found", result.error);
+        return;
+      }
+      updateTelegram({ chatId: result.chatId });
+      Alert.alert("Chat ID found", `Found ${result.name || "your chat"} (${result.chatId}). Tap Save to keep it.`);
+    } finally {
+      setTelegramBusy(false);
+    }
   };
 
   const toggleTelegramTwoWay = async (enabled: boolean) => {
@@ -663,6 +679,16 @@ export default function SettingsScreen() {
               keyboardType="numeric"
               accessibilityLabel="Telegram chat ID"
             />
+            <Text style={styles.toggleHint}>Don&apos;t know it? Send your bot any message in Telegram, then tap Find my chat ID.</Text>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnPrimary, { marginTop: spacing.sm }, telegramBusy && styles.btnBusy]}
+              onPress={() => { void fillChatId(); }}
+              disabled={telegramBusy || !telegram.botToken.trim()}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Text style={styles.btnPrimaryText}>Find my chat ID</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }, telegramBusy && styles.btnBusy]}
               onPress={persistTelegram}
@@ -713,7 +739,7 @@ export default function SettingsScreen() {
         <Text style={styles.desc}>
           Beginora is an offline-first assistant that helps you find a first step. Core task plans and activity stay on this device in this prototype; selected integrations may send the information you choose to their providers.
         </Text>
-        <Text style={styles.version}>v0.2.6 — check-ins and two-way Telegram</Text>
+        <Text style={styles.version}>v0.2.8 — faster chat, real first steps</Text>
       </View>
 
     </ScrollView>

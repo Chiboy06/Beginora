@@ -10,6 +10,8 @@ import { makeCall, sendSms } from "../native/communication";
 import { getCalendarEvents } from "../native/calendar";
 import { queryDocuments } from "./document-retriever";
 import { isValidYMD } from "./date-utils";
+import { decompose } from "../ai/decomposer";
+import { formatPlan } from "../ai/format-plan";
 
 const FORMAT_VALIDATORS: Record<string, (value: string) => string | null> = {
   "HH:MM": (v) => {
@@ -107,10 +109,12 @@ export async function dispatchToolCall(
 
   try {
     switch (tool) {
-      case "break_down_task":
-        // Handled entirely by the LLM — the orchestrator generates the breakdown
-        // as a text response. The tool call signals intent; no native dispatch needed.
-        return { success: true, message: "OK" };
+      case "break_down_task": {
+        // The planner runs the safety pre-check, validates any model output and
+        // falls back to the rule engine; its plan is the reply the user sees.
+        const plan = await decompose(String(parameters.task ?? ""));
+        return { success: true, message: formatPlan(plan) };
+      }
 
       case "set_alarm":
         return await setAlarm(
