@@ -174,3 +174,30 @@ describe("processMessage — malformed-JSON retry-once-with-correction", () => {
     expect(mockDispatch).not.toHaveBeenCalled();
   });
 });
+
+describe("processMessage — break_down_task answers with the plan", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("shows the planner's first step, not the model's question back", async () => {
+    mockGenerate.mockResolvedValueOnce(
+      gen('{"tool":"break_down_task","parameters":{"task":"start my essay"},"message":"Sure! What is your essay about?"}'),
+    );
+    mockDispatch.mockResolvedValue({ success: true, message: "First step: Open the document and write one sentence" });
+
+    const res = await processMessage("I need to start my essay", [], "en");
+
+    expect(res.type).toBe("tool_call");
+    if (res.type === "tool_call") expect(res.message).toBe("First step: Open the document and write one sentence");
+  });
+
+  it("other tools keep the model's confirmation message", async () => {
+    mockGenerate.mockResolvedValueOnce(gen('{"tool":"set_timer","parameters":{"minutes":5},"message":"Timer set."}'));
+    mockDispatch.mockResolvedValue({ success: true, message: "native says ok" });
+
+    const res = await processMessage("5 minute timer", [], "en");
+
+    if (res.type === "tool_call") expect(res.message).toBe("Timer set.");
+  });
+});

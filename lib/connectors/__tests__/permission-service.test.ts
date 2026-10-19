@@ -1,5 +1,5 @@
-jest.mock("expo-calendar", () => ({ getCalendarPermissionsAsync: jest.fn() }));
-jest.mock("expo-contacts", () => ({ getPermissionsAsync: jest.fn(), requestPermissionsAsync: jest.fn() }));
+jest.mock("expo-calendar/legacy", () => ({ getCalendarPermissionsAsync: jest.fn() }));
+jest.mock("expo-contacts/legacy", () => ({ getPermissionsAsync: jest.fn(), requestPermissionsAsync: jest.fn() }));
 jest.mock("expo-notifications", () => ({ getPermissionsAsync: jest.fn() }));
 jest.mock("expo-mail-composer", () => ({ isAvailableAsync: jest.fn() }));
 jest.mock("expo-updates", () => ({ isEnabled: true }));
@@ -13,8 +13,8 @@ jest.mock("react-native", () => ({
 jest.mock("../../telegram/telegram-service", () => ({ getTelegramConfig: jest.fn() }));
 jest.mock("../../store/prefs", () => ({ prefs: { keepModelInBackground: true } }));
 
-import * as Calendar from "expo-calendar";
-import * as Contacts from "expo-contacts";
+import * as Calendar from "expo-calendar/legacy";
+import * as Contacts from "expo-contacts/legacy";
 import * as Notifications from "expo-notifications";
 import * as MailComposer from "expo-mail-composer";
 import { PermissionsAndroid } from "react-native";

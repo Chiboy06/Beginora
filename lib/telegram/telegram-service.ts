@@ -101,3 +101,32 @@ export async function sendTelegramReminder(taskTitle: string, firstAction: strin
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+
+export type FindChatIdResult = { ok: true; chatId: string; name: string } | { ok: false; error: string };
+
+// Finds the chat ID of the most recent private message sent to the bot, so the
+// user only has to message their bot once instead of reading raw API output.
+export async function findChatId(botToken: string, fetchFn: typeof fetch = fetch): Promise<FindChatIdResult> {
+  const token = botToken.trim();
+  if (!token) return { ok: false, error: "Enter the bot token first." };
+  try {
+    const res = await fetchFn(`https://api.telegram.org/bot${token}/getUpdates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed_updates: ["message"] }),
+    });
+    const data = (await res.json()) as {
+      ok: boolean;
+      description?: string;
+      result?: { message?: { chat?: { id?: number; type?: string; first_name?: string } } }[];
+    };
+    if (!data.ok) {
+      return { ok: false, error: res.status === 401 ? "That bot token is not valid." : (data.description ?? "Telegram rejected the request.") };
+    }
+    const chat = [...(data.result ?? [])].reverse().map((u) => u.message?.chat).find((c) => c?.type === "private" && c.id);
+    if (!chat?.id) return { ok: false, error: "No message found. Open your bot in Telegram, send it \"hi\", then try again." };
+    return { ok: true, chatId: String(chat.id), name: chat.first_name ?? "" };
+  } catch {
+    return { ok: false, error: "Could not reach Telegram. Check your connection and try again." };
+  }
+}

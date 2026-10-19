@@ -39,6 +39,7 @@ import {
   getTelegramConfig,
   saveTelegramConfig,
   sendTelegramMessage,
+  findChatId,
   type TelegramConfig,
 } from "../../lib/telegram/telegram-service";
 import { colors, spacing, radii, typography } from "../../lib/theme";
@@ -68,6 +69,7 @@ export default function SettingsScreen() {
   const [telegramSaved, setTelegramSaved] = useState(false);
   const [keepModelInBackground, setKeepModelInBackground] = useState(prefs.keepModelInBackground);
   const [backgroundServiceBusy, setBackgroundServiceBusy] = useState(false);
+  const [userName, setUserName] = useState(prefs.userName);
   const [checkIns, setCheckIns] = useState(prefs.checkInsEnabled);
   const [usageSignals, setUsageSignals] = useState(prefs.usageSignalsEnabled);
   const [usageGranted, setUsageGranted] = useState(false);
@@ -113,6 +115,21 @@ export default function SettingsScreen() {
         { text: "Open settings", onPress: () => { void openUsageAccessSettings().catch(() => Alert.alert("Not available", "Usage access settings could not be opened on this phone.")); } },
       ],
     );
+  };
+
+  const fillChatId = async () => {
+    setTelegramBusy(true);
+    try {
+      const result = await findChatId(telegram.botToken);
+      if (!result.ok) {
+        Alert.alert("Chat ID not found", result.error);
+        return;
+      }
+      updateTelegram({ chatId: result.chatId });
+      Alert.alert("Chat ID found", `Found ${result.name || "your chat"} (${result.chatId}). Tap Save to keep it.`);
+    } finally {
+      setTelegramBusy(false);
+    }
   };
 
   const toggleTelegramTwoWay = async (enabled: boolean) => {
@@ -414,6 +431,23 @@ export default function SettingsScreen() {
         <Text style={[styles.toggleHint, { marginTop: spacing.lg }]}>Tasks, plans, and activity remain on this device. Cloud sync is disabled; optional integrations and update checks contact their named providers when you choose to use them.</Text>
       </View>
 
+      <Text style={styles.sectionTitle}>About you</Text>
+      <View style={styles.card}>
+        <Text style={styles.toggleTitle}>Your name</Text>
+        <Text style={styles.toggleHint}>Beginora uses it to greet you and talk with you. Stored only on this phone.</Text>
+        <TextInput
+          style={[styles.textField, { marginTop: spacing.sm }]}
+          value={userName}
+          onChangeText={setUserName}
+          onEndEditing={() => { prefs.userName = userName; setUserName(prefs.userName); }}
+          placeholder="What should I call you?"
+          placeholderTextColor={colors.textPlaceholder}
+          maxLength={40}
+          returnKeyType="done"
+          accessibilityLabel="Your name"
+        />
+      </View>
+
       <Text style={styles.sectionTitle}>Assistant</Text>
       <View style={styles.card}>
         <View style={styles.toggleRow}>
@@ -450,16 +484,16 @@ export default function SettingsScreen() {
         )}
       </View>
 
-      <Text style={styles.sectionTitle}>Connections</Text>
+      <Text style={styles.sectionTitle}>Permissions and connections</Text>
       <View style={styles.card}>
-        <Text style={styles.desc}>Review appointments, set local reminders, prepare an editable email draft, or send a task summary to Telegram. Optional connections are user-triggered and disclose the data they share.</Text>
+        <Text style={styles.desc}>Allow calendar, contacts, microphone and notifications with one tap each, and see exactly what each connection reads. Everything is optional.</Text>
         <TouchableOpacity
           style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }]}
           onPress={() => router.push("/connectors")}
           activeOpacity={0.7}
           accessibilityRole="button"
         >
-          <Text style={styles.btnPrimaryText}>Manage Connections</Text>
+          <Text style={styles.btnPrimaryText}>Permissions and connections</Text>
         </TouchableOpacity>
       </View>
 
@@ -663,6 +697,16 @@ export default function SettingsScreen() {
               keyboardType="numeric"
               accessibilityLabel="Telegram chat ID"
             />
+            <Text style={styles.toggleHint}>Don&apos;t know it? Send your bot any message in Telegram, then tap Find my chat ID.</Text>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnPrimary, { marginTop: spacing.sm }, telegramBusy && styles.btnBusy]}
+              onPress={() => { void fillChatId(); }}
+              disabled={telegramBusy || !telegram.botToken.trim()}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Text style={styles.btnPrimaryText}>Find my chat ID</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }, telegramBusy && styles.btnBusy]}
               onPress={persistTelegram}
@@ -713,7 +757,7 @@ export default function SettingsScreen() {
         <Text style={styles.desc}>
           Beginora is an offline-first assistant that helps you find a first step. Core task plans and activity stay on this device in this prototype; selected integrations may send the information you choose to their providers.
         </Text>
-        <Text style={styles.version}>v0.2.6 — check-ins and two-way Telegram</Text>
+        <Text style={styles.version}>v0.2.8 — faster chat, real first steps</Text>
       </View>
 
     </ScrollView>

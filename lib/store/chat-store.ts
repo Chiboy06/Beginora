@@ -35,6 +35,7 @@ import { warmSessionCache } from "../orchestrator/session-warmer";
 import { clearPrefixSessionCache } from "../llm/session-cache";
 import { persistFailureNotice, modelLoadFailureNotice } from "./notices";
 import { prefs } from "./prefs";
+import { createTokenBatcher } from "./token-batcher";
 import * as FileSystem from "expo-file-system/legacy";
 import {
   ensureLegacyMigration,
@@ -161,23 +162,9 @@ export const useChatStore = create<ChatState>((set, get) => {
     const lang = await getConfig("language");
     if (lang === "en" || lang === "it") set({ language: lang as Language });
 
-    // Try to restore the latest conversation
-    const latest = await getLatestConversation();
-    let conversationId: string;
-
-    if (latest) {
-      conversationId = latest.id;
-      const messages = await getMessages(conversationId);
-      set({
-        conversationId,
-        conversationTitle: latest.title,
-        messages,
-      });
-    } else {
-      // First launch — lazy: just set ID, don't persist until first message
-      conversationId = uuid();
-      set({ conversationId, messages: [] });
-    }
+    // Every launch opens on a fresh chat with the welcome; earlier chats stay in
+    // History. Lazy: the conversation is only persisted with its first message.
+    set({ conversationId: uuid(), conversationTitle: null, messages: [] });
 
     // Loading a multi-GB native model (and its optional prefix cache) can take
     // a long time on a phone. Restore it in the background, after the UI can
@@ -289,21 +276,29 @@ export const useChatStore = create<ChatState>((set, get) => {
     // before userMsg was appended). processMessage appends the current text
     // itself — passing post-append state here sent the user's message to the
     // model TWICE (once from history, once appended).
-    const response: OrchestratorResponse = await processMessage(
-      text,
-      currentMsgs,
-      language,
-      (token) => {
-        set((s) => ({ streamingText: s.streamingText + token }));
-      },
-      // Read tools generate twice; clear the tool-call JSON so only the
-      // grounded answer streams.
-      () => set({ streamingText: "" }),
-      // The persisted timestamp: history replays of this turn render their
-      // time context from createdAt, so the live turn must render from the
-      // same instant to keep the KV prefix byte-identical.
-      new Date(userMsg.createdAt),
-    );
+    const stream = createTokenBatcher((chunk) => set((s) => ({ streamingText: s.streamingText + chunk })));
+    let response: OrchestratorResponse;
+    try {
+      response = await processMessage(
+        text,
+        currentMsgs,
+        language,
+        stream.push,
+        // Read tools generate twice; clear the tool-call JSON so only the
+        // grounded answer streams.
+        () => {
+          stream.reset();
+          set({ streamingText: "" });
+        },
+        // The persisted timestamp: history replays of this turn render their
+        // time context from createdAt, so the live turn must render from the
+        // same instant to keep the KV prefix byte-identical.
+        new Date(userMsg.createdAt),
+      );
+    } finally {
+      // The final message replaces the stream; a late flush must not reappear.
+      stream.reset();
+    }
 
     // Create assistant message based on response type
     let assistantMsg: Message;

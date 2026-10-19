@@ -214,6 +214,70 @@ export const MVP_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "draft_email",
+    description_it: "Prepara una email nell'app di posta; l'utente la rivede e la invia",
+    description_en: "Prepare an email in the mail app; the user reviews and sends it",
+    category: "system_action",
+    confirmRequired: false,
+    parameters: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Recipient email address, or empty" },
+        subject: { type: "string", description: "Email subject" },
+        body: { type: "string", description: "Email body" },
+      },
+      required: ["subject", "body"],
+    },
+  },
+  {
+    name: "send_telegram",
+    description_it: "Invia un messaggio alla chat Telegram dell'utente",
+    description_en: "Send a message to the user's own Telegram chat",
+    category: "system_action",
+    confirmRequired: true,
+    parameters: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Message to send" },
+      },
+      required: ["text"],
+    },
+  },
+  {
+    name: "save_note",
+    description_it: "Salva un testo in un'app di note (Samsung Notes, Keep...) tramite il menu Condividi",
+    description_en: "Save text to a notes app (Samsung Notes, Keep...) through the share menu",
+    category: "system_action",
+    confirmRequired: false,
+    parameters: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "The note text" },
+      },
+      required: ["text"],
+    },
+  },
+  {
+    name: "schedule_sms",
+    description_it: "Prepara un SMS per un contatto da inviare più tardi: a quell'ora una notifica apre il messaggio già scritto",
+    description_en: "Prepare a text to a contact for later: at that time a notification opens the ready-written message to send",
+    category: "system_action",
+    confirmRequired: true,
+    parameters: {
+      type: "object",
+      properties: {
+        contact: { type: "string", description: "Contact name or phone number" },
+        text: { type: "string", description: "Message body" },
+        datetime: {
+          type: "string",
+          description: "When to send, in ISO 8601 format",
+          format: "ISO8601",
+        },
+      },
+      required: ["contact", "text", "datetime"],
+    },
+  },
+  {
     name: "get_calendar_events",
     description_it:
       "Leggi gli appuntamenti del calendario per una data specifica",

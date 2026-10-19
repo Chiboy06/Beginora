@@ -1,6 +1,17 @@
 import { isLoaded, generate } from "../llm/llm-engine";
 import { scoreComplexity, getRuleEngineAction } from "./rule-engine";
 import { validatePlan } from "./plan-validator";
+import { stripThinkTags } from "../orchestrator/response-parser";
+
+// The JSON object in a model reply: skips any <think> block, code fence or
+// sentence around it. validatePlan still checks every field afterwards.
+export function extractJsonObject(text: string): unknown {
+  const body = stripThinkTags(text);
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  if (start === -1 || end < start) throw new Error("No JSON object in model reply");
+  return JSON.parse(body.slice(start, end + 1));
+}
 
 export interface DecompositionResult {
   firstAction: string;
@@ -72,9 +83,10 @@ export async function decompose(
   try {
     const result = await generate(
       [{ role: "user", content: DECOMPOSE_PROMPT(task, safeContext) }],
-      { maxTokens: 512, temperature: 0.4 },
+      // JSON only: thinking would spend the budget before the plan.
+      { maxTokens: 512, temperature: 0.4, enableThinking: false },
     );
-    const parsed: unknown = JSON.parse(result.text.trim());
+    const parsed = extractJsonObject(result.text);
     const plan = validatePlan(parsed);
     if (!plan) throw new Error("Invalid task-plan response");
     return { ...plan, source: "llm" };

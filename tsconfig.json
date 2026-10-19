@@ -2,6 +2,8 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Lets Telegram modules import "./x.ts" so scripts/telegram-smoke.mts runs them in plain Node.
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./*"],
       "@components/*": ["./components/*"],

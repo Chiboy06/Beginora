@@ -3,6 +3,7 @@
 // app behind its confirmation step.
 
 import type { DecompositionResult } from "../ai/decomposer";
+import { formatPlan } from "../ai/format-plan.ts";
 import type { Task } from "../storage/database";
 
 export interface CommandDeps {
@@ -25,12 +26,6 @@ export const HELP_TEXT = [
 
 const MAX_TASK_CHARS = 200;
 
-function describe(result: DecompositionResult): string {
-  if (result.source === "safety_block") return result.firstAction;
-  const next = result.steps.slice(0, 3).map((step, i) => `${i + 1}. ${step}`);
-  return [`First step: ${result.firstAction}`, ...(next.length ? ["", "Then:", ...next] : [])].join("\n");
-}
-
 export async function handleCommand(text: string, deps: CommandDeps): Promise<string> {
   const match = /^\/(\w+)(?:@\w+)?\s*([\s\S]*)$/.exec(text.trim());
   const command = match?.[1].toLowerCase();
@@ -46,7 +41,7 @@ export async function handleCommand(text: string, deps: CommandDeps): Promise<st
       const result = await deps.plan(arg);
       if (result.source === "safety_block") return result.firstAction;
       await deps.addTask(arg, result.firstAction, result.steps);
-      return `Saved "${arg}".\n${describe(result)}\n\nYou can stop after five minutes. Send /done when it's finished.`;
+      return `Saved "${arg}".\n${formatPlan(result)}\n\nYou can stop after five minutes. Send /done when it's finished.`;
     }
 
     case "next": {
@@ -66,7 +61,7 @@ export async function handleCommand(text: string, deps: CommandDeps): Promise<st
       const result = await deps.plan(task.title, context);
       if (result.source === "safety_block") return result.firstAction;
       await deps.replan(task.id, result.firstAction, result.steps);
-      return `Let's make it smaller.\n${describe(result)}`;
+      return `Let's make it smaller.\n${formatPlan(result)}`;
     }
 
     case "done": {
@@ -80,7 +75,7 @@ export async function handleCommand(text: string, deps: CommandDeps): Promise<st
       if (!arg) return HELP_TEXT;
       const result = await deps.plan(arg);
       if (result.source === "safety_block") return result.firstAction;
-      return `${describe(result)}\n\nSend /add ${arg} to save it as a task.`;
+      return `${formatPlan(result)}\n\nSend /add ${arg} to save it as a task.`;
     }
 
     default:

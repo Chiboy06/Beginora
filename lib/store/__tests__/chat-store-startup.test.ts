@@ -141,3 +141,15 @@ test("a successful startup load clears the in-progress marker", async () => {
   expect(llm.loadModel).toHaveBeenCalledTimes(1);
   expect(prefs.pendingModelLoad).toBeUndefined();
 });
+
+test("each launch opens a fresh chat; earlier chats are not loaded into it", async () => {
+  (database.getLatestConversation as jest.Mock).mockResolvedValue({ id: "old", title: "Old chat" });
+  (llm.loadModel as jest.Mock).mockResolvedValue(undefined);
+  useChatStore.setState({ messages: [{ id: "m", conversationId: "old", role: "user", content: "hi", createdAt: 1 }] as never });
+
+  await useChatStore.getState().init();
+
+  expect(useChatStore.getState().messages).toEqual([]);
+  expect(useChatStore.getState().conversationId).not.toBe("old");
+  expect(database.getMessages).not.toHaveBeenCalled();
+});

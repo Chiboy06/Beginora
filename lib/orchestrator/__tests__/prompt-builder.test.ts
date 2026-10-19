@@ -120,3 +120,14 @@ describe("prompt content guards", () => {
     }
   });
 });
+
+test("the system prompt with every tool leaves room for chat history in a 4096-token context", () => {
+  const { buildStablePrefix } = jest.requireActual("../prompt-builder");
+  for (const lang of ["en", "it"] as const) {
+    // Same estimate as the engine (about 3 characters per token): stays under half
+    // the window, so with the 1024-token reply budget about 1000 tokens remain for history.
+    const tokens = Math.ceil(buildStablePrefix(lang, null, null).length / 3);
+    console.log(`[prompt] ${lang} system prompt ~${tokens} tokens`);
+    expect(tokens).toBeLessThan(2048);
+  }
+});

@@ -16,7 +16,9 @@ Manual task planning and focus work offline, with a deterministic fallback when 
 - A bounded, user-requested device-calendar review and explicit "prepare for this event" flow.
 - A native calendar-editor handoff for user-reviewed appointment drafts. This does not book with a clinic or provider.
 - An email composer handoff that creates an editable draft. Beginora never sends email silently.
-- Android system speech input that fills an editable draft and never auto-sends it.
+- Android system speech input that fills an editable draft, plus an opt-in hands-free mode that sends what you say, reads replies aloud (expo-speech) and takes spoken "yes"/"no" for pending actions.
+- Chat tools for alarms, timers, reminders, calendar events, calls and texts (opened prefilled for you to send), scheduled texts (a notification at the chosen time opens the ready-written message), email drafts, notes through the share sheet, and messages to your own Telegram chat. Actions that change something ask first.
+- A Permissions screen with one-tap Allow buttons and shortcuts to usage access and battery settings.
 - Optional Telegram integration with the bot token stored in Android secure storage: user-triggered task summaries, and an opt-in two-way bot (`/add`, `/next`, `/stuck`, `/done`, or free text) that answers only the saved chat ID and cannot trigger calls, SMS, email or calendar actions.
 - Opt-in gentle check-ins: a background scan (expo-background-task, Android WorkManager, at least every 15 minutes) scores open tasks for being stuck, untouched for a day or running very long, and sends at most one calm notification per task per day, never between 22:00 and 08:00.
 - Opt-in phone-use pattern signals through Android Usage access: app switches and minutes in feed apps over the last 30 minutes, computed on demand on the phone; no raw usage data is stored or sent.

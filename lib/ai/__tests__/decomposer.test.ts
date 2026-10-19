@@ -40,6 +40,22 @@ describe("decompose", () => {
     });
   });
 
+  it("uses the model plan even when it is wrapped in a think block and a code fence", async () => {
+    mockIsLoaded.mockReturnValue(true);
+    const plan = { firstAction: "Open the document.", steps: ["Find the file", "Open it", "Read the heading"] };
+    mockGenerate.mockResolvedValue({
+      text: `<think>The user wants {a plan}.</think>
+Here it is:
+\`\`\`json
+${JSON.stringify(plan)}
+\`\`\``,
+    } as Awaited<ReturnType<typeof generate>>);
+
+    const result = await decompose("Complete my entire research project");
+    expect(result).toEqual({ ...plan, source: "llm" });
+    expect(mockGenerate.mock.calls[0][1]).toMatchObject({ enableThinking: false });
+  });
+
   it("falls back instead of returning a malformed model response", async () => {
     mockIsLoaded.mockReturnValue(true);
     mockGenerate.mockResolvedValue({ text: "```json\n{ broken }\n```" } as Awaited<ReturnType<typeof generate>>);

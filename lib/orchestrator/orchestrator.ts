@@ -24,6 +24,7 @@ import {
 import { getKnowledgeForPrompt } from "./knowledge-manager";
 import { getConfig } from "../storage/database";
 import { toolRequiresConfirmation, toolReturnsData } from "../tools/tool-registry";
+import { prefs } from "../store/prefs";
 
 const MAX_HISTORY_MESSAGES = 20;
 // Once the conversation exceeds the window, `slice(-MAX)` would re-slice to a
@@ -100,7 +101,9 @@ export async function processMessage(
   // tail. History turns render from their stored createdAt — a pure function,
   // so the replayed history is byte-identical across turns and the whole
   // conversation stays a growing KV-cache prefix.
-  const stablePrefix = buildStablePrefix(lang, memoriesBlock, knowledgeBlock);
+  const name = prefs.userName;
+  const stablePrefix = buildStablePrefix(lang, memoriesBlock, knowledgeBlock) +
+    (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "");
 
   // Build conversation messages for the LLM
   const messages: CompletionMessage[] = [
@@ -155,7 +158,9 @@ export async function processMessage(
     // tool-selection consistency without hurting chat quality much (LLM-5).
     const result = await generate(
       messages,
-      { maxTokens: REPLY_TOKENS, temperature: 0.3 },
+      // Qwen3 "thinking" would spend the reply budget on hidden reasoning
+      // before answering; templates without the mode ignore the flag.
+      { maxTokens: REPLY_TOKENS, temperature: 0.3, enableThinking: false },
       onToken,
     );
     const raw = result.text;
@@ -213,7 +218,7 @@ export async function processMessage(
         ];
         const followup = await generate(
           followupMessages,
-          { maxTokens: 1024, temperature: 0.4 },
+          { maxTokens: 1024, temperature: 0.4, enableThinking: false },
           onToken,
         );
         // Guard: if the model answered with a tool-call JSON instead of prose
@@ -244,7 +249,9 @@ export async function processMessage(
         type: "tool_call",
         tool: call.tool,
         parameters: call.parameters,
-        message: confirmMessage,
+        // A breakdown's answer is the plan itself; the model's own "message" is
+        // often just a question back to the user.
+        message: call.tool === "break_down_task" && toolResult.success ? toolResult.message : confirmMessage,
         result: toolResult,
       };
     };
@@ -297,6 +304,7 @@ export async function processMessage(
         const retry = await generate(correction, {
           maxTokens: 512,
           temperature: 0.2,
+          enableThinking: false,
         });
         if (retry.stoppedByUser) {
           response = { type: "text", content: truncatedHint };
