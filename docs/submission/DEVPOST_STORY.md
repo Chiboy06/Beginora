@@ -28,11 +28,12 @@ React Native 0.88 with Expo SDK 58 and Expo Router, TypeScript throughout. On-de
 - **A frozen app:** the floating task bubble was an Android `Modal`, a separate window that swallowed every touch while a task was active. It is now a plain overlay, and the chat batches streamed tokens instead of redrawing on every one.
 - **Questions instead of answers:** the "break down a task" tool only showed the model's one-line reply, often a question. It now runs the validated planner and shows the actual first step.
 - **A silent SDK break:** after the Expo SDK 58 upgrade, the old calendar and contacts functions became stubs that throw at runtime. Tests mocked them, so only the phone showed it. They now use the supported legacy entry points, and a test guards the imports.
+- **Tiny models:** a 0.6B model picked the wrong tool, invented calendar answers, wrote invalid times and looped in conversation. We measured it against a real model, then routed clear requests to one tool, computed times in code, validated details before confirming, and answered small talk instantly. It went from 7/10 to 10/10.
 - **Background limits:** Android only runs periodic work every 15 minutes or more, and some brands stop it to save battery. We designed check-ins to be cheap and rule-based, and kept the model for when the user is present.
 
 ## Accomplishments we're proud of
 
-A useful AI assistant that works in airplane mode on a phone; proactive help that is fully opt-in and private; 63 automated test suites with 405 tests, including tests written to fail on the old code before each fix.
+A useful AI assistant that works in airplane mode on a phone; proactive help that is fully opt-in and private; 65 automated test suites with 472 tests, and a real-model evaluation on a 0.6B Qwen3 (10/10 actions with valid details, non-repeating conversation), including tests written to fail on the old code before each fix.
 
 ## What we learned
 

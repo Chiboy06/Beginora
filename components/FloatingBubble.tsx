@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     alignItems: "flex-end",
-    paddingBottom: 100,
+    paddingBottom: 150, // clears the floating tab bar
     paddingRight: spacing.lg,
   },
   bubble: {

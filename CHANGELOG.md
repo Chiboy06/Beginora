@@ -10,7 +10,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 - `lib/voice/use-hands-free.ts` — the speech recognizer opens its own screen, which React Native reports as the app going to the background; hands-free mode stopped itself on the first listen and dropped what was said. App-state changes are now ignored while the recognizer is open.
 
+- Small on-device models (verified against a real qwen3:0.6b with `evals/`): clear action requests now list only their tool; calendar questions read the real calendar; relative times ("in 1 hour") come from the clock; dates, alarm times and event titles are repaired and validated before you are asked to confirm; confirmation text is written by the app; notes keep your words; greetings, thanks, feelings and "what can you do" are answered instantly without the model; a reply identical to the previous one is regenerated. Result: 10/10 action cases with valid details and a varied 5-turn conversation, up from 7/10 with invalid times and a looping chat.
+
 ### Added
+- Real-model evaluation (`evals/__tests__/real-model.test.ts`, run with `REAL_MODEL=qwen3:0.6b`): the app's own orchestrator against a model served by Ollama.
+- Design: a soft sage-to-stone gradient backdrop and a floating, rounded tab bar with filled/outlined vector icons; the bar hides while typing.
 - Voice navigation in hands-free mode: "open settings", "show my tasks", "go to the calendar", "open permissions", "open models", "open history", "open documents", "open new task" and "go back", matched without the model.
 
 ### Changed

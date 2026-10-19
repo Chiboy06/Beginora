@@ -10,6 +10,9 @@
 export const colors = {
   // ── Backgrounds ──────────────────────────────────
   bg:              "#F2F2F7",   // iOS systemGroupedBackground
+  // Backdrop gradient, sage mist to warm stone; muted and accent text stay >= 4.66:1 on both.
+  gradientTop:     "#EEF3EF",
+  gradientBottom:  "#F6F2EA",
   surface:         "#FFFFFF",   // iOS secondarySystemGroupedBackground
   surfaceMuted:    "#F2F2F7",
   surfaceHover:    "#E5E5EA",   // iOS tertiarySystemFill
