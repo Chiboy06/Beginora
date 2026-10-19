@@ -17,7 +17,9 @@ Manual task planning and focus work offline, with a deterministic fallback when 
 - A native calendar-editor handoff for user-reviewed appointment drafts. This does not book with a clinic or provider.
 - An email composer handoff that creates an editable draft. Beginora never sends email silently.
 - Android system speech input that fills an editable draft and never auto-sends it.
-- Optional Telegram task summaries with the bot token stored in Android secure storage; sending is user-triggered.
+- Optional Telegram integration with the bot token stored in Android secure storage: user-triggered task summaries, and an opt-in two-way bot (`/add`, `/next`, `/stuck`, `/done`, or free text) that answers only the saved chat ID and cannot trigger calls, SMS, email or calendar actions.
+- Opt-in gentle check-ins: a background scan (expo-background-task, Android WorkManager, at least every 15 minutes) scores open tasks for being stuck, untouched for a day or running very long, and sends at most one calm notification per task per day, never between 22:00 and 08:00.
+- Opt-in phone-use pattern signals through Android Usage access: app switches and minutes in feed apps over the last 30 minutes, computed on demand on the phone; no raw usage data is stored or sent.
 - An opt-in Android background-model service with a generic persistent notification; off by default.
 - A capability and privacy registry and a restrained translucent surface treatment.
 - EAS Update checks on connectivity for compatible JavaScript/assets, with an explicit user-confirmed restart.
@@ -128,9 +130,7 @@ No passive device monitoring, autonomous actions, direct provider booking, cloud
 
 - Dark theme and system theme support
 - iOS build and smoke test
-- Cloud sync and account (requires backend design)
-- Passive focus or paralysis detection
-- Hyperfocus detection
+- Tuning check-in and phone-use thresholds with real users (current values are untuned defaults)
 - Secure cloud task sync and account (requires backend design)
 - Billing
 - Clinical efficacy claims (out of scope permanently — this is a planning aid)

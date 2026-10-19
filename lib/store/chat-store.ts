@@ -34,6 +34,7 @@ import { runMemoryDecay } from "../orchestrator/memory-manager";
 import { warmSessionCache } from "../orchestrator/session-warmer";
 import { clearPrefixSessionCache } from "../llm/session-cache";
 import { persistFailureNotice, modelLoadFailureNotice } from "./notices";
+import { prefs } from "./prefs";
 import * as FileSystem from "expo-file-system/legacy";
 import {
   ensureLegacyMigration,
@@ -98,10 +99,17 @@ export const useChatStore = create<ChatState>((set, get) => {
       try {
         await ensureLegacyMigration();
         active = await getActiveModel();
-        if (active && !isLoaded()) {
+        if (active && !isLoaded() && prefs.pendingModelLoad === active.filePath) {
+          // The previous launch died or hung while loading this model. Retrying
+          // automatically would trap the user in a restart loop.
+          prefs.pendingModelLoad = undefined;
+          await clearPrefixSessionCache().catch(() => {});
+          set({ notice: modelLoadFailureNotice(get().language, active.displayName) });
+        } else if (active && !isLoaded()) {
           set({ modelLoading: true });
           const fileInfo = await FileSystem.getInfoAsync(active.filePath);
           if (fileInfo.exists) {
+            prefs.pendingModelLoad = active.filePath;
             const perf = perfToLlmOptions(await getPerfSettings());
             await loadModel(active.filePath, {
               ...perf,
@@ -122,6 +130,7 @@ export const useChatStore = create<ChatState>((set, get) => {
           set({ notice: modelLoadFailureNotice(get().language, active.displayName) });
         }
       } finally {
+        prefs.pendingModelLoad = undefined;
         const info = getModelInfo();
         set({
           modelLoaded: info.loaded,

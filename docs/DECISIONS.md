@@ -137,6 +137,20 @@ Format: decision, rationale, reversibility, date.
 
 ---
 
+## D-012 — Product direction: full assistant
+
+**Decision:** Keep the assistant features (agent tools, call/SMS/email handoff, voice input, opt-in background service, quick chat, Telegram) and pursue the background-agent vision, instead of the permission-minimised scope in the submission build document §1, §4.1 and §6.3.
+
+**Rationale:** Owner decision on 2026-10-19. The product aim is passive, consented detection of task paralysis and hyperfocus drift with minimal intervention, which the minimised scope rules out.
+
+**Guardrails kept:** calls, SMS and email open a prefilled composer the user sends; side-effecting tools need confirmation; every signal source is opt-in; no clinical claims.
+
+**Reversibility:** Medium — permissions and tools can be removed again, but users of later builds would lose those features.
+
+**Date:** 2026-10-19
+
+---
+
 ## Known risks (from build document §11)
 
 - RN 0.83 and Expo SDK 55 are not the latest stable versions. Monitor for security patches.

@@ -2,7 +2,7 @@
 // Routes user messages through the LLM, parses tool calls, dispatches actions.
 // Now includes memory retrieval (inject into prompt) and extraction (post-response).
 
-import { generate, isLoaded } from "../llm/llm-engine";
+import { generate, isLoaded, estimatePromptTokens, getContextSize } from "../llm/llm-engine";
 import type { CompletionMessage } from "../llm/llm-engine";
 import { buildStablePrefix, annotateUserMessage } from "./prompt-builder";
 import { schedulePrefixPersist } from "./session-warmer";
@@ -35,6 +35,10 @@ const MAX_HISTORY_MESSAGES = 20;
 // (~once per stride messages instead of every turn). Cost: the window can hold
 // up to MAX + STRIDE - 1 messages — still far under the context size.
 const HISTORY_SLIDE_STRIDE = 8;
+// Room reserved for the reply. Prompt plus reply must fit n_ctx: past it,
+// ctx_shift evicts the oldest tokens (the system prompt) and small models
+// lose their instructions and ramble.
+export const REPLY_TOKENS = 1024;
 
 // The index of the first history message to include. Rounds the "last MAX"
 // start DOWN to a stride boundary so it advances every STRIDE messages, not
@@ -134,6 +138,12 @@ export async function processMessage(
     content: annotateUserMessage(lang, sentAt, userText),
   });
 
+  // Drop the oldest history turns until prompt plus reply fits the context.
+  const promptBudget = getContextSize() - REPLY_TOKENS;
+  while (messages.length > 2 && estimatePromptTokens(messages) > promptBudget) {
+    messages.splice(1, 1);
+  }
+
   try {
     // A background memory-extraction pass may still hold the engine lock.
     // Cancel it (it stops the native completion) so this user turn starts
@@ -145,7 +155,7 @@ export async function processMessage(
     // tool-selection consistency without hurting chat quality much (LLM-5).
     const result = await generate(
       messages,
-      { maxTokens: 4096, temperature: 0.3 },
+      { maxTokens: REPLY_TOKENS, temperature: 0.3 },
       onToken,
     );
     const raw = result.text;

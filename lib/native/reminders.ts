@@ -8,7 +8,7 @@ import type { ToolCallResult } from "../orchestrator/types";
 const CHANNEL_ID = "reminders";
 let configured = false;
 
-async function ensureConfigured(): Promise<void> {
+export async function ensureConfigured(): Promise<void> {
   if (configured) return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({

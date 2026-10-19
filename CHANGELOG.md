@@ -7,12 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.2.6] — Onboarding route fix build
 
+### Added
+- Gentle check-ins (opt-in): background scan with expo-background-task; one calm notification per task per day at most; quiet hours 22:00 to 08:00 (`lib/focus/check-ins.ts`, `check-in-runner.ts`, `background-check-ins.ts`)
+- Phone-use pattern signals (opt-in) through Android Usage access: new `SystemActionsModule` methods and `lib/focus/usage-signals.ts`; `PACKAGE_USAGE_STATS` added by the config plugin
+- Two-way Telegram bot (opt-in): `/add`, `/next`, `/stuck`, `/done` and free text; owner chat only; no device actions from Telegram (`lib/telegram/telegram-bot.ts`, `telegram-commands.ts`, `telegram-runner.ts`)
+- Settings: Assistant section and a Telegram reply switch
+- Submission documents in `docs/submission/` and `scripts/build-submission-docs.mjs`; real-bot test `scripts/telegram-smoke.mts`
+
 ### Fixed
 - `app/_layout.tsx` — root always mounts the Stack and gates onboarding/app routes with `Stack.Protected` (PR #5), fixing the fresh-install startup loop
 - `lib/storage/database.ts` — `deleteConversation` now deletes messages and the conversation in one transaction
 - `scripts/check-audit-policy.js` — audit gate now runs on Windows (`npm.cmd` needs a shell)
 - `lib/storage/database.ts` — `getMessages` returned the *oldest* 50 messages, so reopening a conversation longer than 50 messages hid the newest ones; it now returns the newest 50 in chronological order
 - `app/models.tsx` — a model download interrupted by the app being killed no longer sits in an unlabeled limbo state; it is labeled as unfinished with delete/re-download guidance
+
+- `app/(tabs)/index.tsx`, `app/(tabs)/settings.tsx` — the chat screen opened outside the tab navigator with its header hidden (a PR #5 regression), so there was no way to leave it; `/` and `/settings` now resolve only to the tabs, guarded by a route-uniqueness test
+- `lib/orchestrator/orchestrator.ts` — long chats overflowed the 4096-token window (20 history messages plus a 4096-token reply budget), so context shifting evicted the system prompt and replies degraded into rambling; history is now trimmed to fit and replies are capped at 1024 tokens
+- `lib/store/chat-store.ts` — a model load that crashed or hung at startup was retried on every launch; it is now skipped after one failed attempt
 
 ### Accessibility (Apple HIG foundations: 4.5:1 text contrast, 44pt targets, 11pt minimum type)
 - `lib/theme.ts` — text colors raised to pass 4.5:1: muted text `#8E8E93` 3.3:1 → `#6C6C70` 5.2:1 (45 uses), success 2.2:1 → 5.4:1, warning 2.7:1 → 5.6:1, placeholder 1.7:1 → 4.7:1; sage accent nudged `#4A7A6A` → `#467565` so regular-weight accent text passes on every surface

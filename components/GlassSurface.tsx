@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, type ReactNode, type RefObject } from "react";
+import { createContext, useContext, useRef, type ComponentRef, type ReactNode, type RefObject } from "react";
 import {
   Platform,
   StyleSheet,
@@ -9,7 +9,9 @@ import {
 import { BlurTargetView, BlurView } from "expo-blur";
 import { colors } from "../lib/theme";
 
-const BlurTargetContext = createContext<RefObject<View | null> | null>(null);
+type ViewInstance = ComponentRef<typeof View>;
+
+const BlurTargetContext = createContext<RefObject<ViewInstance | null> | null>(null);
 
 /** Warm atmospheric backdrop; intentionally decorative and never carries information. */
 export function GlassScreen({
@@ -19,7 +21,7 @@ export function GlassScreen({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const targetRef = useRef<View | null>(null);
+  const targetRef = useRef<ViewInstance | null>(null);
   return (
     <View style={[styles.screen, style]}>
       <BlurTargetView
