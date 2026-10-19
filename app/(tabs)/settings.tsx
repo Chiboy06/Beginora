@@ -69,6 +69,7 @@ export default function SettingsScreen() {
   const [telegramSaved, setTelegramSaved] = useState(false);
   const [keepModelInBackground, setKeepModelInBackground] = useState(prefs.keepModelInBackground);
   const [backgroundServiceBusy, setBackgroundServiceBusy] = useState(false);
+  const [userName, setUserName] = useState(prefs.userName);
   const [checkIns, setCheckIns] = useState(prefs.checkInsEnabled);
   const [usageSignals, setUsageSignals] = useState(prefs.usageSignalsEnabled);
   const [usageGranted, setUsageGranted] = useState(false);
@@ -428,6 +429,23 @@ export default function SettingsScreen() {
           />
         </View>
         <Text style={[styles.toggleHint, { marginTop: spacing.lg }]}>Tasks, plans, and activity remain on this device. Cloud sync is disabled; optional integrations and update checks contact their named providers when you choose to use them.</Text>
+      </View>
+
+      <Text style={styles.sectionTitle}>About you</Text>
+      <View style={styles.card}>
+        <Text style={styles.toggleTitle}>Your name</Text>
+        <Text style={styles.toggleHint}>Beginora uses it to greet you and talk with you. Stored only on this phone.</Text>
+        <TextInput
+          style={[styles.textField, { marginTop: spacing.sm }]}
+          value={userName}
+          onChangeText={setUserName}
+          onEndEditing={() => { prefs.userName = userName; setUserName(prefs.userName); }}
+          placeholder="What should I call you?"
+          placeholderTextColor={colors.textPlaceholder}
+          maxLength={40}
+          returnKeyType="done"
+          accessibilityLabel="Your name"
+        />
       </View>
 
       <Text style={styles.sectionTitle}>Assistant</Text>

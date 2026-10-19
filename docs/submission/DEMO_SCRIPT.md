@@ -20,7 +20,8 @@ Record on the phone running the v0.2.8 APK, with screen recording on. Show only 
 | 1:10 | Back on the task, tap **Not the right step? Try another** | "If the step doesn't fit, it suggests another." |
 | 1:25 | New task: type "how much medication should I take", tap **Make it smaller** | "Safety comes first: crisis or medical questions get a fixed, reviewed answer and never reach the model." |
 | 1:40 | Pull down the **check-in notification**, tap it, the task opens | "Beginora doesn't wait to be opened. In the background it notices a task that seems stuck and sends one gentle note, never at night." |
-| 2:00 | Settings > Assistant: show the switches and their text | "Everything proactive is opt-in. Phone-use patterns read app names and times only, and nothing leaves the phone." |
+| 1:55 | Tap **Talk hands-free**. Say "set an alarm for 7 tomorrow", then "yes" | "I can also just talk to it. It answers out loud and asks before acting, so it works without touching the screen." |
+| 2:05 | Settings > Assistant: show the switches and their text | "Everything proactive is opt-in. Phone-use patterns read app names and times only, and nothing leaves the phone." |
 | 2:15 | Turn airplane mode off. Telegram: send `/add study for my exam`, then `/next`, then `/done` | "Where data is scarce, you can use it from Telegram. Only your own chat gets answers." |
 | 2:40 | Settings > About disclaimer, then title card with the GitHub link | "Beginora is a planning aid, not medical care. The code and tests are on GitHub." |
 

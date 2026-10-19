@@ -24,6 +24,7 @@ import {
 import { getKnowledgeForPrompt } from "./knowledge-manager";
 import { getConfig } from "../storage/database";
 import { toolRequiresConfirmation, toolReturnsData } from "../tools/tool-registry";
+import { prefs } from "../store/prefs";
 
 const MAX_HISTORY_MESSAGES = 20;
 // Once the conversation exceeds the window, `slice(-MAX)` would re-slice to a
@@ -100,7 +101,9 @@ export async function processMessage(
   // tail. History turns render from their stored createdAt — a pure function,
   // so the replayed history is byte-identical across turns and the whole
   // conversation stays a growing KV-cache prefix.
-  const stablePrefix = buildStablePrefix(lang, memoriesBlock, knowledgeBlock);
+  const name = prefs.userName;
+  const stablePrefix = buildStablePrefix(lang, memoriesBlock, knowledgeBlock) +
+    (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "");
 
   // Build conversation messages for the LLM
   const messages: CompletionMessage[] = [

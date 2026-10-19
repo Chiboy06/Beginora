@@ -162,23 +162,9 @@ export const useChatStore = create<ChatState>((set, get) => {
     const lang = await getConfig("language");
     if (lang === "en" || lang === "it") set({ language: lang as Language });
 
-    // Try to restore the latest conversation
-    const latest = await getLatestConversation();
-    let conversationId: string;
-
-    if (latest) {
-      conversationId = latest.id;
-      const messages = await getMessages(conversationId);
-      set({
-        conversationId,
-        conversationTitle: latest.title,
-        messages,
-      });
-    } else {
-      // First launch — lazy: just set ID, don't persist until first message
-      conversationId = uuid();
-      set({ conversationId, messages: [] });
-    }
+    // Every launch opens on a fresh chat with the welcome; earlier chats stay in
+    // History. Lazy: the conversation is only persisted with its first message.
+    set({ conversationId: uuid(), conversationTitle: null, messages: [] });
 
     // Loading a multi-GB native model (and its optional prefix cache) can take
     // a long time on a phone. Restore it in the background, after the UI can

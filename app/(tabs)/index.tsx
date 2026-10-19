@@ -10,7 +10,9 @@ import {
   Platform,
   Linking,
   Pressable,
+  TextInput,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useChatStore } from "../../lib/store/chat-store";
 import { ChatBubble, StreamingBubble } from "../../components/ChatBubble";
@@ -21,6 +23,8 @@ import { NoticeBanner } from "../../components/NoticeBanner";
 import { GlassScreen } from "../../components/GlassSurface";
 import { colors, spacing, typography, radii, shadow } from "../../lib/theme";
 import type { Message } from "../../lib/orchestrator/types";
+import { prefs } from "../../lib/store/prefs";
+import { useHandsFree } from "../../lib/voice/use-hands-free";
 
 // Tapping a chip fills the message box; the user edits names and times before sending.
 const PROMPT_CHIPS = [
@@ -59,12 +63,53 @@ function useKeyboardHeight() {
   return height;
 }
 
+function timeGreeting(hour: number): string {
+  return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+}
+
+// Asks once what to call the user; saved locally and used in greetings and chat.
+function NamePrompt({ onSaved }: { onSaved: (name: string) => void }) {
+  const [draft, setDraft] = useState("");
+  const save = () => {
+    prefs.userName = draft;
+    onSaved(prefs.userName);
+  };
+  return (
+    <View style={es.nameRow}>
+      <TextInput
+        style={es.nameInput}
+        value={draft}
+        onChangeText={setDraft}
+        placeholder="What should I call you?"
+        placeholderTextColor={colors.textPlaceholder}
+        returnKeyType="done"
+        onSubmitEditing={save}
+        maxLength={40}
+        accessibilityLabel="Your name"
+      />
+      <Pressable
+        style={({ pressed }) => [es.nameSave, pressed && es.chipPressed]}
+        onPress={save}
+        disabled={!draft.trim()}
+        accessibilityRole="button"
+        accessibilityLabel="Save name"
+      >
+        <Text style={es.nameSaveText}>Save</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function EmptyState({
+  userName,
+  onNameSaved,
   onChipPress,
   onTaskPress,
   onCalendarPress,
   onEmailPress,
 }: {
+  userName: string;
+  onNameSaved: (name: string) => void;
   onChipPress: (text: string) => void;
   onTaskPress: () => void;
   onCalendarPress: () => void;
@@ -77,10 +122,15 @@ function EmptyState({
         <View style={es.iconWrap}>
           <Text style={es.icon}>🌱</Text>
         </View>
-        <Text style={es.title}>Beginora</Text>
-        <Text style={es.subtitle}>
-          What&apos;s one thing you&apos;d like to get started on?
+        <Text style={es.title}>
+          {userName ? `${timeGreeting(new Date().getHours())}, ${userName}` : "Beginora"}
         </Text>
+        <Text style={es.subtitle}>
+          {userName
+            ? "I'm Beginora. What's one thing you'd like to get started on?"
+            : "Hi, I'm Beginora. I help you take the first step on things that are hard to start."}
+        </Text>
+        {!userName && <NamePrompt onSaved={onNameSaved} />}
       </View>
 
       {/* Suggestion chips */}
@@ -293,6 +343,9 @@ export default function ChatScreen() {
     }
   }, [keyboardHeight, messages.length]);
 
+  const handsFree = useHandsFree();
+  const [userName, setUserName] = useState(prefs.userName);
+
   const chatContent = (
     <>
       {!modelLoaded && (
@@ -338,6 +391,8 @@ export default function ChatScreen() {
         keyboardDismissMode="interactive"
         ListEmptyComponent={
           <EmptyState
+            userName={userName}
+            onNameSaved={setUserName}
             onChipPress={(text) => {
               chatInputRef.current?.setText(text);
               chatInputRef.current?.focus();
@@ -351,6 +406,21 @@ export default function ChatScreen() {
           <StreamingFooter isGenerating={isGenerating} streamingText={streamingText} />
         }
       />
+
+      {Platform.OS === "android" && (
+        <Pressable
+          style={({ pressed }) => [styles.handsFree, handsFree.active && styles.handsFreeActive, pressed && { opacity: 0.8 }]}
+          onPress={handsFree.active ? handsFree.stop : handsFree.start}
+          accessibilityRole="button"
+          accessibilityLabel={handsFree.active ? "Stop hands-free conversation" : "Start hands-free conversation"}
+          accessibilityHint="Talk to Beginora and hear replies aloud. Say stop to end."
+        >
+          <Ionicons name={handsFree.active ? "stop-circle" : "headset"} size={20} color={handsFree.active ? "#FFFFFF" : colors.accent} />
+          <Text style={[styles.handsFreeText, handsFree.active && { color: "#FFFFFF" }]}>
+            {handsFree.active ? "Listening… say \"stop\" to end" : "Talk hands-free"}
+          </Text>
+        </Pressable>
+      )}
 
       <ChatInput
         ref={chatInputRef}
@@ -420,6 +490,20 @@ const es = StyleSheet.create({
     maxWidth: 280,
   },
   section: { marginBottom: spacing.xxl },
+  nameRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg, width: "100%", maxWidth: 320 },
+  nameInput: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    ...typography.callout,
+    color: colors.textPrimary,
+  },
+  nameSave: { minHeight: 44, minWidth: 64, borderRadius: radii.lg, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+  nameSaveText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
   sectionLabel: {
     ...typography.footnote,
     color: colors.textMuted,
@@ -537,6 +621,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.accent,
   },
+  handsFree: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 44,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.surface,
+  },
+  handsFreeActive: { backgroundColor: colors.accent },
+  handsFreeText: { ...typography.callout, color: colors.accent, fontWeight: "600" },
   headerRight: {
     flexDirection: "row",
     alignItems: "center",

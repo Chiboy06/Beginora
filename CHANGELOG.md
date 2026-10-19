@@ -12,8 +12,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `lib/orchestrator/tool-dispatcher.ts`, `orchestrator.ts` — `break_down_task` did nothing and the user only saw the model's one-line "confirmation", often a question back. It now runs the planner (safety pre-check, validated output, rule-engine fallback) and shows the first step and next steps.
 - `lib/store/token-batcher.ts` — streamed tokens updated the chat screen once per token (10 to 20 times a second), starving the JS thread; updates are now batched every 80 ms.
 
+- Device calendar and contacts: in Expo SDK 58 their root-import functions are stubs that throw, so the calendar showed "unavailable" and contact lookups for calls and texts failed. Imports now use `expo-calendar/legacy` and `expo-contacts/legacy`.
+- Chat replies and task plans now run with Qwen3 thinking off, and the planner finds the JSON object past think blocks and code fences instead of silently falling back.
+
 ### Added
-- Example chips for alarms, reminders and texts on the empty chat screen.
+- Hands-free conversation (`lib/voice/`): Beginora greets you by name, listens, replies aloud with the phone's text-to-speech, and listens again; "yes"/"no" answers pending actions and "stop" ends it.
+- A personal welcome: each launch opens a fresh chat with a time-of-day greeting; Beginora asks for your name once (also editable in Settings > About you) and uses it in conversation.
+- Permissions screen: one-tap Allow for calendar, contacts, microphone and notifications, Open settings when Android won't ask again, and shortcuts for usage access and battery.
+- New chat tools: `schedule_sms` (a notification at the chosen time opens the ready-written text), `save_note` (share sheet to any notes app), `draft_email`, `send_telegram`.
+- Example chips for alarms, reminders, texts and notes on the empty chat screen.
 - Settings > Telegram: "Find my chat ID" fills the chat ID after you message your bot.
 
 ### Changed

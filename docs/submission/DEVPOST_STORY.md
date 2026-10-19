@@ -13,7 +13,8 @@ Beginora turns a task you choose into one concrete first step you can start in a
 - **Gentle check-ins (opt-in):** a background scan notices a task that seems stuck, untouched for a day or running very long, and sends at most one calm notification per task per day, never between 22:00 and 08:00.
 - **Phone-use patterns (opt-in):** with Android Usage access, it notices long scrolling in feed apps or rapid app switching while a task waits. It reads app names and times only, never content, and stores or sends nothing.
 - **Telegram:** `/add`, `/next`, `/stuck`, `/done`, or just describe a task. Only your chat gets replies, and Telegram can't trigger calls, texts or calendar actions.
-- **Chat assistant:** reminders, calendar review, and prefilled calls, texts and emails that you confirm and send yourself.
+- **Hands-free voice:** Beginora greets you by name, listens, answers aloud and listens again. Say "yes" or "no" to approve an alarm or a text, and "stop" to end. This also helps people who can't easily use their hands.
+- **Assistant tools:** alarms, reminders, calendar events, scheduled texts (a notification opens the ready-written message at the right time), email drafts, notes and Telegram messages. Anything that changes something asks first, and you send messages yourself.
 
 ## How we built it
 
@@ -26,11 +27,12 @@ React Native 0.88 with Expo SDK 58 and Expo Router, TypeScript throughout. On-de
 - **A screen with no exit:** two files claimed the home route, so the chat opened outside the tab bar with its header hidden. A route-uniqueness test now guards against this.
 - **A frozen app:** the floating task bubble was an Android `Modal`, a separate window that swallowed every touch while a task was active. It is now a plain overlay, and the chat batches streamed tokens instead of redrawing on every one.
 - **Questions instead of answers:** the "break down a task" tool only showed the model's one-line reply, often a question. It now runs the validated planner and shows the actual first step.
+- **A silent SDK break:** after the Expo SDK 58 upgrade, the old calendar and contacts functions became stubs that throw at runtime. Tests mocked them, so only the phone showed it. They now use the supported legacy entry points, and a test guards the imports.
 - **Background limits:** Android only runs periodic work every 15 minutes or more, and some brands stop it to save battery. We designed check-ins to be cheap and rule-based, and kept the model for when the user is present.
 
 ## Accomplishments we're proud of
 
-A useful AI assistant that works in airplane mode on a phone; proactive help that is fully opt-in and private; 59 automated test suites with 367 tests, including tests written to fail on the old code before each fix.
+A useful AI assistant that works in airplane mode on a phone; proactive help that is fully opt-in and private; 63 automated test suites with 400 tests, including tests written to fail on the old code before each fix.
 
 ## What we learned
 

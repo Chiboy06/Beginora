@@ -43,6 +43,16 @@ export const prefs = {
     else storage.delete("pending_model_load");
   },
 
+  // What Beginora calls the user; one short line, used in greetings and the prompt.
+  get userName(): string {
+    return storage.getString("user_name") ?? "";
+  },
+  set userName(v: string) {
+    const name = v.replace(/\s+/g, " ").trim().slice(0, 40);
+    if (name) storage.set("user_name", name);
+    else storage.delete("user_name");
+  },
+
   // Opt-in gentle check-in notifications (background scan). Off by default.
   get checkInsEnabled(): boolean {
     return storage.getBoolean("check_ins_enabled") ?? false;
