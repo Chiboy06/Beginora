@@ -5,11 +5,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
+import { useRouter } from "expo-router";
 import * as Speech from "expo-speech";
 import { startVoiceRecognition } from "../native/voice-input";
 import { useChatStore } from "../store/chat-store";
 import { prefs } from "../store/prefs";
-import { greeting, interpretVoice, toSpeech } from "./hands-free";
+import { greeting, interpretVoice, shouldStopForAppState, toSpeech } from "./hands-free";
 
 // The outcome stored on a confirmed action's message, if any.
 function toolResultMessage(raw: string | undefined): string | null {
@@ -27,6 +28,9 @@ export function useHandsFree() {
   // True between sending a message and speaking the reply to it.
   const awaitingReplyRef = useRef(false);
   const listenRef = useRef<() => void>(() => {});
+  // The recognizer is its own screen; while it is open the app reports "background".
+  const recognizerOpenRef = useRef(false);
+  const router = useRouter();
   const isGenerating = useChatStore((s) => s.isGenerating);
   const messages = useChatStore((s) => s.messages);
   const pendingConfirmation = useChatStore((s) => s.pendingConfirmation);
@@ -46,7 +50,13 @@ export function useHandsFree() {
   listenRef.current = () => {
     void (async () => {
       if (!activeRef.current) return;
-      const result = await startVoiceRecognition();
+      recognizerOpenRef.current = true;
+      let result: Awaited<ReturnType<typeof startVoiceRecognition>>;
+      try {
+        result = await startVoiceRecognition();
+      } finally {
+        recognizerOpenRef.current = false;
+      }
       if (!activeRef.current) return;
       // Backing out of the listening prompt (or an error) ends hands-free mode.
       if (result.status !== "success") {
@@ -59,6 +69,15 @@ export function useHandsFree() {
       if (intent.kind === "stop") {
         stop();
         Speech.speak("Okay. Talk soon.");
+        return;
+      }
+      if (intent.kind === "open") {
+        if (intent.route === "back") {
+          if (router.canGoBack()) router.back();
+        } else {
+          router.push(intent.route as never);
+        }
+        speakThenListen(intent.route === "back" ? "Okay." : `Opening ${intent.label}.`);
         return;
       }
       if (intent.kind === "confirm" && pending) {
@@ -96,7 +115,7 @@ export function useHandsFree() {
   // Never keep listening or talking once the app is in the background.
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state !== "active") stop();
+      if (shouldStopForAppState(state, recognizerOpenRef.current)) stop();
     });
     return () => {
       sub.remove();

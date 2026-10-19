@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.9] — Hands-free voice fix
+
+### Fixed
+- `lib/voice/use-hands-free.ts` — the speech recognizer opens its own screen, which React Native reports as the app going to the background; hands-free mode stopped itself on the first listen and dropped what was said. App-state changes are now ignored while the recognizer is open.
+
+### Added
+- Voice navigation in hands-free mode: "open settings", "show my tasks", "go to the calendar", "open permissions", "open models", "open history", "open documents", "open new task" and "go back", matched without the model.
+
+### Changed
+- Android `versionCode` 11 / version 0.2.9.
+
+---
+
 ## [0.2.8] — Responsiveness and first-step fixes
 
 ### Fixed

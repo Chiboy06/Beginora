@@ -32,7 +32,7 @@ React Native 0.88 with Expo SDK 58 and Expo Router, TypeScript throughout. On-de
 
 ## Accomplishments we're proud of
 
-A useful AI assistant that works in airplane mode on a phone; proactive help that is fully opt-in and private; 63 automated test suites with 400 tests, including tests written to fail on the old code before each fix.
+A useful AI assistant that works in airplane mode on a phone; proactive help that is fully opt-in and private; 63 automated test suites with 405 tests, including tests written to fail on the old code before each fix.
 
 ## What we learned
 
