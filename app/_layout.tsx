@@ -221,9 +221,7 @@ export default function RootLayout() {
         <Stack.Protected guard={onboardingDone}>
           {/* Tab navigator — primary navigation */}
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="chat" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ title: "Settings" }} />
 
           {/* Task screens */}
           <Stack.Screen name="task/new" options={{ title: "New Task", presentation: "modal" }} />

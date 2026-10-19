@@ -172,3 +172,30 @@ describe("V4 byte-stability holds on long conversations (anchored window)", () =
     );
   });
 });
+
+describe("context budget", () => {
+  test("a long chat is trimmed so the system prompt and the reply both fit n_ctx", async () => {
+    const llm = jest.requireMock("../../llm/llm-engine");
+    // Same estimate as the engine: ~3 characters per token plus template overhead.
+    llm.estimatePromptTokens.mockImplementation((msgs: CompletionMessage[]) =>
+      msgs.reduce((n, m) => n + Math.ceil(m.content.length / 3) + 8, 0),
+    );
+    mockGenerate.mockResolvedValue(gen("Start by opening the document."));
+
+    // 20 rambling turns of ~1,500 characters: far more than a 4096-token window.
+    const long = "Use the program to identify the problem. ".repeat(36);
+    const history: Message[] = [];
+    for (let i = 0; i < 20; i += 1) {
+      history.push(i % 2 === 0 ? userMsg(`u${i}`, long, i * 1000) : assistantMsg(`a${i}`, long, i * 1000));
+    }
+
+    await processMessage("help me start my essay", history, "en");
+    const [sent, opts] = mockGenerate.mock.calls[0];
+
+    expect(sent[0].role).toBe("system");
+    expect(sent[sent.length - 1].content).toContain("help me start my essay");
+    expect(sent.length).toBeLessThan(history.length + 2);
+    expect(llm.estimatePromptTokens(sent) + (opts?.maxTokens ?? 0)).toBeLessThanOrEqual(4096);
+    llm.estimatePromptTokens.mockImplementation(() => 0);
+  });
+});

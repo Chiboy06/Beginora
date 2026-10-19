@@ -12,6 +12,8 @@ import { dispatchToolCall } from "../tool-dispatcher";
 jest.mock("../../llm/llm-engine", () => ({
   generate: jest.fn(),
   isLoaded: jest.fn(() => true),
+  estimatePromptTokens: jest.fn(() => 0),
+  getContextSize: jest.fn(() => 4096),
 }));
 jest.mock("../tool-dispatcher", () => ({
   dispatchToolCall: jest.fn(),
