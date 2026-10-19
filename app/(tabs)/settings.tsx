@@ -713,7 +713,7 @@ export default function SettingsScreen() {
         <Text style={styles.desc}>
           Beginora is an offline-first assistant that helps you find a first step. Core task plans and activity stay on this device in this prototype; selected integrations may send the information you choose to their providers.
         </Text>
-        <Text style={styles.version}>v0.2.6 — check-ins and two-way Telegram</Text>
+        <Text style={styles.version}>v0.2.7 — latest Android reliability build</Text>
       </View>
 
     </ScrollView>
