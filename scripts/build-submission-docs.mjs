@@ -49,7 +49,11 @@ function printToPdf(htmlPath, pdfPath) {
     lastSize = size;
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
   }
-  rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+  try {
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+  } catch {
+    // The browser can still hold its temp profile for a moment; leftover temp files are harmless.
+  }
   if (!existsSync(pdfPath)) throw new Error(`PDF not written: ${pdfPath}`);
   console.log(`wrote ${pdfPath} (${statSync(pdfPath).size} bytes)`);
 }
