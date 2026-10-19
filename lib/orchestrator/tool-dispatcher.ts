@@ -60,8 +60,41 @@ export function normalizeToolParams(
     ) {
       out[key] = value.slice(0, 10);
     }
+    // Small models append the prompt's zone label ("...T15:00 (Africa/Lagos)"),
+    // which no date parser accepts; keep the local date and time.
+    if (prop.format === "ISO8601" && typeof value === "string") {
+      const m = LOCAL_DATETIME.exec(value);
+      if (m) out[key] = `${m[1]}T${m[2].padStart(2, "0")}:${m[3]}:${m[4] ?? "00"}`;
+    }
+    // An alarm time given as a full datetime: keep HH:MM and fill the date.
+    if (prop.format === "HH:MM" && typeof value === "string") {
+      const m = LOCAL_DATETIME.exec(value);
+      if (m) {
+        out[key] = `${m[2].padStart(2, "0")}:${m[3]}`;
+        if (def.parameters.properties.date && out.date === undefined) out.date = m[1];
+      }
+    }
+  }
+  if (tool === "create_event" && typeof out.title === "string") {
+    // "Add I am Batman to my calendar" -> "I am Batman"
+    out.title = out.title
+      .replace(/^(please\s+)?(add|put|create|schedule|book)\s+/i, "")
+      .replace(/\s+(to|on|in|into)\s+my\s+(calendar|schedule|agenda)\b.*$/i, "")
+      .trim() || out.title;
   }
   return out;
+}
+
+const LOCAL_DATETIME = /^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/;
+
+// Normalizes, then validates, without running anything: lets the orchestrator
+// refuse a call before asking the user to confirm an action that would fail.
+export function checkToolParams(
+  tool: string,
+  rawParameters: Record<string, unknown>,
+): { parameters: Record<string, unknown>; error: string | null } {
+  const parameters = normalizeToolParams(tool, rawParameters);
+  return { parameters, error: validateParams(tool, parameters) };
 }
 
 function validateParams(

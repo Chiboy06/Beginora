@@ -35,6 +35,14 @@ const SAFETY_RESPONSE: DecompositionResult = Object.freeze({
   source: "safety_block" as const,
 });
 
+// Crisis wording only (the first pattern): used by chat, where words like
+// "ADHD" or "medication" must not trigger the crisis reply.
+export function isCrisis(text: string): boolean {
+  return SAFETY_PATTERNS[0].test(text);
+}
+
+export const CRISIS_REPLY = SAFETY_RESPONSE.firstAction;
+
 function isSafetyBlock(text: string): boolean {
   return SAFETY_PATTERNS.some((pattern) => pattern.test(text));
 }

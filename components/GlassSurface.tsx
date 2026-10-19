@@ -7,6 +7,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { BlurTargetView, BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../lib/theme";
 
 type ViewInstance = ComponentRef<typeof View>;
@@ -31,11 +32,15 @@ export function GlassScreen({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <View style={styles.backdrop}>
+        <LinearGradient
+          colors={[colors.gradientTop, colors.bg, colors.gradientBottom]}
+          locations={[0, 0.45, 1]}
+          style={styles.backdrop}
+        >
           <View style={styles.glowSage} />
           <View style={styles.glowPearl} />
           <View style={styles.glowAmber} />
-        </View>
+        </LinearGradient>
       </BlurTargetView>
       <BlurTargetContext.Provider value={targetRef}>{children}</BlurTargetContext.Provider>
     </View>
@@ -79,7 +84,7 @@ export function GlassSurface({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  backdrop: { flex: 1, overflow: "hidden", backgroundColor: colors.bg },
+  backdrop: { flex: 1, overflow: "hidden" },
   glowSage: {
     position: "absolute",
     top: -95,

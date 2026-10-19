@@ -1,4 +1,4 @@
-import { greeting, interpretVoice, toSpeech } from "../hands-free";
+import { greeting, interpretVoice, shouldStopForAppState, toSpeech } from "../hands-free";
 
 describe("interpretVoice", () => {
   test("yes and no confirm or decline only when an action is waiting", () => {
@@ -54,5 +54,37 @@ describe("toSpeech", () => {
     const spoken = toSpeech(text, 100);
     expect(spoken.length).toBeLessThanOrEqual(100);
     expect(spoken.endsWith(".")).toBe(true);
+  });
+});
+
+describe("voice navigation", () => {
+  test("open/show/go to a screen name opens that screen", () => {
+    expect(interpretVoice("Open settings", false)).toEqual({ kind: "open", route: "/settings", label: "Settings" });
+    expect(interpretVoice("show me my tasks.", false)).toMatchObject({ route: "/tasks" });
+    expect(interpretVoice("go to the calendar", false)).toMatchObject({ route: "/calendar" });
+    expect(interpretVoice("take me to permissions", false)).toMatchObject({ route: "/connectors" });
+    expect(interpretVoice("open models", false)).toMatchObject({ route: "/models" });
+    expect(interpretVoice("add a task", false).kind).toBe("message");
+    expect(interpretVoice("open new task", false)).toMatchObject({ route: "/task/new" });
+  });
+
+  test("go back is navigation, even while an action is waiting", () => {
+    expect(interpretVoice("go back", true)).toEqual({ kind: "open", route: "back", label: "back" });
+  });
+
+  test("open followed by something that is not a screen goes to the model", () => {
+    expect(interpretVoice("open the document for my essay", false).kind).toBe("message");
+  });
+});
+
+describe("shouldStopForAppState", () => {
+  test("the recognizer's own screen does not end hands-free", () => {
+    expect(shouldStopForAppState("background", true)).toBe(false);
+  });
+
+  test("really leaving the app does", () => {
+    expect(shouldStopForAppState("background", false)).toBe(true);
+    expect(shouldStopForAppState("inactive", false)).toBe(true);
+    expect(shouldStopForAppState("active", false)).toBe(false);
   });
 });
