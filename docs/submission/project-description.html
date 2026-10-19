@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Beginora: project description</title>
+<style>
+  @page { size: A4; margin: 13mm 14mm; }
+  :root { --ink: #1c1c1e; --muted: #4a4a50; --accent: #467565; --soft: #eaf0ed; --line: #d9dfdb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 10pt/1.42 "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+  header { border-bottom: 2px solid var(--accent); padding-bottom: 5pt; margin-bottom: 7pt; }
+  h1 { margin: 0; font-size: 21pt; letter-spacing: -0.3pt; color: var(--accent); }
+  .tag { margin: 1pt 0 0; font-size: 10.5pt; color: var(--muted); }
+  .meta { margin-top: 3pt; font-size: 8pt; color: var(--muted); }
+  h2 { font-size: 10.5pt; margin: 8pt 0 2pt; color: var(--accent); text-transform: uppercase; letter-spacing: 0.6pt; }
+  p { margin: 0 0 4pt; }
+  ul { margin: 0 0 4pt; padding-left: 13pt; }
+  li { margin-bottom: 2pt; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14pt; }
+  .flow { display: flex; gap: 4pt; margin: 3pt 0 5pt; }
+  .flow div { flex: 1; background: var(--soft); border-radius: 5pt; padding: 5pt 6pt; font-size: 8.8pt; }
+  .flow b { display: block; color: var(--accent); }
+  .note { font-size: 7.8pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 4pt; margin-top: 6pt; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Beginora</h1>
+  <p class="tag">An on-device AI assistant that helps people with ADHD start the task in front of them.</p>
+  <p class="meta">UnivaBio 2026 &middot; Theme: AI for Human Health &middot; Android app (React Native, Expo) &middot; github.com/Chiboy06/Beginora</p>
+</header>
+
+<h2>The problem</h2>
+<p>ADHD affects about 5% of children and 2.5% of adults worldwide (Polanczyk et al., 2007; Simon et al., 2009). Task initiation, starting a task you already intend to do, is a core everyday difficulty. Most planning apps need consistent manual logging, the very executive skill ADHD makes hard, and people drop them quickly. In much of Africa and Asia, ADHD is under-diagnosed and support is costly or absent; cloud AI tools also need steady data and send personal information to servers.</p>
+
+<h2>Our solution</h2>
+<p>Beginora turns a task you choose into <b>one concrete first step you can start in about 30 seconds</b>, then supports a calm five-minute focus session. A small language model runs <b>entirely on the phone</b>, so the core works offline, costs nothing per use, and keeps tasks private. Instead of waiting to be opened, it can notice when you seem stuck and reach out gently.</p>
+
+<div class="flow">
+  <div><b>1. You type a task</b>"I need to start my essay"</div>
+  <div><b>2. Safety check</b>Crisis or medical content gets a fixed, reviewed reply; no model call</div>
+  <div><b>3. On-device AI plans</b>Qwen3 via llama.cpp; output validated against a strict schema</div>
+  <div><b>4. One first step</b>"Open the document and write one sentence"; rule-engine fallback if needed</div>
+</div>
+
+<div class="cols">
+<div>
+<h2>Key features</h2>
+<ul>
+  <li><b>First-step planner:</b> on-device model with a validated plan contract and an offline rule-engine fallback.</li>
+  <li><b>Five-minute focus</b> with done, snooze, "not the right step" and "smaller step", stored locally.</li>
+  <li><b>Gentle check-ins (opt-in):</b> a background scan notices a stuck, untouched or overlong task and sends at most one calm note per task per day, never at night.</li>
+  <li><b>Phone-use patterns (opt-in):</b> Android Usage access notices long scrolling or rapid app switching while a task waits. App names and times only, never content, never stored or sent.</li>
+  <li><b>Telegram for low-resource settings:</b> /add, /next, /stuck, /done, or describe a task; replies only to your chat.</li>
+  <li><b>Chat assistant with tools:</b> reminders, calendar review, and prefilled calls, texts and email you confirm and send yourself.</li>
+</ul>
+</div>
+<div>
+<h2>Health impact and rigor</h2>
+<ul>
+  <li>Built for living with ADHD more easily: lowers the cost of starting rather than tracking.</li>
+  <li><b>Safety first:</b> deterministic pre-check before any model call; prompt-injection attempts are blocked; model output is never shown unless it passes the schema.</li>
+  <li><b>Private by design:</b> tasks stay on the device; every signal source is off until the user turns it on.</li>
+  <li><b>Calm language:</b> no streaks, guilt, urgency or claims about the user.</li>
+  <li><b>Tested:</b> 55 automated test suites (353 tests) cover the planner, safety rules, check-in rules, usage signals and the Telegram bot; fixes are checked by tests that fail on the old code.</li>
+</ul>
+<h2>Limits and next steps</h2>
+<p>A planning aid, not a medical device: it does not diagnose or treat ADHD. Background timing depends on each phone's battery rules. Next: a real-model evaluation set on desktop and phone, data export and delete-all, and a small consented pilot with students.</p>
+</div>
+</div>
+
+<p class="note">Beginora is a planning and focus aid, not medical care. It does not diagnose or treat ADHD and does not replace professional support. Built on the MIT-licensed Vesta project (copyright Rinaldo Festa). Prevalence sources: Polanczyk G. et al., Am J Psychiatry 2007; Simon V. et al., Br J Psychiatry 2009.</p>
+</body>
+</html>

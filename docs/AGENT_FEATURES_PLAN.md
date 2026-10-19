@@ -2,6 +2,25 @@
 
 Prepared 19 October 2026 for the UnivaBio deadline (21 October 2026, 04:45 GMT+1). The owner keeps all three features in scope. Every claim below is marked **Verified** (checked in this repository or in primary documentation, cited), **Tested** (a test ran and its result is recorded), or **Unverified** (must be confirmed on a phone). Nothing is assumed.
 
+## Implementation status (19 October 2026)
+
+| Plan step | Status | Evidence |
+| --- | --- | --- |
+| 1. Crash-loop guard | Done | 2 tests, back-tested against the old code |
+| 2. Two-way Telegram | Done | 22 unit tests (bot, commands, runner); the generation guard was mutation-tested; `scripts/telegram-smoke.mts` reached the real Bot API and handled its 401 for a bad token. A full real-bot run needs a test bot token |
+| 3. Background check-ins | Done | 11 rule tests plus 5 runner tests |
+| 4. Screen-pattern signals | Done | 8 signal tests; native methods in `SystemActionsModule.kt` |
+| 5. Platform wiring | Done | `expo prebuild` output has the permission and the Kotlin; TypeScript, lint, 55 suites / 353 tests, audit and Expo Doctor 20/20 pass |
+| 6. New APK | Owner | Builds the APK; the Kotlin is compiled for the first time there |
+| 7. Demo, one-pager, code PDF | Done | `docs/submission/` |
+
+**Deviation from section 2.1.** The plan said to also scan when the app returns to the foreground. That was dropped: a nudge while the user is already looking at Beginora is noise. Check-ins run only from the background task.
+
+**Still unverified on a phone:**
+- WorkManager timing on the owner's phone brand.
+- Usage events on the device (retention, and availability before the first unlock).
+- Whether the bot keeps polling with the app closed when the background service is off.
+
 ## 0. The stuck screen on the owner's phone
 
 **Report.** The owner installed and signed the APK and downloaded two models. The app does not respond, and it stays on the same screen after being closed and reopened.

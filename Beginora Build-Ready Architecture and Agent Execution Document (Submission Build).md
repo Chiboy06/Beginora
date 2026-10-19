@@ -12,11 +12,11 @@ Superseded: section 1 "out of scope" (passive monitoring, paralysis/hyperfocus d
 | --- | --- |
 | On-device chat agent with tools (tasks, reminders, calendar, call/SMS/email handoff, documents) | Built; unit-tested with a mocked model; real-device inference needs re-verification on the v0.2.6 APK |
 | Break a task into a five-minute first step (model plus rule-engine fallback) | Built |
-| Paralysis and hyperfocus detection | Partial: `lib/focus/detection-engine.ts` scores task outcomes, but only while the Focus screen is open |
-| Background agent that runs while the app is closed | Not built: the opt-in foreground service only keeps the model loaded; there is no scheduled background job |
-| Screen-pattern signals | Not built: needs Android Usage Access (PACKAGE_USAGE_STATS) with explicit consent and a Play policy declaration |
-| Nudges from detected signals | Not built: reminders are user-scheduled only |
-| Telegram | Partial: send-only task summaries and reminders; no two-way chat |
+| Paralysis and hyperfocus detection | Built: `lib/focus/detection-engine.ts`, used by the Focus screen and the background check-ins |
+| Background agent that runs while the app is closed | Built, opt-in: `lib/focus/background-check-ins.ts` (expo-background-task); timing on real phones unverified |
+| Screen-pattern signals | Built, opt-in: Usage access methods in `SystemActionsModule.kt`, signals in `lib/focus/usage-signals.ts`; Kotlin compiles only at APK build |
+| Nudges from detected signals | Built, opt-in: `lib/focus/check-ins.ts`, at most one per task per day, quiet hours 22:00 to 08:00 |
+| Telegram | Built: summaries plus an opt-in two-way bot (`lib/telegram/telegram-bot.ts`), owner chat only |
 | Home-screen quick chat and widget | Built: translucent quick-chat box hands text to the in-app agent |
 
 ## 0. Instructions to the coding agent (read first)

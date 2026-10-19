@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.2.6] — Onboarding route fix build
 
+### Added
+- Gentle check-ins (opt-in): background scan with expo-background-task; one calm notification per task per day at most; quiet hours 22:00 to 08:00 (`lib/focus/check-ins.ts`, `check-in-runner.ts`, `background-check-ins.ts`)
+- Phone-use pattern signals (opt-in) through Android Usage access: new `SystemActionsModule` methods and `lib/focus/usage-signals.ts`; `PACKAGE_USAGE_STATS` added by the config plugin
+- Two-way Telegram bot (opt-in): `/add`, `/next`, `/stuck`, `/done` and free text; owner chat only; no device actions from Telegram (`lib/telegram/telegram-bot.ts`, `telegram-commands.ts`, `telegram-runner.ts`)
+- Settings: Assistant section and a Telegram reply switch
+- Submission documents in `docs/submission/` and `scripts/build-submission-docs.mjs`; real-bot test `scripts/telegram-smoke.mts`
+
 ### Fixed
 - `app/_layout.tsx` — root always mounts the Stack and gates onboarding/app routes with `Stack.Protected` (PR #5), fixing the fresh-install startup loop
 - `lib/storage/database.ts` — `deleteConversation` now deletes messages and the conversation in one transaction

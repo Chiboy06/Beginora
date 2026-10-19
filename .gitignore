@@ -45,3 +45,4 @@ ios/GoogleService-Info.plist
 # generated native folders
 /ios
 /android
+docs/submission/code.generated.html
