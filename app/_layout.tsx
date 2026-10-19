@@ -27,6 +27,8 @@ import { FloatingBubble } from "../components/FloatingBubble";
 import { applyDownloadedAppUpdate, checkForAppUpdate } from "../lib/updates/update-service";
 import { STARTUP_READY_TIMEOUT_MS, startStartupTask, waitForStartupTasks } from "../lib/startup/startup-readiness";
 import { createNativeSplashHideController } from "../lib/startup/native-splash";
+import { startTelegramBot, stopTelegramBot } from "../lib/telegram/telegram-runner";
+import { setCheckInsScheduled } from "../lib/focus/background-check-ins";
 import { colors, spacing, typography } from "../lib/theme";
 
 // Keep Expo's default first-frame splash dismissal. A module-level manual hold
@@ -108,6 +110,16 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, []);
+
+  // Opt-in agent features. Neither may block or crash the app shell.
+  useEffect(() => {
+    if (!ready || !onboardingDone) return;
+    void startTelegramBot().catch((err) => console.warn("Telegram bot not started:", err));
+    if (prefs.checkInsEnabled) {
+      void setCheckInsScheduled(true).catch((err) => console.warn("Check-ins not scheduled:", err));
+    }
+    return () => stopTelegramBot();
+  }, [ready, onboardingDone]);
 
   useEffect(() => {
     if (!ready || !onboardingDone) return;

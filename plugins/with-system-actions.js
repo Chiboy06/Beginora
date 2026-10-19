@@ -157,7 +157,18 @@ function withSystemActions(config) {
 
   // Register the Vesta Widget receiver in AndroidManifest.xml
   config = withAndroidManifest(config, (config) => {
-    const mainApplication = config.modResults.manifest.application[0];
+    const manifest = config.modResults.manifest;
+    const mainApplication = manifest.application[0];
+
+    // Usage access for opt-in screen-pattern signals. The user still grants it in
+    // system Settings; tools:ignore stops lint flagging it as a system permission.
+    manifest.$["xmlns:tools"] = manifest.$["xmlns:tools"] ?? "http://schemas.android.com/tools";
+    manifest["uses-permission"] = manifest["uses-permission"] ?? [];
+    if (!manifest["uses-permission"].some((p) => p.$?.["android:name"] === "android.permission.PACKAGE_USAGE_STATS")) {
+      manifest["uses-permission"].push({
+        $: { "android:name": "android.permission.PACKAGE_USAGE_STATS", "tools:ignore": "ProtectedPermissions" },
+      });
+    }
 
     if (!mainApplication.receiver) {
       mainApplication.receiver = [];

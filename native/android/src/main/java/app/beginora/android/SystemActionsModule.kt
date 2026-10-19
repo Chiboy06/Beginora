@@ -2,6 +2,9 @@ package app.beginora.android
 
 import android.app.ActivityManager
 import android.app.Activity
+import android.app.AppOpsManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
@@ -9,6 +12,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.provider.AlarmClock
 import android.provider.CalendarContract
+import android.provider.Settings
 import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.*
@@ -203,6 +207,66 @@ class SystemActionsModule(reactContext: ReactApplicationContext) :
             promise.reject("CREATE_EVENT_ERROR", "Invalid date format: ${e.message}", e)
         } catch (e: Exception) {
             promise.reject("CREATE_EVENT_ERROR", e.message, e)
+        }
+    }
+
+    // Usage access is a special app-op the user grants in system Settings; the
+    // manifest declaration alone does not grant it.
+    @ReactMethod
+    fun hasUsageAccess(promise: Promise) {
+        try {
+            val appOps = reactApplicationContext.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+            val uid = android.os.Process.myUid()
+            val pkg = reactApplicationContext.packageName
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, uid, pkg)
+            } else {
+                @Suppress("DEPRECATION")
+                appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, uid, pkg)
+            }
+            promise.resolve(mode == AppOpsManager.MODE_ALLOWED)
+        } catch (e: Exception) {
+            promise.reject("USAGE_ACCESS_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun openUsageAccessSettings(promise: Promise) {
+        try {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("USAGE_SETTINGS_ERROR", e.message, e)
+        }
+    }
+
+    // Foreground app changes since sinceMs: package name, type and time only.
+    @ReactMethod
+    fun getAppEvents(sinceMs: Double, promise: Promise) {
+        try {
+            val usm = reactApplicationContext.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val events = usm.queryEvents(sinceMs.toLong(), System.currentTimeMillis())
+            val event = UsageEvents.Event()
+            val result = Arguments.createArray()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                val type = when (event.eventType) {
+                    UsageEvents.Event.ACTIVITY_RESUMED -> "resumed"
+                    UsageEvents.Event.ACTIVITY_PAUSED -> "paused"
+                    else -> null
+                } ?: continue
+                val map = Arguments.createMap()
+                map.putString("packageName", event.packageName)
+                map.putString("type", type)
+                map.putDouble("time", event.timeStamp.toDouble())
+                result.pushMap(map)
+            }
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("USAGE_EVENTS_ERROR", e.message, e)
         }
     }
 }

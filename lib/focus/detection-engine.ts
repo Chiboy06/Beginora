@@ -3,8 +3,8 @@
 //   paralysis  — the user is stuck: repeated snooze/wrong_moment/stopped with no completion
 //   hyperfocus — the user may have lost track of time: session extended many times or active >90 min
 //
-// No background process. No screen monitoring. No passive data collection.
-// Called explicitly from the focus screen and task detail screen.
+// Called from the focus screen, and by the opt-in background check-ins
+// (lib/focus/check-ins.ts), which reuse score() for every open task.
 // Returns a typed signal + a calm, non-judgmental nudge message.
 
 import { getTaskOutcomes } from "../storage/database";
@@ -45,9 +45,9 @@ export async function detectFocusSignal(ctx: FocusContext): Promise<FocusSignal>
   }
 }
 
-function score(ctx: FocusContext, outcomes: TaskOutcomeRecord[]): FocusSignal {
+export function score(ctx: FocusContext, outcomes: TaskOutcomeRecord[], now = Date.now()): FocusSignal {
   // Hyperfocus check — time-based, no outcome history needed.
-  const activeMs = Date.now() - ctx.activeStartedAt;
+  const activeMs = now - ctx.activeStartedAt;
   if (activeMs >= HYPERFOCUS_ACTIVE_MS || ctx.extensionCount >= 3) {
     return {
       kind: "hyperfocus",

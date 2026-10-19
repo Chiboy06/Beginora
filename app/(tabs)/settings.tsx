@@ -9,11 +9,15 @@ import {
   Switch,
   TextInput,
   Platform,
+  AppState,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useChatStore } from "../../lib/store/chat-store";
+import { setCheckInsScheduled } from "../../lib/focus/background-check-ins";
+import { hasUsageAccess, openUsageAccessSettings } from "../../lib/native/usage-access";
+import { startTelegramBot, stopTelegramBot } from "../../lib/telegram/telegram-runner";
 import {
   importKnowledgeFile,
   removeKnowledgeFile,
@@ -64,6 +68,67 @@ export default function SettingsScreen() {
   const [telegramSaved, setTelegramSaved] = useState(false);
   const [keepModelInBackground, setKeepModelInBackground] = useState(prefs.keepModelInBackground);
   const [backgroundServiceBusy, setBackgroundServiceBusy] = useState(false);
+  const [checkIns, setCheckIns] = useState(prefs.checkInsEnabled);
+  const [usageSignals, setUsageSignals] = useState(prefs.usageSignalsEnabled);
+  const [usageGranted, setUsageGranted] = useState(false);
+  const [telegramTwoWay, setTelegramTwoWay] = useState(prefs.telegramTwoWay);
+
+  // Usage access is granted in system Settings, so re-check when the user returns.
+  useEffect(() => {
+    const check = () => { void hasUsageAccess().then(setUsageGranted); };
+    check();
+    const sub = AppState.addEventListener("change", (state) => { if (state === "active") check(); });
+    return () => sub.remove();
+  }, []);
+
+  const toggleCheckIns = async (enabled: boolean) => {
+    try {
+      if (enabled) {
+        let permission = await Notifications.getPermissionsAsync();
+        if (!permission.granted && permission.canAskAgain !== false) {
+          permission = await Notifications.requestPermissionsAsync();
+        }
+        if (!permission.granted) {
+          Alert.alert("Notifications are off", "Check-ins need notification permission. You can turn it on in Android settings; the setting stays off.");
+          return;
+        }
+      }
+      await setCheckInsScheduled(enabled);
+      prefs.checkInsEnabled = enabled;
+      setCheckIns(enabled);
+    } catch {
+      Alert.alert("Check-ins not changed", "Beginora could not update the background schedule. Try again.");
+    }
+  };
+
+  const toggleUsageSignals = (enabled: boolean) => {
+    prefs.usageSignalsEnabled = enabled;
+    setUsageSignals(enabled);
+    if (!enabled || usageGranted) return;
+    Alert.alert(
+      "Allow usage access?",
+      "Beginora looks at which apps were in the foreground in the last 30 minutes to notice drifting, such as long scrolling while a task waits. It reads app names and times only, never content. Nothing is saved or sent. You can turn this off at any time.",
+      [
+        { text: "Not now", style: "cancel", onPress: () => { prefs.usageSignalsEnabled = false; setUsageSignals(false); } },
+        { text: "Open settings", onPress: () => { void openUsageAccessSettings().catch(() => Alert.alert("Not available", "Usage access settings could not be opened on this phone.")); } },
+      ],
+    );
+  };
+
+  const toggleTelegramTwoWay = async (enabled: boolean) => {
+    if (enabled && (!telegramSaved || !telegram.enabled || !telegram.botToken || !telegram.chatId)) {
+      Alert.alert("Set up Telegram first", "Enable Telegram, enter the bot token and your chat ID, and save before turning on replies.");
+      return;
+    }
+    prefs.telegramTwoWay = enabled;
+    setTelegramTwoWay(enabled);
+    if (enabled) {
+      const started = await startTelegramBot().catch(() => false);
+      if (!started) Alert.alert("Replies not started", "Check the bot token and chat ID, then try again.");
+    } else {
+      stopTelegramBot();
+    }
+  };
 
   useEffect(() => {
     getTelegramConfig().then((config) => {
@@ -81,6 +146,9 @@ export default function SettingsScreen() {
     setTelegramBusy(true);
     try {
       await saveTelegramConfig(telegram);
+      // Restart replies so the bot uses the newly saved token and chat ID.
+      stopTelegramBot();
+      if (prefs.telegramTwoWay) void startTelegramBot().catch(() => {});
       setTelegramSaved(true);
       Alert.alert("Saved", "The bot token is stored in Android secure storage. Telegram sends remain user-triggered.");
     } catch {
@@ -101,6 +169,9 @@ export default function SettingsScreen() {
           try {
             const empty = { botToken: "", chatId: "", enabled: false };
             await saveTelegramConfig(empty);
+            stopTelegramBot();
+            prefs.telegramTwoWay = false;
+            setTelegramTwoWay(false);
             setTelegram(empty);
             setTelegramSaved(true);
           } catch {
@@ -343,6 +414,42 @@ export default function SettingsScreen() {
         <Text style={[styles.toggleHint, { marginTop: spacing.lg }]}>Tasks, plans, and activity remain on this device. Cloud sync is disabled; optional integrations and update checks contact their named providers when you choose to use them.</Text>
       </View>
 
+      <Text style={styles.sectionTitle}>Assistant</Text>
+      <View style={styles.card}>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleTitle}>Gentle check-ins</Text>
+            <Text style={styles.toggleHint}>
+              While Beginora is closed, it checks about every 15 minutes for a task that seems stuck, has gone untouched for a day, or has run very long, and sends at most one calm note per task a day. Never between 10 pm and 8 am.
+            </Text>
+          </View>
+          <Switch
+            value={checkIns}
+            onValueChange={(v) => { void toggleCheckIns(v); }}
+            trackColor={{ false: colors.disabled, true: colors.accent }}
+            accessibilityLabel="Gentle check-ins"
+          />
+        </View>
+        {Platform.OS === "android" && (
+          <View style={[styles.toggleRow, { marginTop: spacing.lg }]}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleTitle}>Notice phone-use patterns</Text>
+              <Text style={styles.toggleHint}>
+                {usageSignals && !usageGranted
+                  ? "Waiting for usage access. Allow Beginora in the Android settings screen that opened."
+                  : "Uses Android usage access to notice long scrolling or rapid app switching while a task waits. App names and times only, kept on this phone."}
+              </Text>
+            </View>
+            <Switch
+              value={usageSignals}
+              onValueChange={toggleUsageSignals}
+              trackColor={{ false: colors.disabled, true: colors.accent }}
+              accessibilityLabel="Notice phone-use patterns"
+            />
+          </View>
+        )}
+      </View>
+
       <Text style={styles.sectionTitle}>Connections</Text>
       <View style={styles.card}>
         <Text style={styles.desc}>Review appointments, set local reminders, prepare an editable email draft, or send a task summary to Telegram. Optional connections are user-triggered and disclose the data they share.</Text>
@@ -520,7 +627,7 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>Telegram</Text>
       <View style={styles.card}>
         <Text style={styles.desc}>
-          Send task summaries to Telegram only when you tap Send. The selected text and chat ID go to Telegram over HTTPS; the bot token is stored in Android secure storage. Telegram reminders are not active in this build.
+          Send task summaries to Telegram, and optionally chat with Beginora from Telegram: /add, /next, /stuck, /done, or describe a task. Only your chat ID gets replies. Messages pass through Telegram&apos;s servers and bot chats are not end-to-end encrypted. The bot token is stored in Android secure storage.
         </Text>
         <View style={styles.toggleRow}>
           <View style={styles.toggleInfo}>
@@ -574,6 +681,20 @@ export default function SettingsScreen() {
             >
               <Text style={styles.btnPrimaryText}>{telegramBusy ? "Sending…" : "Send test message"}</Text>
             </TouchableOpacity>
+            <View style={[styles.toggleRow, { marginTop: spacing.lg }]}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleTitle}>Reply to my Telegram messages</Text>
+                <Text style={styles.toggleHint}>
+                  Planning and tasks only: calls, texts, email and calendar stay in the app. For replies while Beginora is closed, also turn on keeping the model in the background.
+                </Text>
+              </View>
+              <Switch
+                value={telegramTwoWay}
+                onValueChange={(v) => { void toggleTelegramTwoWay(v); }}
+                trackColor={{ false: colors.disabled, true: colors.accent }}
+                accessibilityLabel="Reply to Telegram messages"
+              />
+            </View>
             <TouchableOpacity
               style={[styles.removeBtn, { marginTop: spacing.md }]}
               onPress={removeTelegram}
