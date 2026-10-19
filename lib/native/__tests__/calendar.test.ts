@@ -1,4 +1,4 @@
-jest.mock("expo-calendar", () => ({
+jest.mock("expo-calendar/legacy", () => ({
   EntityTypes: { EVENT: "event" },
   getCalendarPermissionsAsync: jest.fn(),
   requestCalendarPermissionsAsync: jest.fn(),
@@ -8,7 +8,7 @@ jest.mock("expo-calendar", () => ({
 
 import { getUpcomingCalendarEvents } from "../calendar";
 
-const mockedCalendar = jest.requireMock("expo-calendar") as {
+const mockedCalendar = jest.requireMock("expo-calendar/legacy") as {
   getCalendarPermissionsAsync: jest.Mock;
   requestCalendarPermissionsAsync: jest.Mock;
   getCalendarsAsync: jest.Mock;

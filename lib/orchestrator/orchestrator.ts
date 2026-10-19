@@ -155,7 +155,9 @@ export async function processMessage(
     // tool-selection consistency without hurting chat quality much (LLM-5).
     const result = await generate(
       messages,
-      { maxTokens: REPLY_TOKENS, temperature: 0.3 },
+      // Qwen3 "thinking" would spend the reply budget on hidden reasoning
+      // before answering; templates without the mode ignore the flag.
+      { maxTokens: REPLY_TOKENS, temperature: 0.3, enableThinking: false },
       onToken,
     );
     const raw = result.text;
@@ -213,7 +215,7 @@ export async function processMessage(
         ];
         const followup = await generate(
           followupMessages,
-          { maxTokens: 1024, temperature: 0.4 },
+          { maxTokens: 1024, temperature: 0.4, enableThinking: false },
           onToken,
         );
         // Guard: if the model answered with a tool-call JSON instead of prose
@@ -299,6 +301,7 @@ export async function processMessage(
         const retry = await generate(correction, {
           maxTokens: 512,
           temperature: 0.2,
+          enableThinking: false,
         });
         if (retry.stoppedByUser) {
           response = { type: "text", content: truncatedHint };

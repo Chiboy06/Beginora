@@ -1,5 +1,5 @@
-import * as Calendar from "expo-calendar";
-import * as Contacts from "expo-contacts";
+import * as Calendar from "expo-calendar/legacy";
+import * as Contacts from "expo-contacts/legacy";
 import * as Notifications from "expo-notifications";
 import * as MailComposer from "expo-mail-composer";
 import * as Updates from "expo-updates";
@@ -13,6 +13,34 @@ export type ConnectorPermissionMap = Record<string, ConnectorPermissionState>;
 function permissionState(response: { granted: boolean; canAskAgain?: boolean }): ConnectorPermissionState {
   if (response.granted) return "granted";
   return response.canAskAgain === false ? "denied" : "not_requested";
+}
+
+// Connectors whose Android permission the user can grant with one tap.
+export const REQUESTABLE_CONNECTORS = new Set([
+  "device-calendar",
+  "device-contacts",
+  "android-voice-input",
+  "local-reminders",
+]);
+
+/** Shows the Android permission prompt for one connector and returns the result. */
+export async function requestConnectorPermission(id: string): Promise<ConnectorPermissionState | null> {
+  switch (id) {
+    case "device-calendar":
+      return permissionState(await Calendar.requestCalendarPermissionsAsync());
+    case "device-contacts":
+      return permissionState(await Contacts.requestPermissionsAsync());
+    case "local-reminders":
+      return permissionState(await Notifications.requestPermissionsAsync());
+    case "android-voice-input": {
+      if (Platform.OS !== "android") return "unavailable";
+      const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+      if (result === PermissionsAndroid.RESULTS.GRANTED) return "granted";
+      return result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN ? "denied" : "not_granted";
+    }
+    default:
+      return null;
+  }
 }
 
 /** Reads current statuses only; it never opens an OS permission prompt. */

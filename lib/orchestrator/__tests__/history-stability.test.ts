@@ -199,3 +199,9 @@ describe("context budget", () => {
     llm.estimatePromptTokens.mockImplementation(() => 0);
   });
 });
+
+test("chat replies run with thinking off so the budget goes to the answer", async () => {
+  mockGenerate.mockResolvedValue(gen("Open the document."));
+  await processMessage("help me start", [], "en");
+  expect(mockGenerate.mock.calls[0][1]).toMatchObject({ enableThinking: false, maxTokens: 1024 });
+});

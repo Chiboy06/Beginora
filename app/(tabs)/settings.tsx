@@ -466,16 +466,16 @@ export default function SettingsScreen() {
         )}
       </View>
 
-      <Text style={styles.sectionTitle}>Connections</Text>
+      <Text style={styles.sectionTitle}>Permissions and connections</Text>
       <View style={styles.card}>
-        <Text style={styles.desc}>Review appointments, set local reminders, prepare an editable email draft, or send a task summary to Telegram. Optional connections are user-triggered and disclose the data they share.</Text>
+        <Text style={styles.desc}>Allow calendar, contacts, microphone and notifications with one tap each, and see exactly what each connection reads. Everything is optional.</Text>
         <TouchableOpacity
           style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }]}
           onPress={() => router.push("/connectors")}
           activeOpacity={0.7}
           accessibilityRole="button"
         >
-          <Text style={styles.btnPrimaryText}>Manage Connections</Text>
+          <Text style={styles.btnPrimaryText}>Permissions and connections</Text>
         </TouchableOpacity>
       </View>
 

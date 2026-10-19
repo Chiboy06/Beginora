@@ -1,7 +1,7 @@
 // Address-book access via expo-contacts. Handles the READ_CONTACTS runtime
 // permission and shapes results for the model. Fully on-device.
 
-import * as Contacts from "expo-contacts";
+import * as Contacts from "expo-contacts/legacy";
 import type { ToolCallResult, Language } from "../orchestrator/types";
 
 export type ResolveResult =

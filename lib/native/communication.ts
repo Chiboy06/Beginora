@@ -3,9 +3,15 @@
 // dialer (not auto-calling) needs no CALL_PHONE permission and keeps the user
 // in control — they place the call / send the message themselves.
 
-import { Linking } from "react-native";
+import { Linking, Share } from "react-native";
 import type { ToolCallResult, Language } from "../orchestrator/types";
 import { resolveContactNumber, type ResolveResult } from "./contacts";
+import { scheduleLocalReminder } from "./reminders";
+
+// Opens the messaging app with the recipient and text filled in; the user sends.
+export function smsUrl(number: string, text: string): string {
+  return `sms:${number}?body=${encodeURIComponent(text)}`;
+}
 
 // Localized message for a contact that couldn't be resolved — distinguishing a
 // missing permission from a genuine no-match (don't claim the contact is absent
@@ -68,7 +74,7 @@ export async function sendSms(
 
   // sms:<number>?body=<text> opens the messaging app with the message
   // pre-filled; the user taps send.
-  const url = `sms:${resolved.number}?body=${encodeURIComponent(text ?? "")}`;
+  const url = smsUrl(resolved.number, text ?? "");
   try {
     await Linking.openURL(url);
     return {
@@ -87,6 +93,56 @@ export async function sendSms(
           ? "Impossibile aprire l'app messaggi."
           : "Failed to open the messaging app.",
       error: msg,
+    };
+  }
+}
+
+// Android only lets the default SMS app send texts unattended, so a scheduled
+// text is a notification that opens the ready-written message at that time.
+export async function scheduleSms(
+  contact: string,
+  text: string,
+  datetime: string,
+  lang: Language,
+): Promise<ToolCallResult> {
+  const resolved = await resolveContactNumber(contact);
+  if (!resolved.ok) return unresolvedResult(resolved, contact, lang);
+
+  const scheduled = await scheduleLocalReminder(
+    lang === "it"
+      ? `Messaggio per ${resolved.name}: "${text}". Tocca per aprirlo e inviarlo.`
+      : `Text ${resolved.name}: "${text}". Tap to open it and send.`,
+    datetime,
+    null,
+    { kind: "sms", to: resolved.number, body: text },
+  );
+  if (!scheduled.success) return { success: false, message: scheduled.message, error: "not scheduled" };
+  const when = new Date(datetime).toLocaleString(lang === "it" ? "it-IT" : "en-GB", { dateStyle: "medium", timeStyle: "short" });
+  return {
+    success: true,
+    message:
+      lang === "it"
+        ? `Alle ${when} ti ricorderò di scrivere a ${resolved.name}, con il messaggio pronto.`
+        : `At ${when} I'll remind you to text ${resolved.name}, with the message ready to send.`,
+  };
+}
+
+// Notes apps have no shared API, but every one accepts text from the share sheet.
+export async function saveNote(text: string, lang: Language): Promise<ToolCallResult> {
+  try {
+    const result = await Share.share({ message: text });
+    const shared = result.action === Share.sharedAction;
+    return {
+      success: shared,
+      message: shared
+        ? lang === "it" ? "Nota condivisa." : "Note shared."
+        : lang === "it" ? "Nessuna nota salvata." : "No note was saved.",
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: lang === "it" ? "Non riesco ad aprire il menu Condividi." : "Couldn't open the share menu.",
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }

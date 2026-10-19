@@ -2,7 +2,7 @@
 // user invokes a calendar feature; the app reads a bounded window and returns
 // only the event fields needed for preparation.
 
-import * as Calendar from "expo-calendar";
+import * as Calendar from "expo-calendar/legacy";
 import type { ToolCallResult, Language } from "../orchestrator/types";
 import { isValidYMD } from "../orchestrator/date-utils";
 

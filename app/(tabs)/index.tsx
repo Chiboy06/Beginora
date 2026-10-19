@@ -30,6 +30,8 @@ const PROMPT_CHIPS = [
   "Set an alarm for 7:00 tomorrow",
   "Remind me at 18:00 to start my essay",
   "Text Mum that I'm running late",
+  "Text Mum at 18:00 that I'm on my way",
+  "Save a note: buy bread and call Ada",
 ];
 
 const StreamingFooter = React.memo(function StreamingFooter({

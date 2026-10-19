@@ -11,6 +11,7 @@ import {
   Platform,
   NativeEventEmitter,
   NativeModules,
+  Linking,
 } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import * as Network from "expo-network";
@@ -29,6 +30,7 @@ import { STARTUP_READY_TIMEOUT_MS, startStartupTask, waitForStartupTasks } from 
 import { createNativeSplashHideController } from "../lib/startup/native-splash";
 import { startTelegramBot, stopTelegramBot } from "../lib/telegram/telegram-runner";
 import { setCheckInsScheduled } from "../lib/focus/background-check-ins";
+import { smsUrl } from "../lib/native/communication";
 import { colors, spacing, typography } from "../lib/theme";
 
 // Keep Expo's default first-frame splash dismissal. A module-level manual hold
@@ -133,6 +135,9 @@ export default function RootLayout() {
         router.push({ pathname: "/task/[id]", params: { id: data.taskId } });
       } else if (data.kind === "appointment") {
         router.push("/calendar");
+      } else if (data.kind === "sms" && typeof data.to === "string") {
+        // Scheduled text: open the ready-written message; the user taps send.
+        void Linking.openURL(smsUrl(data.to, typeof data.body === "string" ? data.body : "")).catch(() => {});
       }
       void Notifications.clearLastNotificationResponseAsync().catch(() => {});
     };
@@ -244,7 +249,7 @@ export default function RootLayout() {
           <Stack.Screen name="email" options={{ title: "Email draft", presentation: "modal" }} />
 
           {/* Utility screens */}
-          <Stack.Screen name="connectors" options={{ title: "Connections" }} />
+          <Stack.Screen name="connectors" options={{ title: "Permissions" }} />
           <Stack.Screen name="history" options={{ title: "Conversations" }} />
           <Stack.Screen name="models" options={{ title: "Models" }} />
           <Stack.Screen name="documents" options={{ title: "Documents" }} />

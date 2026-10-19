@@ -6,11 +6,13 @@ import { MVP_TOOLS } from "../tools/tool-registry";
 import { setAlarm, createEvent, setTimer, navigateTo } from "../native/system-actions";
 import { scheduleReminder } from "../native/reminders";
 import { searchContacts } from "../native/contacts";
-import { makeCall, sendSms } from "../native/communication";
+import { makeCall, saveNote, scheduleSms, sendSms } from "../native/communication";
 import { getCalendarEvents } from "../native/calendar";
 import { queryDocuments } from "./document-retriever";
 import { isValidYMD } from "./date-utils";
 import { decompose } from "../ai/decomposer";
+import { openEmailDraft } from "../connectors/email-connector";
+import { sendTelegramMessage } from "../telegram/telegram-service";
 import { formatPlan } from "../ai/format-plan";
 
 const FORMAT_VALIDATORS: Record<string, (value: string) => string | null> = {
@@ -157,6 +159,34 @@ export async function dispatchToolCall(
         return await sendSms(
           parameters.contact as string,
           parameters.text as string,
+          lang,
+        );
+
+      case "draft_email": {
+        const to = typeof parameters.to === "string" ? parameters.to.trim() : "";
+        const result = await openEmailDraft({
+          recipients: to ? [to] : [],
+          subject: parameters.subject as string,
+          body: parameters.body as string,
+        });
+        return { success: result.success, message: result.message };
+      }
+
+      case "send_telegram": {
+        const result = await sendTelegramMessage(parameters.text as string);
+        return result.ok
+          ? { success: true, message: lang === "it" ? "Inviato su Telegram." : "Sent to your Telegram." }
+          : { success: false, message: result.error ?? "Telegram is not set up.", error: result.error };
+      }
+
+      case "save_note":
+        return await saveNote(parameters.text as string, lang);
+
+      case "schedule_sms":
+        return await scheduleSms(
+          parameters.contact as string,
+          parameters.text as string,
+          parameters.datetime as string,
           lang,
         );
 
