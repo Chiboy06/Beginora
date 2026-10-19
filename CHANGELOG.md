@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.7] — Android upgrade build
+
+### Changed
+- Increment Android `versionCode` to 9 so this build can be installed over v0.2.6; application features are the changes already merged through the current mainline.
+
+---
+
 ## [0.2.6] — Onboarding route fix build
 
 ### Added
