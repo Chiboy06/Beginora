@@ -14,7 +14,14 @@ import type {
   ToolCallResult,
   ParsedToolCall,
 } from "./types";
-import { dispatchToolCall } from "./tool-dispatcher";
+import { checkToolParams, dispatchToolCall } from "./tool-dispatcher";
+
+// The parameter a spoken relative time ("in 1 hour") fills for each tool.
+const RELATIVE_TIME_PARAM: Record<string, string> = {
+  create_event: "start",
+  set_reminder: "datetime",
+  schedule_sms: "datetime",
+};
 import {
   getMemoriesForPrompt,
   extractMemories,
@@ -25,6 +32,9 @@ import { getKnowledgeForPrompt } from "./knowledge-manager";
 import { getConfig } from "../storage/database";
 import { toolRequiresConfirmation, toolReturnsData } from "../tools/tool-registry";
 import { prefs } from "../store/prefs";
+import { dateFromText, localDateTime, relativeTime, routeIntent } from "./intent-router";
+import { describeAction, unclearAction } from "./action-text";
+import { smallTalkReply } from "./small-talk";
 
 const MAX_HISTORY_MESSAGES = 20;
 // Once the conversation exceeds the window, `slice(-MAX)` would re-slice to a
@@ -47,6 +57,18 @@ export const REPLY_TOKENS = 1024;
 export function historyWindowStart(total: number): number {
   const minStart = Math.max(0, total - MAX_HISTORY_MESSAGES);
   return Math.floor(minStart / HISTORY_SLIDE_STRIDE) * HISTORY_SLIDE_STRIDE;
+}
+
+function syntheticCompletion(text: string) {
+  return {
+    text,
+    reasoningContent: "",
+    tokensPredicted: 0,
+    tokensEvaluated: 0,
+    timings: { promptMs: 0, predictedMs: 0, predictedPerSecond: 0 },
+    stoppedByLimit: false,
+    stoppedByUser: false,
+  };
 }
 
 // Runs a confirmed tool call. Called by the store after the user approves a
@@ -78,6 +100,11 @@ export async function processMessage(
     return { type: "error", error: "No model loaded" };
   }
 
+  // Greetings, thanks, feelings and crisis wording are answered instantly in
+  // code: small models loop or copy earlier replies on exactly these turns.
+  const instant = smallTalkReply(userText, prefs.userName, history.filter((m) => m.role === "assistant").length);
+  if (instant) return { type: "text", content: instant };
+
   // Fetch relevant memories and knowledge files for context injection, plus the
   // destructive-action confirmation setting (default ON for safety).
   let memoriesBlock: string | null = null;
@@ -102,8 +129,11 @@ export async function processMessage(
   // so the replayed history is byte-identical across turns and the whole
   // conversation stays a growing KV-cache prefix.
   const name = prefs.userName;
-  const stablePrefix = buildStablePrefix(lang, memoriesBlock, knowledgeBlock) +
-    (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "");
+  // A clear action request gets a prompt listing only its tool (see intent-router).
+  const routedTool = routeIntent(userText);
+  const stablePrefix = buildStablePrefix(lang, memoriesBlock, knowledgeBlock, routedTool ? [routedTool] : undefined) +
+    (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "") +
+    (routedTool ? `\n\nThe latest message asks for ${routedTool}. Reply ONLY with the JSON for ${routedTool}.` : "");
 
   // Build conversation messages for the LLM
   const messages: CompletionMessage[] = [
@@ -156,13 +186,17 @@ export async function processMessage(
     // Lower temperature than the engine default: this turn must emit clean
     // tool-call JSON, and near-deterministic sampling improves validity and
     // tool-selection consistency without hurting chat quality much (LLM-5).
-    const result = await generate(
-      messages,
-      // Qwen3 "thinking" would spend the reply budget on hidden reasoning
-      // before answering; templates without the mode ignore the flag.
-      { maxTokens: REPLY_TOKENS, temperature: 0.3, enableThinking: false },
-      onToken,
-    );
+    // Calendar questions are answered only from the real calendar: the date
+    // comes from the words, so a small model can't answer from imagination.
+    const result = routedTool === "get_calendar_events"
+      ? syntheticCompletion(JSON.stringify({ tool: routedTool, parameters: { date: dateFromText(userText, sentAt) } }))
+      : await generate(
+        messages,
+        // Qwen3 "thinking" would spend the reply budget on hidden reasoning
+        // before answering; templates without the mode ignore the flag.
+        { maxTokens: REPLY_TOKENS, temperature: 0.3, enableThinking: false },
+        onToken,
+      );
     const raw = result.text;
     if (__DEV__) {
       console.log(
@@ -181,9 +215,38 @@ export async function processMessage(
     // read/query tools run inline (the query loop), destructive tools are gated
     // for confirmation, everything else dispatches directly.
     const handleToolCall = async (
-      call: ParsedToolCall,
+      modelCall: ParsedToolCall,
       callRaw: string,
     ): Promise<Exclude<OrchestratorResponse, { type: "error" }>> => {
+      // "in 1 hour" comes from the clock, not the model's arithmetic.
+      const relative = relativeTime(userText, sentAt);
+      const timeParam = RELATIVE_TIME_PARAM[modelCall.tool];
+      let proposed = relative && timeParam
+        ? { ...modelCall.parameters, [timeParam]: localDateTime(relative) }
+        : modelCall.parameters;
+      // A note keeps the user's own words; small models rewrite them.
+      const noteText = modelCall.tool === "save_note" ? /\bnotes?\b\s*[:,-]?\s*(.+)$/i.exec(userText)?.[1]?.trim() : undefined;
+      if (noteText) proposed = { ...proposed, text: noteText };
+      // Repair and check details before asking the user to confirm anything.
+      const checked = checkToolParams(modelCall.tool, proposed);
+      if (checked.error && modelCall.tool !== "break_down_task") {
+        return { type: "text", content: unclearAction(modelCall.tool, lang) };
+      }
+      // Only a message that describes a task gets broken down; small models
+      // also call this for "thanks" or a feeling.
+      if (modelCall.tool === "break_down_task" && routedTool !== "break_down_task") {
+        return {
+          type: "text",
+          content: lang === "it"
+            ? "Quale compito vuoi iniziare? Dimmelo in poche parole, per esempio \"scrivere l'introduzione\"."
+            : "Which task would you like to start? Tell me in a few words, like \"write my essay intro\".",
+        };
+      }
+      const call: ParsedToolCall = {
+        ...modelCall,
+        parameters: checked.parameters,
+        message: describeAction(modelCall.tool, checked.parameters, lang) ?? modelCall.message,
+      };
       if (toolReturnsData(call.tool)) {
         // Read/query tool: run it, then re-generate an answer grounded in the
         // returned data (a function-calling loop). Never gated — read-only.
@@ -327,6 +390,14 @@ export async function processMessage(
     } else {
       // Plain text response — keep think tags for styled UI rendering
       response = { type: "text", content: raw };
+      // A word-for-word copy of the previous reply: try once more, less greedily.
+      const previous = [...history].reverse().find((m) => m.role === "assistant")?.content;
+      if (previous && stripThinkTags(raw).trim() === stripThinkTags(previous).trim() && !result.stoppedByUser) {
+        onStreamReset?.();
+        extraGenerationRan = true;
+        const again = await generate(messages, { maxTokens: REPLY_TOKENS, temperature: 0.8, enableThinking: false }, onToken);
+        if (!parseResponse(again.text)) response = { type: "text", content: again.text };
+      }
     }
 
     // Fire-and-forget: persist the stable prefix's KV state for the next cold

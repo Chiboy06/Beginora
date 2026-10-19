@@ -17,7 +17,18 @@ jest.mock("../../llm/llm-engine", () => ({
 }));
 jest.mock("../tool-dispatcher", () => ({
   dispatchToolCall: jest.fn(),
+  // The real repair-and-validate step, so these tests see what the app would confirm.
+  checkToolParams: (tool: string, parameters: Record<string, unknown>) =>
+    jest.requireActual("../tool-dispatcher").checkToolParams(tool, parameters),
 }));
+jest.mock("../document-retriever", () => ({ queryDocuments: jest.fn() }));
+jest.mock("../../native/system-actions", () => ({}));
+jest.mock("../../native/reminders", () => ({}));
+jest.mock("../../native/contacts", () => ({}));
+jest.mock("../../native/communication", () => ({}));
+jest.mock("../../native/calendar", () => ({}));
+jest.mock("../../connectors/email-connector", () => ({}));
+jest.mock("../../telegram/telegram-service", () => ({}));
 jest.mock("../memory-manager", () => ({
   getMemoriesForPrompt: jest.fn(async () => null),
   extractMemories: jest.fn(async () => {}),
@@ -192,12 +203,57 @@ describe("processMessage — break_down_task answers with the plan", () => {
     if (res.type === "tool_call") expect(res.message).toBe("First step: Open the document and write one sentence");
   });
 
-  it("other tools keep the model's confirmation message", async () => {
+  it("action messages are written by the app from the parameters, not the model", async () => {
     mockGenerate.mockResolvedValueOnce(gen('{"tool":"set_timer","parameters":{"minutes":5},"message":"Timer set."}'));
     mockDispatch.mockResolvedValue({ success: true, message: "native says ok" });
 
     const res = await processMessage("5 minute timer", [], "en");
 
-    if (res.type === "tool_call") expect(res.message).toBe("Timer set.");
+    if (res.type === "tool_call") expect(res.message).toBe("Timer set for 5 minutes.");
+  });
+});
+
+describe("processMessage — small-model safety nets", () => {
+  beforeEach(() => jest.clearAllMocks());
+  const AT = new Date(2026, 9, 20, 15, 10);
+
+  it("a calendar question reads the real calendar without asking the model which tool", async () => {
+    mockDispatch.mockResolvedValue({ success: true, message: "ok", data: "[]" });
+    mockGenerate.mockResolvedValueOnce(gen("You have nothing scheduled tomorrow."));
+    await processMessage("what's on my calendar tomorrow?", [], "en", undefined, undefined, AT);
+    expect(mockDispatch).toHaveBeenCalledWith("get_calendar_events", { date: "2026-10-21" }, "en");
+    // Only the answer is generated, from the returned events.
+    expect(mockGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("'in the next 1 hour' is computed from the clock and the title is cleaned", async () => {
+    mockGenerate.mockResolvedValueOnce(gen(
+      '{"tool":"create_event","parameters":{"title":"Add I am Batman to my calendar","start":"2026-10-20T15:00 (Africa/Lagos)"},"message":"Confirmation message for the user"}',
+    ));
+    const res = await processMessage("add I am Batman to my calendar, I will be taking my task in the next 1 hour", [], "en", undefined, undefined, AT);
+    expect(res.type).toBe("pending_tool_call");
+    if (res.type === "pending_tool_call") {
+      expect(res.parameters).toMatchObject({ title: "I am Batman", start: "2026-10-20T16:10:00" });
+      expect(res.message).toContain('Add "I am Batman" to your calendar');
+      expect(res.message).not.toContain("Confirmation message");
+    }
+  });
+
+  it("details that can't be understood are asked again instead of confirmed", async () => {
+    mockGenerate.mockResolvedValueOnce(gen('{"tool":"set_reminder","parameters":{"text":"x","datetime":"sometime soon"}}'));
+    const res = await processMessage("remind me sometime soon", [], "en", undefined, undefined, AT);
+    expect(res).toEqual({ type: "text", content: expect.stringContaining("didn't catch the time") });
+    expect(mockDispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("processMessage — notes keep the user's words", () => {
+  it("uses the words after 'note' instead of the model's rewrite", async () => {
+    jest.clearAllMocks();
+    mockGenerate.mockResolvedValueOnce(gen('{"tool":"save_note","parameters":{"text":"Buy bread today at 9 AM"}}'));
+    mockDispatch.mockResolvedValue({ success: true, message: "Note shared." });
+    const res = await processMessage("save a note: buy bread and call Ada", [], "en");
+    if (res.type === "tool_call") expect(res.parameters).toEqual({ text: "buy bread and call Ada" });
+    expect(mockDispatch).toHaveBeenCalledWith("save_note", { text: "buy bread and call Ada" }, "en");
   });
 });

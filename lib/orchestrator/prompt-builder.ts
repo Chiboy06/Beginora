@@ -67,8 +67,9 @@ export function buildStablePrefix(
   lang: Language,
   memoriesBlock?: string | null,
   knowledgeBlock?: string | null,
+  onlyTools?: string[],
 ): string {
-  const toolsBlock = formatToolsForPrompt(lang);
+  const toolsBlock = formatToolsForPrompt(lang, onlyTools);
 
   const memoriesSection = memoriesBlock
     ? lang === "it"

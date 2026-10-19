@@ -352,8 +352,9 @@ export function toolReturnsData(toolName: string): boolean {
   return MVP_TOOLS.find((t) => t.name === toolName)?.returnsData ?? false;
 }
 
-export function formatToolsForPrompt(lang: "it" | "en"): string {
-  return MVP_TOOLS.map((t) => {
+// only: list just these tools (a routed request; see intent-router.ts).
+export function formatToolsForPrompt(lang: "it" | "en", only?: string[]): string {
+  return MVP_TOOLS.filter((t) => !only || only.includes(t.name)).map((t) => {
     const desc = lang === "it" ? t.description_it : t.description_en;
     const props = Object.entries(t.parameters.properties);
     const paramsBlock =

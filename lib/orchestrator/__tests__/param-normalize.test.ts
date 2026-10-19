@@ -56,3 +56,31 @@ describe("normalizeToolParams", () => {
     ).toBe("2026-07-02T00:00:00");
   });
 });
+
+describe("small-model parameter repairs", () => {
+  const { checkToolParams } = jest.requireActual("../tool-dispatcher");
+
+  test("a zone label after the time is dropped so the date parses", () => {
+    expect(normalizeToolParams("set_reminder", { text: "Call Mum", datetime: "2026-10-20T18:00 (Africa/Lagos)" }))
+      .toEqual({ text: "Call Mum", datetime: "2026-10-20T18:00:00" });
+    expect(checkToolParams("create_event", { title: "x", start: "2026-10-20T16:00 (Africa/Lagos)" }).error).toBeNull();
+  });
+
+  test("an alarm time given as a datetime becomes HH:MM plus its date", () => {
+    expect(normalizeToolParams("set_alarm", { time: "2026-10-21T07:00" })).toEqual({ time: "07:00", date: "2026-10-21" });
+    expect(checkToolParams("set_alarm", { time: "2026-10-21T7:05:00" }).error).toBeNull();
+  });
+
+  test("an alarm with an explicit date keeps that date", () => {
+    expect(normalizeToolParams("set_alarm", { time: "2026-10-21T07:00", date: "2026-10-22" })).toEqual({ time: "07:00", date: "2026-10-22" });
+  });
+
+  test("the calendar-instruction wording is removed from event titles", () => {
+    expect(normalizeToolParams("create_event", { title: "Add I am Batman to my calendar", start: "2026-10-20T16:00" }).title).toBe("I am Batman");
+    expect(normalizeToolParams("create_event", { title: "Dentist", start: "2026-10-20T16:00" }).title).toBe("Dentist");
+  });
+
+  test("unrepairable values still fail validation", () => {
+    expect(checkToolParams("set_reminder", { text: "x", datetime: "tomorrow evening" }).error).toMatch(/datetime/);
+  });
+});

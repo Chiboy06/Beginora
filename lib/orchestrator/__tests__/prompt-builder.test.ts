@@ -131,3 +131,12 @@ test("the system prompt with every tool leaves room for chat history in a 4096-t
     expect(tokens).toBeLessThan(2048);
   }
 });
+
+test("a routed action prompt is a fraction of the full prompt, so small models answer faster", () => {
+  const { buildStablePrefix } = jest.requireActual("../prompt-builder");
+  const full = Math.ceil(buildStablePrefix("en", null, null).length / 3);
+  const routed = Math.ceil(buildStablePrefix("en", null, null, ["create_event"]).length / 3);
+  console.log(`[prompt] full ~${full} tokens, routed ~${routed} tokens`);
+  expect(routed).toBeLessThan(800);
+  expect(routed).toBeLessThan(full / 2);
+});

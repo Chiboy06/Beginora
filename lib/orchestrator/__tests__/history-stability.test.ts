@@ -21,6 +21,7 @@ jest.mock("../../llm/llm-engine", () => ({
 }));
 jest.mock("../tool-dispatcher", () => ({
   dispatchToolCall: jest.fn(),
+  checkToolParams: (_tool: string, parameters: Record<string, unknown>) => ({ parameters, error: null }),
 }));
 jest.mock("../memory-manager", () => ({
   getMemoriesForPrompt: jest.fn(async () => "- (fact) ama il caffè"),
@@ -213,7 +214,7 @@ describe("user name", () => {
   test("the model is told the user's name", async () => {
     prefs.userName = "Chi";
     mockGenerate.mockResolvedValue(gen("Hi Chi."));
-    await processMessage("hello", [], "en");
+    await processMessage("what should I cook tonight?", [], "en");
     expect(mockGenerate.mock.calls[0][0][0].content).toContain("The user's name is Chi.");
   });
 
@@ -226,7 +227,7 @@ describe("user name", () => {
 
   test("no name means no name line", async () => {
     mockGenerate.mockResolvedValue(gen("Hi."));
-    await processMessage("hello", [], "en");
+    await processMessage("what should I cook tonight?", [], "en");
     expect(mockGenerate.mock.calls[0][0][0].content).not.toContain("The user's name");
   });
 });
