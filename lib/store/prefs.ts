@@ -33,6 +33,16 @@ export const prefs = {
     storage.set("onboarding_done", v);
   },
 
+  // Set while the startup model load runs. Still set on the next launch means
+  // that load crashed or hung the app, so it must not be retried automatically.
+  get pendingModelLoad(): string | undefined {
+    return storage.getString("pending_model_load");
+  },
+  set pendingModelLoad(v: string | undefined) {
+    if (v) storage.set("pending_model_load", v);
+    else storage.delete("pending_model_load");
+  },
+
   get keepModelInBackground(): boolean {
     return storage.getBoolean("keep_model_in_background") ?? false;
   },

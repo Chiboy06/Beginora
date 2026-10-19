@@ -47,6 +47,8 @@ import { warmSessionCache } from "../../orchestrator/session-warmer";
 import { runMemoryDecay } from "../../orchestrator/memory-manager";
 import * as modelRegistry from "../../models/model-registry";
 import { useChatStore } from "../chat-store";
+import { prefs } from "../prefs";
+import { clearPrefixSessionCache } from "../../llm/session-cache";
 
 const selectedModel = {
   id: "model-1",
@@ -69,6 +71,7 @@ const selectedModel = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  prefs.pendingModelLoad = undefined;
   (database.getConfig as jest.Mock).mockResolvedValue("en");
   (database.getLatestConversation as jest.Mock).mockResolvedValue(null);
   (modelRegistry.ensureLegacyMigration as jest.Mock).mockResolvedValue(undefined);
@@ -113,4 +116,28 @@ test("chat initialization completes while native model loading is still pending"
   finishModelLoad();
   for (let i = 0; i < 12; i += 1) await Promise.resolve();
   expect(useChatStore.getState().modelLoading).toBe(false);
+});
+
+test("a model load that never finished is not retried on the next launch", async () => {
+  // Simulates a launch that crashed or hung mid-load: the marker was never cleared.
+  prefs.pendingModelLoad = selectedModel.filePath;
+
+  await useChatStore.getState().init();
+  for (let i = 0; i < 12; i += 1) await Promise.resolve();
+
+  expect(llm.loadModel).not.toHaveBeenCalled();
+  expect(clearPrefixSessionCache).toHaveBeenCalledTimes(1);
+  expect(useChatStore.getState().notice).toBe("Model load warning");
+  expect(useChatStore.getState().modelLoading).toBe(false);
+  expect(prefs.pendingModelLoad).toBeUndefined();
+});
+
+test("a successful startup load clears the in-progress marker", async () => {
+  (llm.loadModel as jest.Mock).mockResolvedValue(undefined);
+
+  await useChatStore.getState().init();
+  for (let i = 0; i < 12; i += 1) await Promise.resolve();
+
+  expect(llm.loadModel).toHaveBeenCalledTimes(1);
+  expect(prefs.pendingModelLoad).toBeUndefined();
 });
