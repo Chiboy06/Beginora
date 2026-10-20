@@ -32,9 +32,9 @@ import { getKnowledgeForPrompt } from "./knowledge-manager";
 import { getConfig } from "../storage/database";
 import { toolRequiresConfirmation, toolReturnsData } from "../tools/tool-registry";
 import { prefs } from "../store/prefs";
-import { dateFromText, localDateTime, relativeTime, routeIntent } from "./intent-router";
+import { dateFromText, localDateTime, mentionsTime, relativeTime, routeIntent } from "./intent-router";
 import { describeAction, unclearAction } from "./action-text";
-import { smallTalkReply } from "./small-talk";
+import { dateTimeReply, smallTalkReply } from "./small-talk";
 import { directAction } from "./direct-actions";
 
 const MAX_HISTORY_MESSAGES = 20;
@@ -74,7 +74,14 @@ function plainToolData(message: string, data: string | undefined): string {
 }
 
 export function withoutTimeTags(text: string): string {
-  return text.replace(/\[(Time context|Contesto temporale):[^\]]*\]/g, "").replace(/[ \t]+$/gm, "").trim();
+  // Any bracketed "... context ..." tag (models reword it, e.g. "Timespan context")
+  // and copied "[Tool: x -> status]" notes from history.
+  return text
+    .replace(/\[[^\]]*(context|contesto)[^\]]*\]/gi, "")
+    .replace(/\[Tool:[^\]]*\]/g, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function syntheticCompletion(text: string) {
@@ -116,7 +123,8 @@ export async function processMessage(
 ): Promise<OrchestratorResponse> {
   // Greetings, thanks, feelings and crisis wording are answered instantly in
   // code: small models loop or copy earlier replies on exactly these turns.
-  const instant = smallTalkReply(userText, prefs.userName, history.filter((m) => m.role === "assistant").length);
+  const instant = dateTimeReply(userText, sentAt) ??
+    smallTalkReply(userText, prefs.userName, history.filter((m) => m.role === "assistant").length);
   if (instant) return { type: "text", content: instant };
 
   // Step 1, route: a clear action request names its tool (see intent-router).
@@ -186,7 +194,8 @@ export async function processMessage(
     if (msg.role === "user") {
       messages.push({
         role: "user",
-        content: annotateUserMessage(lang, new Date(msg.createdAt), msg.content),
+        // Same rule as the current message, so replayed history stays byte-identical.
+        content: mentionsTime(msg.content) ? annotateUserMessage(lang, new Date(msg.createdAt), msg.content) : msg.content,
       });
     } else if (msg.role === "assistant") {
       let content = msg.content;
@@ -208,7 +217,8 @@ export async function processMessage(
   // Add current user message with this turn's time context.
   messages.push({
     role: "user",
-    content: annotateUserMessage(lang, sentAt, userText),
+    // Actions and time questions need the clock; other questions must not see it.
+    content: routedTool || mentionsTime(userText) ? annotateUserMessage(lang, sentAt, userText) : userText,
   });
 
   // Drop the oldest history turns until prompt plus reply fits the context.

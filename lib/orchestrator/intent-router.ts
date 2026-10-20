@@ -70,3 +70,10 @@ export function dateFromText(text: string, now: Date): string {
   }
   return localDate(day);
 }
+
+// Whether a message is about a time or date. Only those messages carry the
+// hidden time tag; on other questions small models copy it into answers
+// ("Independence is on 20 October, which is today in the Time context").
+export function mentionsTime(text: string): boolean {
+  return /\b(today|tonight|tomorrow|yesterday|now|morning|afternoon|evening|o'?clock|noon|midnight|weekend|next week|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|am|pm|a\.m\.|p\.m\.|oggi|stasera|domani|ieri|adesso|mattina|pomeriggio|sera)\b|\d\s*(am|pm|a\.m\.|p\.m\.)|\d{1,2}[:.]\d{2}|\bin \d+\s*(min|minute|hour|hr)s?\b/i.test(text);
+}
