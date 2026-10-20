@@ -28,6 +28,7 @@ import { getConfig, setConfig } from "../../lib/storage/database";
 import type { KnowledgeFile } from "../../lib/storage/database";
 import { useModelStore } from "../../lib/store/model-store";
 import { prefs } from "../../lib/store/prefs";
+import { Chip } from "../../components/Kit";
 import { startBeginoraService, stopBeginoraService } from "../../lib/native/vesta-service";
 import {
   getPerfSettings,
@@ -74,6 +75,13 @@ export default function SettingsScreen() {
   const [usageSignals, setUsageSignals] = useState(prefs.usageSignalsEnabled);
   const [usageGranted, setUsageGranted] = useState(false);
   const [telegramTwoWay, setTelegramTwoWay] = useState(prefs.telegramTwoWay);
+  const [appearance, setAppearance] = useState(prefs.appearance);
+  const [hideReminderText, setHideReminderText] = useState(prefs.hideReminderText);
+  const [quiet, setQuiet] = useState(prefs.quietHours);
+  const updateQuiet = (next: typeof quiet) => {
+    prefs.quietHours = next;
+    setQuiet(next);
+  };
 
   // Usage access is granted in system Settings, so re-check when the user returns.
   useEffect(() => {
@@ -395,6 +403,95 @@ export default function SettingsScreen() {
             {modelLoaded ? "Manage Models" : "Download a Model"}
           </Text>
         </TouchableOpacity>
+        <Text style={[styles.desc, { marginTop: spacing.md }]}>
+          Online model: {prefs.onlineMode === "off" ? "off" : prefs.onlineMode === "always" ? "on for every question" : "on when needed"}. Optional: your own API key for better answers to questions.
+        </Text>
+        <TouchableOpacity
+          style={[styles.btn, styles.btnPrimary, { marginTop: spacing.sm }]}
+          onPress={() => router.push("/online-ai")}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+        >
+          <Text style={styles.btnPrimaryText}>Online model and API key</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Planner and wellbeing */}
+      <Text style={styles.sectionTitle}>Routines and journal</Text>
+      <View style={styles.card}>
+        <Text style={styles.desc}>Ready-made routines with a timer for each step, and a daily mood and journal. Everything stays on this phone.</Text>
+        <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md, flexWrap: "wrap" }}>
+          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => router.push("/routines")} accessibilityRole="button">
+            <Text style={styles.btnPrimaryText}>Routines</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => router.push("/journal")} accessibilityRole="button">
+            <Text style={styles.btnPrimaryText}>Mood and journal</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Appearance */}
+      <Text style={styles.sectionTitle}>Appearance</Text>
+      <View style={styles.card}>
+        <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" }}>
+          {(["system", "light", "dark"] as const).map((a) => (
+            <Chip
+              key={a}
+              label={a === "system" ? "Follow phone" : a === "light" ? "Light" : "Dark"}
+              selected={appearance === a}
+              onPress={() => {
+                prefs.appearance = a;
+                setAppearance(a);
+              }}
+            />
+          ))}
+        </View>
+        <Text style={[styles.toggleHint, { marginTop: spacing.sm }]}>Applies the next time you open Beginora. Text size follows your phone's font size setting.</Text>
+      </View>
+
+      {/* Notifications */}
+      <Text style={styles.sectionTitle}>Notifications</Text>
+      <View style={styles.card}>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleTitle}>Hide reminder text on the lock screen</Text>
+            <Text style={styles.toggleHint}>Shows "You have a reminder." instead of what it is about. Applies to reminders set from now on.</Text>
+          </View>
+          <Switch
+            value={hideReminderText}
+            onValueChange={(v) => { prefs.hideReminderText = v; setHideReminderText(v); }}
+            trackColor={{ false: colors.disabled, true: colors.accent }}
+            accessibilityLabel="Hide reminder text on the lock screen"
+          />
+        </View>
+        <View style={[styles.toggleRow, { marginTop: spacing.lg }]}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleTitle}>My quiet hours</Text>
+            <Text style={styles.toggleHint}>No gentle check-ins between these hours. Reminders you set still ring. Off uses 22:00 to 08:00.</Text>
+          </View>
+          <Switch
+            value={quiet.enabled}
+            onValueChange={(v) => updateQuiet({ ...quiet, enabled: v })}
+            trackColor={{ false: colors.disabled, true: colors.accent }}
+            accessibilityLabel="Use my quiet hours"
+          />
+        </View>
+        {quiet.enabled && (
+          <>
+            <Text style={[styles.toggleHint, { marginTop: spacing.md }]}>From</Text>
+            <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap", marginTop: 4 }}>
+              {[20, 21, 22, 23].map((h) => (
+                <Chip key={h} label={`${h}:00`} selected={quiet.start === h} onPress={() => updateQuiet({ ...quiet, start: h })} />
+              ))}
+            </View>
+            <Text style={[styles.toggleHint, { marginTop: spacing.md }]}>Until</Text>
+            <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap", marginTop: 4 }}>
+              {[6, 7, 8, 9].map((h) => (
+                <Chip key={h} label={`${String(h).padStart(2, "0")}:00`} selected={quiet.end === h} onPress={() => updateQuiet({ ...quiet, end: h })} />
+              ))}
+            </View>
+          </>
+        )}
       </View>
 
       {/* Language */}
@@ -643,6 +740,20 @@ export default function SettingsScreen() {
         {perfBusy && <Text style={[styles.toggleHint, { marginTop: spacing.sm }]}>Reloading model…</Text>}
       </View>
 
+      {/* Memory */}
+      <Text style={styles.sectionTitle}>Memory</Text>
+      <View style={styles.card}>
+        <Text style={styles.desc}>What Beginora remembers about you. Small models (under 1.5B) do not save new memories, because they get facts wrong.</Text>
+        <TouchableOpacity
+          style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }]}
+          onPress={() => router.push("/memory")}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+        >
+          <Text style={styles.btnPrimaryText}>View memories</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Diagnostics */}
       <Text style={styles.sectionTitle}>Diagnostics</Text>
       <View style={styles.card}>
@@ -660,6 +771,16 @@ export default function SettingsScreen() {
       {/* Telegram */}
       <Text style={styles.sectionTitle}>Telegram</Text>
       <View style={styles.card}>
+        <Text style={styles.desc}>Easiest: connect to the Beginora bot in one tap. No bot token needed.</Text>
+        <TouchableOpacity
+          style={[styles.btn, styles.btnPrimary, { marginTop: spacing.sm, marginBottom: spacing.lg }]}
+          onPress={() => router.push("/telegram")}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+        >
+          <Text style={styles.btnPrimaryText}>Connect the Beginora bot</Text>
+        </TouchableOpacity>
+        <Text style={styles.toggleTitle}>Or use my own bot</Text>
         <Text style={styles.desc}>
           Send task summaries to Telegram, and optionally chat with Beginora from Telegram: /add, /next, /stuck, /done, or describe a task. Only your chat ID gets replies. Messages pass through Telegram&apos;s servers and bot chats are not end-to-end encrypted. The bot token is stored in Android secure storage.
         </Text>
@@ -776,11 +897,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: colors.glassStrong,
     borderRadius: radii.xl,
     padding: spacing.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.9)",
+    borderColor: colors.glassBorder,
   },
   statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   label: { color: colors.textSecondary, fontSize: 14, fontWeight: "500" },
@@ -805,7 +926,7 @@ const styles = StyleSheet.create({
   stepperValue: { fontSize: 16, fontWeight: "600", color: colors.textPrimary, minWidth: 16, textAlign: "center" },
   btn: { borderRadius: radii.sm, paddingHorizontal: 18, paddingVertical: 11, alignSelf: "flex-start" },
   btnPrimary: { backgroundColor: colors.accent },
-  btnPrimaryText: { color: "#fff", ...typography.button },
+  btnPrimaryText: { color: colors.onAccent, ...typography.button },
   btnBusy: { opacity: 0.65 },
   langBtn: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   langText: { color: colors.textPrimary, fontSize: 17, fontWeight: "600" },

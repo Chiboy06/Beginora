@@ -7,7 +7,10 @@
  * Touch targets: minimum 44pt per HIG.
  */
 
-export const colors = {
+import { Appearance as RNAppearance } from "react-native";
+import { storage } from "./store/prefs";
+
+const light = {
   // ── Backgrounds ──────────────────────────────────
   bg:              "#F2F2F7",   // iOS systemGroupedBackground
   // Backdrop gradient, sage mist to warm stone; muted and accent text stay >= 4.66:1 on both.
@@ -54,7 +57,67 @@ export const colors = {
   // ── Misc ────────────────────────────────────────
   disabled:        "#C7C7CC",
   overlay:         "rgba(0,0,0,0.4)",
-} as const;
+  // Text and icons on accent-coloured buttons and bubbles.
+  onAccent:        "#FFFFFF",
+  // Translucent fills for glass cards and form fields.
+  glass:           "rgba(255,255,255,0.58)",
+  glassStrong:     "rgba(255,255,255,0.78)",
+  glassBorder:     "rgba(255,255,255,0.88)",
+  field:           "rgba(255,255,255,0.82)",
+};
+
+// Dark palette: charcoal-green surfaces (never pure black) and a lighter sage
+// accent with dark text on it. Text pairs are 4.5:1 or better.
+const dark: typeof light = {
+  bg:              "#121614",
+  gradientTop:     "#141A17",
+  gradientBottom:  "#191814",
+  surface:         "#1E2421",
+  surfaceMuted:    "#252C28",
+  surfaceHover:    "#2E3632",
+  userBubble:      "#82B8A5",
+  userBubbleLight: "#6A9A8A",
+  userText:        "#0E1412",
+  assistantBubble: "#1E2421",
+  assistantText:   "#ECEFEC",
+  accent:          "#82B8A5",
+  accentSoft:      "#3C5249",
+  accentMuted:     "#22302A",
+  success:         "#6CC58A",
+  successBg:       "rgba(108,197,138,0.14)",
+  error:           "#E0A08F",
+  errorBg:         "rgba(224,160,143,0.14)",
+  warning:         "#E3C77C",
+  warningBg:       "rgba(227,199,124,0.14)",
+  info:            "#8DBFD6",
+  textPrimary:     "#ECEFEC",
+  textSecondary:   "#C6CEC9",
+  textMuted:       "#A3ADA7",
+  textPlaceholder: "#8E9893",
+  border:          "#3A433E",
+  borderLight:     "#2E3632",
+  divider:         "rgba(236,239,236,0.12)",
+  disabled:        "#4A524E",
+  overlay:         "rgba(0,0,0,0.6)",
+  onAccent:        "#0E1412",
+  glass:           "rgba(30,36,33,0.72)",
+  glassStrong:     "rgba(30,36,33,0.86)",
+  glassBorder:     "rgba(236,239,236,0.10)",
+  field:           "rgba(37,44,40,0.92)",
+};
+
+export type Appearance = "system" | "light" | "dark";
+
+// Read once at start-up: styles are built when modules load, so a change in
+// Settings applies after the app restarts.
+function chooseScheme(): "light" | "dark" {
+  const chosen = storage.getString("appearance");
+  if (chosen === "light" || chosen === "dark") return chosen;
+  return RNAppearance.getColorScheme() === "dark" ? "dark" : "light";
+}
+
+export const isDark = chooseScheme() === "dark";
+export const colors = isDark ? dark : light;
 
 // 8pt grid — matches iOS HIG spacing
 export const spacing = {

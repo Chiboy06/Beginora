@@ -12,6 +12,7 @@ jest.mock("../../llm/llm-engine", () => ({
   stopGeneration: jest.fn(),
   getContextSize: jest.fn(() => 4096),
   estimatePromptTokens: jest.fn(() => 0),
+  getModelInfo: jest.fn(() => ({ loaded: true, path: "/models/Qwen3-1.7B-Q4_K_M.gguf" })),
 }));
 jest.mock("../../storage/database", () => ({
   saveMemory: jest.fn(),
@@ -68,5 +69,35 @@ describe("getMemoriesForPrompt canonical ordering", () => {
   test("no memories → null (section omitted from the prompt)", async () => {
     mockTop.mockResolvedValueOnce([]);
     expect(await getMemoriesForPrompt()).toBeNull();
+  });
+});
+
+
+describe("memory extraction guards", () => {
+  const llm = jest.requireMock("../../llm/llm-engine");
+  const db = jest.requireMock("../../storage/database");
+  const { extractMemories } = jest.requireActual("../memory-manager");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    db.getAllMemories.mockResolvedValue([]);
+  });
+
+  test("a tiny model does not extract memories", async () => {
+    llm.getModelInfo.mockReturnValueOnce({ loaded: true, path: "/models/Qwen3-0.6B-Q4_K_M.gguf" });
+    await extractMemories([{ role: "user", content: "I work night shifts" }], "ok", "m1", "en");
+    expect(llm.generate).not.toHaveBeenCalled();
+  });
+
+  test("a memory copied from the system prompt is dropped, a real fact is kept", async () => {
+    llm.generate.mockResolvedValueOnce({
+      text: JSON.stringify([
+        { category: "preference", content: "Wants Beginora to not use clinical language and not add pressure" },
+        { category: "routine", content: "Works night shifts" },
+      ]),
+    });
+    await extractMemories([{ role: "user", content: "I work night shifts" }], "ok", "m1", "en");
+    expect(db.saveMemory).toHaveBeenCalledTimes(1);
+    expect(db.saveMemory.mock.calls[0][0].content).toBe("Works night shifts");
   });
 });

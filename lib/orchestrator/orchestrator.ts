@@ -2,7 +2,7 @@
 // Routes user messages through the LLM, parses tool calls, dispatches actions.
 // Now includes memory retrieval (inject into prompt) and extraction (post-response).
 
-import { generate, isLoaded, estimatePromptTokens, getContextSize } from "../llm/llm-engine";
+import { generate, isLoaded, estimatePromptTokens, getContextSize, getModelInfo } from "../llm/llm-engine";
 import type { CompletionMessage } from "../llm/llm-engine";
 import { chatSystemPrompt, buildStablePrefix, annotateUserMessage } from "./prompt-builder";
 import { schedulePrefixPersist } from "./session-warmer";
@@ -36,6 +36,9 @@ import { dateFromText, localDateTime, mentionsTime, relativeTime, routeIntent } 
 import { describeAction, unclearAction } from "./action-text";
 import { dateTimeReply, smallTalkReply } from "./small-talk";
 import { directAction } from "./direct-actions";
+import { asksAboutUser } from "./memory-gate";
+import { tidyReply } from "./reply-tidy";
+import { onlineSettings, remoteGenerate, wantsOnline, type OnlineSettings } from "../llm/remote-engine";
 
 const MAX_HISTORY_MESSAGES = 20;
 // Once the conversation exceeds the window, `slice(-MAX)` would re-slice to a
@@ -54,6 +57,25 @@ export const REPLY_TOKENS = 1024;
 // Answers to questions: a few sentences. Small budgets mean fast replies.
 export const CHAT_REPLY_TOKENS = 320;
 export const CHAT_HISTORY_MESSAGES = 6;
+// Qwen3 model card, non-thinking mode: temperature 0.7, top_p 0.8, top_k 20,
+// min_p 0; low-temperature decoding loops on small models.
+export const CHAT_SAMPLING = { temperature: 0.7, topP: 0.8, topK: 20, minP: 0, penaltyPresent: 1.0 };
+
+// Replies written in code (dates, greetings) are not the model's words, and
+// small models copy them into unrelated answers ("Tomorrow is Wednesday" to a
+// question about Nigeria). Leave each such question and its reply out.
+export function withoutInstantTurns(history: Message[]): Message[] {
+  const out: Message[] = [];
+  for (let i = 0; i < history.length; i++) {
+    const m = history[i];
+    if (m.role === "user" && (dateTimeReply(m.content, new Date(0)) !== null || smallTalkReply(m.content, "", 0) !== null)) {
+      if (history[i + 1]?.role === "assistant") i++;
+      continue;
+    }
+    out.push(m);
+  }
+  return out;
+}
 
 // The index of the first history message to include. Rounds the "last MAX"
 // start DOWN to a stride boundary so it advances every STRIDE messages, not
@@ -143,12 +165,18 @@ export async function processMessage(
         // The planner's rule engine works without a model.
         ? JSON.stringify({ tool: routedTool, parameters: { task: userText } })
         : null;
-  if (!modelReady && !forced) {
+  // Questions (never actions) may go to the user's online model.
+  let online: OnlineSettings | null = null;
+  if (!routedTool && wantsOnline(prefs.onlineMode, modelReady, () => getModelInfo().path ?? "")) {
+    const settings = await onlineSettings().catch(() => null);
+    if (settings?.url && settings.model) online = settings;
+  }
+  if (!modelReady && !forced && !online) {
     return {
       type: "text",
       content: lang === "it"
-        ? "Senza un modello posso già gestire sveglie, timer, promemoria, SMS, calendario e primi passi. Per domande libere scarica un modello in Impostazioni > Modelli (Qwen3 0.6B è il più veloce)."
-        : "Without a model I can already do alarms, timers, reminders, texts, your calendar and first steps. For open questions, download a model in Settings > Models (Qwen3 0.6B is the fastest).",
+        ? "Senza un modello posso già gestire sveglie, timer, promemoria, SMS, calendario e primi passi. Per domande libere scarica un modello in Impostazioni > Modelli (Qwen3 0.6B è il più veloce, Qwen3 1.7B risponde meglio)."
+        : "Without a model I can already do alarms, timers, reminders, texts, your calendar and first steps. For open questions, download a model in Settings > Models (Qwen3 0.6B is fastest; Qwen3 1.7B answers better).",
     };
   }
 
@@ -176,13 +204,15 @@ export async function processMessage(
   // so the replayed history is byte-identical across turns and the whole
   // conversation stays a growing KV-cache prefix.
   const name = prefs.userName;
+  // Questions see memories only when they are about the user.
+  const withMemories = asksAboutUser(userText) && (!online || prefs.onlineSendMemories);
   // A routed action lists only its tool. Anything else is a question: a short
   // tool-free prompt and a short answer keep small models fast and on point.
   const stablePrefix = routedTool
     ? buildStablePrefix(lang, memoriesBlock, knowledgeBlock, [routedTool]) +
       `\n\nThe latest message asks for ${routedTool}. Reply ONLY with the JSON for ${routedTool}.` +
       (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "")
-    : chatSystemPrompt(lang, memoriesBlock, name);
+    : chatSystemPrompt(lang, withMemories ? memoriesBlock : null, name);
 
   // Build conversation messages for the LLM
   const messages: CompletionMessage[] = [
@@ -195,7 +225,7 @@ export async function processMessage(
   // models copy old answers. Actions keep the anchored window.
   const recent = routedTool
     ? history.slice(historyWindowStart(history.length))
-    : history.slice(-CHAT_HISTORY_MESSAGES);
+    : withoutInstantTurns(history).slice(-CHAT_HISTORY_MESSAGES);
   for (const msg of recent) {
     if (msg.role === "user") {
       messages.push({
@@ -239,19 +269,30 @@ export async function processMessage(
     // immediately instead of waiting for the extraction to finish (ORCH-1).
     cancelExtraction();
 
-    // Lower temperature than the engine default: this turn must emit clean
-    // tool-call JSON, and near-deterministic sampling improves validity and
-    // tool-selection consistency without hurting chat quality much (LLM-5).
+    // Action turns use a low temperature: they must emit clean tool-call JSON
+    // (LLM-5). Questions use CHAT_SAMPLING, which avoids repetition loops.
     // Calendar questions are answered only from the real calendar: the date
     // comes from the words, so a small model can't answer from imagination.
+    const chatOptions = { maxTokens: CHAT_REPLY_TOKENS, ...CHAT_SAMPLING, enableThinking: false };
+    let usedOnline = false;
     const result = forced !== null
       ? syntheticCompletion(forced)
-      : await generate(
+      : online
+        ? await remoteGenerate(messages, chatOptions, online).then((r) => { usedOnline = true; return r; }).catch((err: Error) =>
+          // Offline or refused: the phone model answers instead, or the user is told why.
+          modelReady
+            ? generate(messages, chatOptions, onToken)
+            : syntheticCompletion(lang === "it"
+              ? `Non riesco a raggiungere il modello online: ${err.message}`
+              : `I couldn't reach the online model: ${err.message} Your alarms, reminders and tasks still work offline.`))
+        : await generate(
         messages,
         // Qwen3 "thinking" would spend the reply budget on hidden reasoning
         // before answering; templates without the mode ignore the flag.
         // Questions get a short answer budget: faster, and no rambling.
-        { maxTokens: routedTool ? REPLY_TOKENS : CHAT_REPLY_TOKENS, temperature: 0.3, enableThinking: false },
+        routedTool
+          ? { maxTokens: REPLY_TOKENS, temperature: 0.3, enableThinking: false }
+          : chatOptions,
         // An action turn produces tool JSON, not prose: show the typing
         // indicator instead of streaming raw JSON onto the screen.
         routedTool ? undefined : onToken,
@@ -381,13 +422,14 @@ export async function processMessage(
     };
 
     // Try to parse as tool call
-    const toolCall = parseResponse(raw);
+    // Online answers are always prose: the online prompt lists no tools.
+    const toolCall = usedOnline ? null : parseResponse(raw);
 
     let response: OrchestratorResponse;
 
     if (toolCall) {
       response = await handleToolCall(toolCall, raw);
-    } else if (looksLikeToolAttempt(raw)) {
+    } else if (!usedOnline && looksLikeToolAttempt(raw)) {
       // The model tried to emit a tool call but it didn't parse — malformed or
       // truncated. Per the Fase 2 exit gate, retry ONCE with a correction prompt
       // demanding valid JSON only; if it still fails, degrade gracefully instead
@@ -451,14 +493,14 @@ export async function processMessage(
     } else {
       // Plain text response — keep think tags for styled UI rendering
       // Small models echo the per-message time tag; it is never for the user.
-      response = { type: "text", content: withoutTimeTags(raw) };
+      response = { type: "text", content: tidyReply(withoutTimeTags(raw)) };
       // A word-for-word copy of the previous reply: try once more, less greedily.
       const previous = [...history].reverse().find((m) => m.role === "assistant")?.content;
-      if (previous && stripThinkTags(raw).trim() === stripThinkTags(previous).trim() && !result.stoppedByUser) {
+      if (previous && !usedOnline && stripThinkTags(raw).trim() === stripThinkTags(previous).trim() && !result.stoppedByUser) {
         onStreamReset?.();
         extraGenerationRan = true;
-        const again = await generate(messages, { maxTokens: CHAT_REPLY_TOKENS, temperature: 0.8, enableThinking: false }, onToken);
-        const retried = withoutTimeTags(again.text);
+        const again = await generate(messages, { maxTokens: CHAT_REPLY_TOKENS, ...CHAT_SAMPLING, temperature: 0.9, enableThinking: false }, onToken);
+        const retried = tidyReply(withoutTimeTags(again.text));
         // Still the same answer: say so honestly rather than repeat a likely-wrong one.
         response = retried && retried !== withoutTimeTags(previous) && !parseResponse(again.text)
           ? { type: "text", content: retried }
@@ -479,7 +521,8 @@ export async function processMessage(
     // engine-lock enqueue, so the snapshot enters the FIFO lock queue ahead of
     // the extraction generate and captures the just-finished turn's KV state.
     // Only question turns: their prompt is the one the startup warmer restores.
-    if (!routedTool && !result.stoppedByUser && !extraGenerationRan) {
+    // Only the memory-free prompt is cached: it is the one the warmer restores.
+    if (!routedTool && !withMemories && !usedOnline && !result.stoppedByUser && !extraGenerationRan) {
       schedulePrefixPersist(stablePrefix, lang, messages, result.tokensPredicted);
     }
 
@@ -500,6 +543,7 @@ export async function processMessage(
       });
     }
 
+    if (usedOnline && response.type === "text") response = { ...response, source: "online" };
     return response;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -21,6 +21,11 @@ export interface GenerateOptions {
   // phrase until it hits the token limit). >1.0 penalizes recently-seen tokens.
   penaltyRepeat?: number;
   penaltyLastN?: number;
+  // Qwen3's non-thinking settings (model card): top_k 20, min_p 0, and a
+  // presence penalty against endless repetition. Unset keeps llama.cpp defaults.
+  topK?: number;
+  minP?: number;
+  penaltyPresent?: number;
   // When false, suppresses Qwen3-style chain-of-thought for this turn (faster).
   // Leave undefined to use the model's default (thinking on).
   enableThinking?: boolean;

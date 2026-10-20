@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   detail: { color: colors.textPrimary, fontSize: 13, lineHeight: 19, marginTop: 8 },
   capabilities: { color: colors.textMuted, fontSize: 11, marginTop: 10 },
   action: { marginTop: spacing.md, alignSelf: "flex-start", minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.lg, borderRadius: radii.full, backgroundColor: colors.accent },
-  actionText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  actionText: { color: colors.onAccent, fontSize: 15, fontWeight: "700" },
   privacyCard: { padding: spacing.lg, borderRadius: radii.xl, marginTop: spacing.sm },
   privacyTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginBottom: 6 },
 });

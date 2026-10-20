@@ -9,7 +9,11 @@ import {
   stopGeneration,
   getContextSize,
   estimatePromptTokens,
+  getModelInfo,
 } from "../llm/llm-engine";
+import { isTinyModel } from "../models/format";
+import { buildChatPrompt } from "./prompt-builder";
+import { echoesText } from "./memory-gate";
 import type { CompletionMessage } from "../llm/llm-engine";
 import {
   saveMemory,
@@ -85,6 +89,8 @@ export async function extractMemories(
   lang: Language,
 ): Promise<void> {
   if (!isLoaded() || extractionRunning) return;
+  // Tiny models invent "facts" and copy the system prompt into memory.
+  if (isTinyModel(getModelInfo().path ?? "")) return;
   extractionRunning = true;
   extractionAbort = false;
 
@@ -211,8 +217,13 @@ function validateExtracted(arr: unknown[]): ExtractedMemory[] {
       category: item.category as MemoryCategory,
       content: item.content.trim(),
     }))
-    .filter((m) => m.content.length > 0 && m.content.length < 500);
+    .filter((m) => m.content.length > 0 && m.content.length < 500)
+    .filter((m) => !echoesText(m.content, PROMPT_TEXT));
 }
+
+// The chat prompt's own wording, in both languages: never a fact about the user.
+const PROMPT_TEXT = `${buildChatPrompt("en")}
+${buildChatPrompt("it")}`;
 
 /**
  * Save extracted memories with deduplication.

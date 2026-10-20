@@ -9,6 +9,10 @@ import { useTaskStore } from "../store/task-store";
 import { runBotLoop } from "./telegram-bot";
 import { handleCommand, type CommandDeps } from "./telegram-commands";
 import { getTelegramConfig } from "./telegram-service";
+import { relayInbox, relaySend } from "./relay-client";
+
+// The relay keeps messages until the phone asks, so a short poll is enough.
+const RELAY_POLL_MS = 15_000;
 
 // Each start bumps the generation, so an earlier loop still waiting on a long
 // poll exits instead of running alongside the new one.
@@ -34,7 +38,40 @@ export function isTelegramBotRunning(): boolean {
   return activeGeneration !== null;
 }
 
+// Shared Beginora bot: fetch what the user wrote, answer through the relay.
+async function runRelayLoop(isRunning: () => boolean): Promise<void> {
+  let failures = 0;
+  while (isRunning()) {
+    try {
+      for (const text of await relayInbox()) {
+        let reply: string;
+        try {
+          reply = await handleCommand(text, appCommands);
+        } catch {
+          reply = "Something went wrong on the phone. Please try again in a moment.";
+        }
+        await relaySend(reply);
+      }
+      failures = 0;
+    } catch {
+      failures += 1;
+      // Not connected any more: stop instead of retrying forever.
+      if (!prefs.telegramRelayLinked) return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.min(120_000, RELAY_POLL_MS * 2 ** failures)));
+  }
+}
+
 export async function startTelegramBot(): Promise<boolean> {
+  if (prefs.telegramTwoWay && prefs.telegramRelayLinked) {
+    if (activeGeneration !== null) return true;
+    const mine = ++generation;
+    activeGeneration = mine;
+    void runRelayLoop(() => activeGeneration === mine)
+      .catch((err) => console.warn("[telegram] relay loop stopped:", err instanceof Error ? err.message : err))
+      .finally(() => { if (activeGeneration === mine) activeGeneration = null; });
+    return true;
+  }
   const cfg = await getTelegramConfig();
   if (!prefs.telegramTwoWay || !cfg.enabled || !cfg.botToken || !cfg.chatId) return false;
   if (activeGeneration !== null) return true;

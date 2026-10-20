@@ -16,6 +16,7 @@ import { cancelLocalReminder, scheduleLocalReminder } from "../../lib/native/rem
 import { sendTaskSummary } from "../../lib/telegram/telegram-service";
 import { GlassScreen, GlassSurface } from "../../components/GlassSurface";
 import { colors, radii, spacing, typography } from "../../lib/theme";
+import { dayLabel, REPEAT_LABELS, timeLabel } from "../../lib/planner/schedule";
 
 function outcomeLabel(outcome: TaskOutcomeRecord["outcome"]): string {
   const labels: Record<TaskOutcomeRecord["outcome"], string> = {
@@ -46,8 +47,20 @@ export default function TaskDetailScreen() {
   const [outcomes, setOutcomes] = useState<TaskOutcomeRecord[]>([]);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: task?.title ?? "Task" });
-  }, [navigation, task?.title]);
+    navigation.setOptions({
+      title: task?.title ?? "Task",
+      headerRight: () => task ? (
+        <TouchableOpacity
+          onPress={() => router.push({ pathname: "/task/edit", params: { id: task.id } })}
+          accessibilityRole="button"
+          accessibilityLabel="Edit task"
+          style={styles.headerBtn}
+        >
+          <Text style={styles.link}>Edit</Text>
+        </TouchableOpacity>
+      ) : null,
+    });
+  }, [navigation, task, router]);
 
   useEffect(() => {
     if (!id) return;
@@ -223,6 +236,21 @@ export default function TaskDetailScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{task.title}</Text>
 
+      <TouchableOpacity
+        onPress={() => router.push({ pathname: "/task/edit", params: { id: task.id } })}
+        accessibilityRole="button"
+        accessibilityLabel="Change date, time or repeat"
+        style={styles.whenRow}
+      >
+        <Text style={styles.whenText}>
+          {task.dueAt !== null
+            ? `${dayLabel(new Date(task.dueAt))} · ${timeLabel(new Date(task.dueAt))}${task.repeat && task.repeat !== "never" ? ` · ${REPEAT_LABELS[task.repeat]}` : ""}`
+            : "No time yet · Sort later"}
+        </Text>
+        <Text style={styles.link}>Change</Text>
+      </TouchableOpacity>
+      {!!task.notes && <Text style={styles.notes}>{task.notes}</Text>}
+
       <GlassSurface style={styles.firstActionCard}>
         <Text style={styles.firstActionLabel}>Start here</Text>
         {decomposing ? (
@@ -392,7 +420,7 @@ const styles = StyleSheet.create({
   encouragement: { fontSize: 14, color: colors.textSecondary, lineHeight: 21, marginBottom: 18 },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   primaryButton: { backgroundColor: colors.accent, paddingVertical: 16, borderRadius: radii.md, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  primaryButtonText: { color: colors.onAccent, fontSize: 16, fontWeight: "700" },
   actionRow: { flexDirection: "row", gap: 10, marginTop: 12 },
   secondaryButton: { flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, paddingVertical: 13, alignItems: "center" },
   secondaryButtonText: { color: colors.textPrimary, fontSize: 14, fontWeight: "600" },
@@ -401,7 +429,7 @@ const styles = StyleSheet.create({
   reminderButton: { backgroundColor: colors.surface, borderRadius: radii.md, padding: 13, alignItems: "center", borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   reminderText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
   reminderHint: { color: colors.textMuted, fontSize: 12, textAlign: "center", lineHeight: 18, marginBottom: 4 },
-  emailButton: { backgroundColor: "rgba(228,237,232,0.86)", borderRadius: radii.md, padding: 13, alignItems: "center", borderWidth: 1, borderColor: colors.accentSoft, marginTop: 6 },
+  emailButton: { backgroundColor: colors.accentMuted, borderRadius: radii.md, padding: 13, alignItems: "center", borderWidth: 1, borderColor: colors.accentSoft, marginTop: 6 },
   emailButtonText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
   disabledButton: { opacity: 0.5 },
   section: { marginTop: 24 },
@@ -423,4 +451,8 @@ const styles = StyleSheet.create({
   notFound: { fontSize: 16, color: colors.textMuted, marginBottom: 12 },
   link: { fontSize: 15, color: colors.accent, fontWeight: "600" },
   secondaryText: { fontSize: 15, color: colors.textSecondary },
+  headerBtn: { minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" },
+  whenRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, marginBottom: 12 },
+  whenText: { fontSize: 15, color: colors.textPrimary, fontWeight: "600", flex: 1 },
+  notes: { fontSize: 15, color: colors.textSecondary, lineHeight: 22, marginBottom: 16 },
 });

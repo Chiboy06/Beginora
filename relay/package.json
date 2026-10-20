@@ -1,0 +1,12 @@
+{
+  "name": "beginora-telegram-relay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/worker.test.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10"
+  }
+}

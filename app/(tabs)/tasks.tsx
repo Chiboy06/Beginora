@@ -1,20 +1,21 @@
-import { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { useRouter } from "expo-router";
+// Plan: week and month views, the selected day's tasks and reminders, and
+// "Sort later" for tasks without a time. Every action is a visible button.
+
+import { useCallback, useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useTaskStore } from "../../lib/store/task-store";
 import { RemindersList } from "../../components/RemindersList";
+import { Card, Chip, MonthGrid, SectionTitle, WeekStrip, kit } from "../../components/Kit";
+import { GlassScreen } from "../../components/GlassSurface";
+import { cancelLocalReminder, listReminders } from "../../lib/native/reminders";
 import type { Task } from "../../lib/storage/database";
-import { colors, spacing, radii, typography } from "../../lib/theme";
+import { addDays, inboxTasks, REPEAT_LABELS, sameDay, startOfDay, tasksOnDay, timeLabel } from "../../lib/planner/schedule";
+import { colors, radii, spacing, typography } from "../../lib/theme";
 
-type Filter = "pending" | "active" | "snoozed" | "done" | "all";
+type View3 = "week" | "month" | "list";
+type Filter = "all" | "pending" | "active" | "snoozed" | "done";
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
@@ -24,252 +25,232 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "done", label: "Done" },
 ];
 
-function TaskItem({
-  task,
-  onDone,
-  onPress,
-}: {
-  task: Task;
-  onDone: () => void;
-  onPress: () => void;
-}) {
-  const isDone = task.status === "done";
-
+function TaskRow({ task, onToggle, onOpen, onMenu }: { task: Task; onToggle: () => void; onOpen: () => void; onMenu: () => void }) {
+  const done = task.status === "done";
   return (
-    <TouchableOpacity
-      style={[styles.taskCard, isDone && styles.taskCardDone]}
-      onPress={onPress}
-      activeOpacity={0.75}
-      accessibilityRole="button"
-      accessibilityLabel={`Task: ${task.title}`}
-    >
+    <View style={styles.row}>
       <TouchableOpacity
-        style={[styles.checkbox, isDone && styles.checkboxDone]}
-        onPress={onDone}
-        activeOpacity={0.7}
+        onPress={onToggle}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: isDone }}
-        accessibilityLabel={isDone ? "Mark as not done" : "Mark as done"}
+        accessibilityState={{ checked: done }}
+        accessibilityLabel={done ? `Mark ${task.title} as not done` : `Mark ${task.title} as done`}
+        style={styles.iconBtn}
       >
-        {isDone && <Text style={styles.checkmark}>✓</Text>}
+        <Ionicons name={done ? "checkmark-circle" : "ellipse-outline"} size={26} color={done ? colors.success : colors.accent} />
       </TouchableOpacity>
-
-      <View style={styles.taskContent}>
-        <Text
-          style={[styles.taskTitle, isDone && styles.taskTitleDone]}
-          numberOfLines={2}
-        >
-          {task.title}
-        </Text>
-        {task.firstAction && !isDone && (
-          <View style={styles.firstActionRow}>
-            <Text style={styles.firstActionLabel}>Start here →</Text>
-            <Text style={styles.firstActionText} numberOfLines={2}>
-              {task.firstAction}
-            </Text>
-          </View>
-        )}
-        {isDone && task.completedAt && (
-          <Text style={styles.completedAt}>
-            Done {new Date(task.completedAt).toLocaleDateString()}
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-export default function TasksScreen() {
-  const router = useRouter();
-  const tasks = useTaskStore((s) => s.tasks);
-  const loading = useTaskStore((s) => s.loading);
-  const error = useTaskStore((s) => s.error);
-  const loadTasks = useTaskStore((s) => s.loadTasks);
-  const setStatus = useTaskStore((s) => s.setStatus);
-  const clearError = useTaskStore((s) => s.clearError);
-  const [filter, setFilter] = useState<Filter>("all");
-
-  useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
-
-  useEffect(() => {
-    if (error) {
-      Alert.alert("Error", error, [{ text: "OK", onPress: clearError }]);
-    }
-  }, [error, clearError]);
-
-  const filtered = tasks.filter((t) => {
-    if (filter === "all") return true;
-    return t.status === filter;
-  });
-
-  const handleToggleDone = (task: Task) => {
-    const next = task.status === "done" ? "pending" : "done";
-    setStatus(task.id, next);
-  };
-
-  return (
-    <View style={styles.container}>
-      {/* Filter chips */}
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f.key}
-            style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
-            onPress={() => setFilter(f.key)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityState={{ selected: filter === f.key }}
-          >
-            <Text
-              style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}
-            >
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(t) => t.id}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={<RemindersList />}
-          renderItem={({ item }) => (
-            <TaskItem
-              task={item}
-              onDone={() => handleToggleDone(item)}
-              onPress={() => router.push(`/task/${item.id}`)}
-            />
+      <TouchableOpacity style={styles.flex} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open ${task.title}`}>
+        <Text style={[styles.title, done && styles.titleDone]} numberOfLines={2}>{task.title}</Text>
+        <View style={styles.meta}>
+          {task.dueAt !== null && <Text style={kit.muted}>{timeLabel(new Date(task.dueAt))}</Text>}
+          {task.repeat && task.repeat !== "never" && (
+            <Text style={kit.muted}><Ionicons name="repeat" size={12} /> {REPEAT_LABELS[task.repeat]}</Text>
           )}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>✓</Text>
-              <Text style={styles.emptyTitle}>
-                {filter === "done" ? "Nothing done yet" : "No tasks here"}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {filter === "done"
-                  ? "Complete a task and it will show up here."
-                  : "Tap + to add something you want to work on."}
-              </Text>
-            </View>
-          }
-        />
-      )}
-
-      {/* Add task FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => router.push("/task/new")}
-        activeOpacity={0.8}
-        accessibilityRole="button"
-        accessibilityLabel="Add new task"
-      >
-        <Text style={styles.fabText}>+</Text>
+          {task.reminderId && <Text style={kit.muted}><Ionicons name="notifications-outline" size={12} /> Reminder</Text>}
+          {done && <Text style={[kit.muted, { color: colors.success }]}>Done</Text>}
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onMenu} accessibilityRole="button" accessibilityLabel={`More for ${task.title}`} style={styles.iconBtn}>
+        <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
       </TouchableOpacity>
     </View>
   );
 }
 
+export default function PlanScreen() {
+  const router = useRouter();
+  const tasks = useTaskStore((s) => s.tasks);
+  const loadTasks = useTaskStore((s) => s.loadTasks);
+  const setStatus = useTaskStore((s) => s.setStatus);
+  const updateDetails = useTaskStore((s) => s.updateDetails);
+  const removeTask = useTaskStore((s) => s.removeTask);
+  const error = useTaskStore((s) => s.error);
+  const clearError = useTaskStore((s) => s.clearError);
+  const [mode, setMode] = useState<View3>("week");
+  const [selected, setSelected] = useState(startOfDay(new Date()));
+  const [month, setMonth] = useState(new Date(selected.getFullYear(), selected.getMonth(), 1));
+  const [filter, setFilter] = useState<Filter>("all");
+  const [reminders, setReminders] = useState(() => listReminders().upcoming);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadTasks();
+      setReminders(listReminders().upcoming);
+    }, [loadTasks]),
+  );
+
+  useEffect(() => {
+    if (error) Alert.alert("Something went wrong", error, [{ text: "OK", onPress: clearError }]);
+  }, [error, clearError]);
+
+  const toggle = (t: Task) => setStatus(t.id, t.status === "done" ? "pending" : "done");
+  const open = (t: Task) => router.push(`/task/${t.id}`);
+  const menu = (t: Task) =>
+    Alert.alert(t.title, undefined, [
+      { text: "Edit", onPress: () => router.push({ pathname: "/task/edit", params: { id: t.id } }) },
+      {
+        text: t.dueAt !== null ? "Move to tomorrow" : "Plan for tomorrow 9:00",
+        onPress: () => {
+          const base = t.dueAt !== null ? new Date(t.dueAt) : new Date(new Date().setHours(9, 0, 0, 0));
+          void updateDetails(t.id, { title: t.title, notes: t.notes, steps: t.steps, repeat: t.repeat, dueAt: addDays(base, 1).getTime(), remind: !!t.reminderId || t.dueAt === null });
+        },
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () =>
+          Alert.alert("Delete this task?", "Its reminder is cancelled too. This can't be undone.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Delete", style: "destructive", onPress: () => void removeTask(t.id).catch(() => {}) },
+          ]),
+      },
+      { text: "Close", style: "cancel" },
+    ]);
+
+  const dayTasks = tasksOnDay(tasks, selected);
+  const dayReminders = reminders.filter((r) => sameDay(new Date(r.at), selected));
+  const inbox = inboxTasks(tasks);
+  const count = (d: Date) => tasksOnDay(tasks, d).length + reminders.filter((r) => sameDay(new Date(r.at), d)).length;
+  const listed = tasks.filter((t) => filter === "all" || t.status === filter);
+
+  return (
+    <GlassScreen>
+      <ScrollView contentContainerStyle={kit.screenPad}>
+        <View style={styles.segment} accessibilityRole="tablist">
+          {(["week", "month", "list"] as View3[]).map((m) => (
+            <TouchableOpacity
+              key={m}
+              onPress={() => setMode(m)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === m }}
+              style={[styles.segmentItem, mode === m && styles.segmentOn]}
+            >
+              <Text style={[styles.segmentText, mode === m && styles.segmentTextOn]}>{m === "week" ? "Week" : m === "month" ? "Month" : "List"}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {mode === "list" ? (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[kit.chips, { flexWrap: "nowrap", marginVertical: spacing.lg }]}>
+              {FILTERS.map((f) => <Chip key={f.key} label={f.label} selected={filter === f.key} onPress={() => setFilter(f.key)} />)}
+            </ScrollView>
+            <RemindersList />
+            <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+              {listed.length === 0 && <Text style={kit.muted}>No tasks here.</Text>}
+              {listed.map((t) => <TaskRow key={t.id} task={t} onToggle={() => toggle(t)} onOpen={() => open(t)} onMenu={() => menu(t)} />)}
+            </View>
+          </>
+        ) : (
+          <>
+            <Card style={{ marginTop: spacing.lg }}>
+              {mode === "week" ? (
+                <>
+                  <View style={styles.weekNav}>
+                    <TouchableOpacity onPress={() => setSelected(addDays(selected, -7))} accessibilityRole="button" accessibilityLabel="Previous week" style={styles.iconBtn}>
+                      <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+                    </TouchableOpacity>
+                    <Text style={styles.monthName}>{selected.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text>
+                    <TouchableOpacity onPress={() => setSelected(addDays(selected, 7))} accessibilityRole="button" accessibilityLabel="Next week" style={styles.iconBtn}>
+                      <Ionicons name="chevron-forward" size={22} color={colors.textPrimary} />
+                    </TouchableOpacity>
+                  </View>
+                  <WeekStrip selected={selected} onSelect={setSelected} marks={(d) => count(d) > 0} />
+                </>
+              ) : (
+                <MonthGrid month={month} selected={selected} onMonth={setMonth} onSelect={setSelected} marks={count} />
+              )}
+            </Card>
+
+            <SectionTitle action={sameDay(selected, new Date()) ? undefined : { label: "Today", onPress: () => { const t = startOfDay(new Date()); setSelected(t); setMonth(new Date(t.getFullYear(), t.getMonth(), 1)); } }}>
+              {selected.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+            </SectionTitle>
+            <View style={{ gap: spacing.sm }}>
+              {dayTasks.length === 0 && dayReminders.length === 0 && (
+                <Card><Text style={kit.muted}>Nothing planned. That's okay.</Text></Card>
+              )}
+              {dayReminders.map((r) => (
+                <View key={r.id} style={styles.row}>
+                  <View style={styles.iconBtn}><Ionicons name="notifications" size={22} color={colors.accent} /></View>
+                  <View style={styles.flex}>
+                    <Text style={styles.title} numberOfLines={2}>{r.text}</Text>
+                    <Text style={kit.muted}>Reminder · {timeLabel(new Date(r.at))}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={async () => { await cancelLocalReminder(r.id); setReminders(listReminders().upcoming); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Cancel reminder ${r.text}`}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="close-circle-outline" size={24} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {dayTasks.map((t) => <TaskRow key={t.id} task={t} onToggle={() => toggle(t)} onOpen={() => open(t)} onMenu={() => menu(t)} />)}
+            </View>
+
+            <SectionTitle>Sort later</SectionTitle>
+            <View style={{ gap: spacing.sm }}>
+              {inbox.length === 0 ? (
+                <Text style={kit.muted}>Things without a time land here.</Text>
+              ) : (
+                inbox.map((t) => <TaskRow key={t.id} task={t} onToggle={() => toggle(t)} onOpen={() => open(t)} onMenu={() => menu(t)} />)
+              )}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push({ pathname: "/task/new", params: { date: String(selected.getTime()) } })}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="New task"
+      >
+        <Ionicons name="add" size={28} color={colors.onAccent} />
+      </TouchableOpacity>
+    </GlassScreen>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  filterRow: {
+  flex: { flex: 1 },
+  segment: { flexDirection: "row", backgroundColor: colors.surfaceMuted, borderRadius: radii.lg, padding: 3 },
+  segmentItem: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: radii.md },
+  segmentOn: { backgroundColor: colors.surface },
+  segmentText: { ...typography.subheadline, color: colors.textSecondary, fontWeight: "600" },
+  segmentTextOn: { color: colors.textPrimary },
+  weekNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm },
+  monthName: { ...typography.headline, color: colors.textPrimary },
+  row: {
     flexDirection: "row",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radii.full,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  filterChipText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
-  filterChipTextActive: { color: "#fff" },
-  list: { padding: spacing.lg, paddingBottom: 100, gap: 10 },
-  taskCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    gap: 12,
-  },
-  taskCardDone: { opacity: 0.6 },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.border,
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-    flexShrink: 0,
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.xs,
+    minHeight: 64,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderLight,
   },
-  checkboxDone: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  checkmark: { color: "#fff", fontSize: 13, fontWeight: "700" },
-  taskContent: { flex: 1 },
-  taskTitle: { ...typography.body, color: colors.textPrimary, fontWeight: "600" },
-  taskTitleDone: { textDecorationLine: "line-through", color: colors.textMuted },
-  firstActionRow: {
-    marginTop: 8,
-    backgroundColor: colors.accentMuted,
-    borderRadius: radii.sm,
-    padding: 10,
-  },
-  firstActionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.accent,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    marginBottom: 3,
-  },
-  firstActionText: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
-  completedAt: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, paddingHorizontal: spacing.xl },
-  emptyEmoji: { fontSize: 40, marginBottom: 16, opacity: 0.3 },
-  emptyTitle: { ...typography.heading, fontSize: 20, color: colors.textPrimary, marginBottom: 8 },
-  emptySubtitle: { fontSize: 15, color: colors.textSecondary, textAlign: "center", lineHeight: 22 },
+  iconBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  title: { ...typography.body, color: colors.textPrimary, fontWeight: "600" },
+  titleDone: { textDecorationLine: "line-through", color: colors.textMuted },
+  meta: { flexDirection: "row", gap: spacing.md, flexWrap: "wrap", marginTop: 2 },
   fab: {
     position: "absolute",
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: spacing.xl,
+    right: spacing.xl,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
+    elevation: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
-  fabText: { fontSize: 28, color: "#fff", fontWeight: "300", lineHeight: 32 },
 });

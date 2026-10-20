@@ -5,6 +5,85 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.12] — Planner, routines, journal, online model, shared Telegram bot
+
+### Added
+- **Today** (new home tab):
+  - greeting with your name;
+  - "Up next" (the next reminder or timed task);
+  - your first step with "Start 10 minutes";
+  - up to three tasks;
+  - "How is your day?";
+  - tools (Routines, Focus, Talk, Reset my day);
+  - a "Welcome back" card after 3+ days away;
+  - a Capture button.
+- **Capture**: type or say it ("call the dentist tomorrow at 9"). A time becomes a reminder; a day without a time offers 9:00, 13:00 or 18:00; no time goes to "Sort later".
+- **Plan** tab (replaces Tasks):
+  - week strip and month calendar with dots on busy days;
+  - the selected day's tasks and reminders, each cancellable;
+  - a "Sort later" inbox;
+  - a list view with filters;
+  - a visible "…" menu on every task (Edit, Move to tomorrow, Delete).
+- **Tasks**:
+  - day, time, repeat (every day, weekdays, every week), notes, editable subtasks and a reminder at the task's time;
+  - a repeating task moves to its next time when done;
+  - new Edit screen; task details show when and repeat.
+- **Focus**: choose 5, 10, 15 or 25 minutes; free focus without a task; at the end, a break, another round or finish.
+- **Routines**: a library of 7 ready-made routines, plus your own (one step per line). Run them one step per page, with a clock-based timer, "Make it smaller" and Skip, and an optional mood at the end.
+- **Mood and journal**:
+  - 8 moods, each with a word;
+  - title and "How did it go?";
+  - "What helped" chips plus your own;
+  - a week strip showing each day's mood, and a weekly summary (no scores).
+- **Reset my day**: what matters today, pick one of three things, or clear old items (Done, Tomorrow or Let go, each confirmed).
+- **Online model (optional)**:
+  - your own API key for any OpenAI-compatible service (OpenRouter, Groq, OpenAI, Gemini, or LM Studio/Ollama on your network);
+  - modes: Off, When needed (no model or a model under 1.5B), or Always for questions;
+  - the key is kept in secure storage; https only (plain http allowed only on the home network);
+  - memories are not sent unless allowed;
+  - if the online model fails, the phone model answers;
+  - replies are labelled "Online · model";
+  - alarms, reminders, texts and tasks never go online.
+- **Shared Telegram bot**:
+  - connect in one tap, with no bot token, through a relay (Cloudflare Worker + D1);
+  - relay code in `relay/`, tested against real SQLite (`npm run test:relay`);
+  - set-up guide in `docs/TELEGRAM_RELAY_GUIDE.md`;
+  - two-way replies work through the relay too;
+  - "Use my own bot" is still available.
+  - The relay also runs on **Supabase** (Edge Function + Postgres, `supabase/functions/telegram-relay`). The relay tests run on both SQLite and Postgres (PGlite).
+- **Settings**:
+  - Appearance: follow phone, Light or Dark (dark palette checked at 4.5:1 or better);
+  - Notifications: hide reminder text on the lock screen, and your own quiet hours for check-ins;
+  - links to Routines, Journal, Online model and Telegram.
+
+### Changed
+- A finished repeating task still counts in "done today" after moving to its next date.
+- The chat moved to the **Talk** tab. `beginora://chat` links open it.
+- Hard-coded light colours were replaced by theme tokens, so screens work in dark mode.
+- Android `versionCode` 14 / version 0.2.12.
+
+---
+
+## [0.2.11] — Small models stop repeating themselves
+
+### Fixed
+- Questions no longer get an earlier date answer back. Replies written by the app (dates, greetings) are left out of what the model sees; Qwen3 0.6B answered "How many states are in Nigeria?" with "Tomorrow is Wednesday".
+- Memories are added to the prompt only when a question is about you ("my…", "remember…", "what do you know about me"). Before, the model recited them in unrelated answers.
+- Models under 1.5B no longer save memories, and a "memory" that copies Beginora's own instructions is rejected.
+- Chat replies use the Qwen3 model card's non-thinking settings (temperature 0.7, top_p 0.8, top_k 20, presence penalty 1.0) instead of near-greedy decoding, which loops. A reply is cut at its first repeated sentence and plain prose keeps at most 4 sentences.
+
+### Added
+- Settings > Memory: see what Beginora remembers and delete any of it.
+- Qwen3 0.6B is labelled "Quick helper: can be wrong on facts"; Qwen3 1.7B is recommended on phones with 6 GB RAM or more.
+
+### Known limit
+- Qwen3 0.6B still gets facts wrong (real-model eval: 19/22; it says Nigeria has 18 states, the answer is 36 plus the FCT). Use Qwen3 1.7B or larger for factual questions.
+
+### Changed
+- Android `versionCode` 13 / version 0.2.11.
+
+---
+
 ## [0.2.10] — Reminders with sound, faster answers
 
 ### Changed

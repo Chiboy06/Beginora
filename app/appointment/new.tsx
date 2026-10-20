@@ -111,7 +111,7 @@ export default function NewAppointmentScreen() {
             accessibilityRole="button"
             accessibilityLabel="Open the device calendar event editor"
           >
-            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Continue to calendar</Text>}
+            {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.primaryText}>Continue to calendar</Text>}
           </TouchableOpacity>
         </GlassSurface>
         <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton} accessibilityRole="button">
@@ -130,13 +130,13 @@ const styles = StyleSheet.create({
   intro: { color: colors.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: spacing.lg },
   form: { padding: spacing.lg, borderRadius: radii.xl, gap: 8 },
   label: { color: colors.textPrimary, fontSize: 13, fontWeight: "700", marginTop: 6 },
-  input: { minHeight: 48, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.82)", paddingHorizontal: 14, paddingVertical: 12, color: colors.textPrimary, fontSize: 15 },
+  input: { minHeight: 48, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.field, paddingHorizontal: 14, paddingVertical: 12, color: colors.textPrimary, fontSize: 15 },
   timeLabel: { color: colors.textPrimary, fontSize: 13, fontWeight: "700", marginTop: 8 },
   timeValue: { color: colors.accent, fontSize: 16, fontWeight: "700", marginTop: 2 },
   helper: { color: colors.textMuted, fontSize: 12, lineHeight: 18, marginTop: 2 },
   message: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 7 },
   primaryButton: { marginTop: spacing.md, backgroundColor: colors.accent, borderRadius: radii.md, paddingVertical: 15, alignItems: "center" },
-  primaryText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  primaryText: { color: colors.onAccent, fontSize: 15, fontWeight: "700" },
   disabled: { opacity: 0.6 },
   cancelButton: { paddingVertical: 15, alignItems: "center" },
   cancelText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },

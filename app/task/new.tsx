@@ -15,11 +15,19 @@ import { useTaskStore } from "../../lib/store/task-store";
 import { decompose } from "../../lib/ai/decomposer";
 import { GlassScreen, GlassSurface } from "../../components/GlassSurface";
 import { colors, radii, spacing, typography } from "../../lib/theme";
+import { ScheduleFields, type Schedule } from "../../components/Kit";
 
 export default function NewTaskScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ title?: string; context?: string }>();
+  const params = useLocalSearchParams<{ title?: string; context?: string; date?: string }>();
   const createTaskWithPlan = useTaskStore((s) => s.createTaskWithPlan);
+  const addTask = useTaskStore((s) => s.addTask);
+  const updateDetails = useTaskStore((s) => s.updateDetails);
+  // Opened from a day in Plan: start on that day at 9:00.
+  const [schedule, setSchedule] = useState<Schedule>(() => {
+    const day = Number(params.date);
+    return { dueAt: day > 0 ? new Date(day).setHours(9, 0, 0, 0) : null, repeat: "never", remind: true };
+  });
   const [title, setTitle] = useState(params.title ?? "");
   const [context, setContext] = useState(params.context ?? "");
   const [loading, setLoading] = useState(false);
@@ -35,6 +43,9 @@ export default function NewTaskScreen() {
     try {
       const result = await decompose(trimmed, context.trim() || undefined);
       const task = await createTaskWithPlan(trimmed.slice(0, 200), result.firstAction, result.steps);
+      if (schedule.dueAt !== null) {
+        await updateDetails(task.id, { title: task.title, steps: result.steps, dueAt: schedule.dueAt, repeat: schedule.repeat, remind: schedule.remind });
+      }
       router.replace(`/task/${task.id}`);
     } catch {
       setError("I couldn’t save that task just now. Please try again.");
@@ -43,6 +54,25 @@ export default function NewTaskScreen() {
   };
 
   const canSubmit = title.trim().length > 0 && !loading;
+
+  // Save as written, without asking for a first step.
+  const handleSave = async () => {
+    const trimmed = title.trim();
+    if (!trimmed || loading) return;
+    setLoading(true);
+    try {
+      await addTask(trimmed.slice(0, 200), {
+        notes: context.trim() || null,
+        dueAt: schedule.dueAt,
+        repeat: schedule.repeat,
+        remind: schedule.remind && schedule.dueAt !== null,
+      });
+      router.back();
+    } catch {
+      setError("I couldn’t save that task just now. Please try again.");
+      setLoading(false);
+    }
+  };
 
   return (
     <GlassScreen>
@@ -88,6 +118,11 @@ export default function NewTaskScreen() {
             />
           </GlassSurface>
 
+          <GlassSurface style={styles.formCard}>
+            <Text style={styles.contextLabel}>When (optional)</Text>
+            <ScheduleFields value={schedule} onChange={setSchedule} />
+          </GlassSurface>
+
         {error && <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>}
 
         <TouchableOpacity
@@ -100,12 +135,21 @@ export default function NewTaskScreen() {
         >
           {loading ? (
             <View style={styles.loadingRow}>
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.onAccent} />
               <Text style={styles.btnText}>Finding one small step…</Text>
             </View>
           ) : (
             <Text style={styles.btnText}>Make it smaller</Text>
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.saveBtn, !canSubmit && styles.btnDisabled]}
+          onPress={handleSave}
+          disabled={!canSubmit}
+          accessibilityRole="button"
+        >
+          <Text style={styles.saveText}>Just save it</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -134,7 +178,7 @@ const styles = StyleSheet.create({
   subheading: { fontSize: 15, color: colors.textSecondary, lineHeight: 22, marginBottom: 28 },
   formCard: { padding: spacing.lg, marginBottom: spacing.md, borderRadius: radii.xl, gap: 7 },
   titleInput: {
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: colors.field,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -146,7 +190,7 @@ const styles = StyleSheet.create({
   },
   contextLabel: { fontSize: 14, fontWeight: "600", color: colors.textSecondary, marginBottom: 8 },
   contextInput: {
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: colors.field,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -167,9 +211,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   btnDisabled: { backgroundColor: colors.disabled },
-  btnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  btnText: { color: colors.onAccent, fontSize: 16, fontWeight: "700" },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   cancelBtn: { paddingVertical: 12, alignItems: "center" },
+  saveBtn: { backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, paddingVertical: 15, alignItems: "center", marginBottom: 4 },
+  saveText: { color: colors.textPrimary, fontSize: 16, fontWeight: "600" },
   cancelText: { color: colors.textSecondary, fontSize: 15, fontWeight: "600" },
   errorText: { color: colors.error, fontSize: 14, marginBottom: 12 },
   hint: { fontSize: 13, color: colors.textMuted, textAlign: "center", lineHeight: 19, marginTop: 16 },

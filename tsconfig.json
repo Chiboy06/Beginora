@@ -12,5 +12,7 @@
     },
     "types": ["jest"]
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts", "types/**/*.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts", "types/**/*.d.ts"],
+  // Server code with its own runtimes (Cloudflare Workers, Supabase/Deno).
+  "exclude": ["node_modules", "relay", "supabase"]
 }

@@ -92,6 +92,13 @@ export const ChatBubble = React.memo(function ChatBubble({
           )
         ) : null}
 
+        {/* Which model answered, when it was not the phone's own. */}
+        {!isUser && message.modelUsed?.startsWith("online:") && (
+          <Text style={styles.toolNote} accessibilityLabel="Answered by the online model">
+            Online · {message.modelUsed.slice("online:".length)}
+          </Text>
+        )}
+
         {/* Tool badge */}
         {toolCall && (
           <View
@@ -267,7 +274,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   confirmYesText: {
-    color: "#fff",
+    color: colors.onAccent,
     fontSize: 14,
     fontWeight: "600",
   },

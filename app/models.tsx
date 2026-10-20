@@ -14,7 +14,7 @@ import { useModelStore } from "../lib/store/model-store";
 import { CATALOG } from "../lib/models/catalog";
 import { listGgufFiles, type HfFile } from "../lib/models/hf-client";
 import type { CatalogModel, InstalledModel } from "../lib/models/types";
-import { formatBytes, formatDuration, percent, fitLabel, isReasoningModel, REASONING_MODEL_NOTE, type FitLabel } from "../lib/models/format";
+import { formatBytes, formatDuration, percent, fitLabel, isReasoningModel, REASONING_MODEL_NOTE, isTinyModel, TINY_MODEL_NOTE, type FitLabel } from "../lib/models/format";
 import { colors, spacing, radii, typography } from "../lib/theme";
 
 export default function ModelsScreen() {
@@ -292,6 +292,7 @@ function InstalledRow({
       {isReasoningModel(`${model.displayName} ${model.hfRepo ?? ""} ${model.hfFile ?? ""}`) && (
         <Text style={styles.rowError}>{REASONING_MODEL_NOTE}</Text>
       )}
+      {isTinyModel(`${model.displayName} ${model.hfFile ?? ""}`) && <Text style={styles.rowHint}>{TINY_MODEL_NOTE}</Text>}
       {/* Also catches rows left "downloading" when Android killed the app mid-download. */}
       {model.state === "paused" && !downloading && (
         <Text style={styles.rowHint}>Paused. Your progress is saved: tap Resume when you are back online.</Text>
@@ -382,7 +383,7 @@ function AddFromHuggingFace({
           autoCorrect={false}
         />
         <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={browse} disabled={loading} activeOpacity={0.7}>
-          {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnPrimaryText}>Browse</Text>}
+          {loading ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={styles.btnPrimaryText}>Browse</Text>}
         </TouchableOpacity>
       </View>
       {err && <Text style={styles.rowError}>{err}</Text>}
@@ -444,7 +445,7 @@ const styles = StyleSheet.create({
   btnRow: { flexDirection: "row", gap: 10, marginTop: 14, flexWrap: "wrap" },
   btn: { borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10, justifyContent: "center" },
   btnPrimary: { backgroundColor: colors.accent },
-  btnPrimaryText: { color: "#fff", ...typography.button },
+  btnPrimaryText: { color: colors.onAccent, ...typography.button },
   btnOutline: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.accent },
   btnOutlineText: { color: colors.accent, ...typography.button },
   btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.error },
