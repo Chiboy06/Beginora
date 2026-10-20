@@ -1099,12 +1099,13 @@ export async function updateTaskDetails(
   );
 }
 
-// A repeating task moves to its next time instead of staying done.
-export async function rollTaskForward(id: string, dueAt: number): Promise<void> {
+// A repeating task moves to its next time instead of staying done. It keeps
+// when it was last finished, so today's progress still counts it.
+export async function rollTaskForward(id: string, dueAt: number, completedAt = Date.now()): Promise<void> {
   const d = await getDatabase();
   await d.runAsync(
-    "UPDATE tasks SET status = 'pending', completed_at = NULL, due_at = ?, updated_at = ? WHERE id = ?",
-    dueAt, Date.now(), id,
+    "UPDATE tasks SET status = 'pending', completed_at = ?, due_at = ?, updated_at = ? WHERE id = ?",
+    completedAt, dueAt, completedAt, id,
   );
 }
 

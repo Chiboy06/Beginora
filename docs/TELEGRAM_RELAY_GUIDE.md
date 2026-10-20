@@ -20,11 +20,11 @@ Telegram   ──webhook──►  Relay  (messages users send to the bot)
 - **Replies:** messages users send to the bot wait in the relay until the phone collects them. They are deleted then, or after 24 hours at most.
 - **Disconnecting:** `/stop` in Telegram, or **Disconnect** in the app, deletes the link and any waiting messages.
 
-The code is in `relay/`. Its tests run against a real SQLite database: `npm run test:relay`.
+The code is in `relay/`. Its tests run against real SQLite and Postgres databases: `npm run test:relay` (run `npm install` in `relay/` once first).
 
 ## About Cloudinary
 
-Cloudinary stores and serves images and videos. It cannot run code, so it cannot receive Telegram's webhook or keep a bot token secret. Use **Cloudflare Workers**, described below. A Supabase alternative is at the end of this guide.
+Cloudinary stores and serves images and videos. It cannot run code, so it cannot receive Telegram's webhook or keep a bot token secret. Use **Cloudflare Workers** (Part 2 below) or **Supabase** (at the end). Both run the same code.
 
 ---
 
@@ -139,12 +139,47 @@ Typing a command with the token in it saves the token in your terminal history. 
 
 ## Alternative: Supabase instead of Cloudflare
 
-The relay code targets Cloudflare (Workers + D1). Supabase works too, but needs a small port, which is **not included or tested** here:
+The same relay code runs as a Supabase Edge Function, on Postgres instead of D1. It lives in `supabase/functions/telegram-relay/index.ts`, with `relay/src/pg-adapter.js` and `relay/schema.postgres.sql`. The relay tests run on both databases; Postgres is tested through PGlite.
 
-- **Code:** put `relay/src/worker.js` in a Supabase Edge Function (`supabase functions new telegram-relay`). Edge Functions are Deno and use the same `Request`/`Response` and `crypto` APIs. Only the database calls change: replace `env.DB.prepare(...).bind(...)` with `supabase-js` queries, or with SQL over `postgres`.
-- **Database:** create the three tables from `relay/schema.sql` in the Supabase SQL editor. Change `INTEGER PRIMARY KEY AUTOINCREMENT` to `bigint generated always as identity primary key`.
-- **Secrets:** run `supabase secrets set BOT_TOKEN=... WEBHOOK_SECRET=... BOT_USERNAME=...`.
-- **Deploy:** run `supabase functions deploy telegram-relay --no-verify-jwt`. Telegram cannot send a Supabase login, and the relay checks its own secret instead.
-- **Webhook:** point `setWebhook` at `https://<project>.supabase.co/functions/v1/telegram-relay/webhook`.
+You need a free Supabase project (https://supabase.com) and the Supabase CLI (`npm install -g supabase`). Run these from the project folder.
 
-Cloudflare is the recommended path: it is what the tests cover.
+1. Create the tables:
+   1. In the Supabase dashboard, open **SQL Editor**.
+   2. Paste all of `relay/schema.postgres.sql` and click **Run**.
+
+   The script turns on row-level security, so these tables are not reachable through Supabase's public API.
+2. Link the CLI to your project. Your project ref is in your dashboard URL: `supabase.com/dashboard/project/<ref>`.
+   ```bash
+   supabase login
+   supabase link --project-ref YOUR_PROJECT_REF
+   ```
+3. Store the secrets. `SUPABASE_DB_URL` is provided automatically.
+   ```bash
+   supabase secrets set BOT_TOKEN=YOUR_BOT_TOKEN WEBHOOK_SECRET=YOUR_LONG_RANDOM_SECRET BOT_USERNAME=YourBotUsername
+   ```
+4. Deploy. `--no-verify-jwt` is needed because Telegram cannot send a Supabase login; the relay checks its own secret instead.
+   ```bash
+   supabase functions deploy telegram-relay --no-verify-jwt
+   ```
+5. Point Telegram at it, as in Part 2 step 7, with this address:
+   ```
+   https://YOUR_PROJECT_REF.supabase.co/functions/v1/telegram-relay/webhook
+   ```
+6. In the app build, set:
+   ```
+   EXPO_PUBLIC_TELEGRAM_RELAY_URL=https://YOUR_PROJECT_REF.supabase.co/functions/v1/telegram-relay
+   ```
+   Then rebuild, as in Part 3.
+7. Logs: Supabase dashboard > **Edge Functions** > **telegram-relay** > **Logs**.
+
+Choose one host. Do not set the webhook to both: Telegram sends updates to only one address.
+
+## Running the relay tests yourself
+
+```bash
+cd relay
+npm install
+npm test
+```
+
+This runs every relay test against SQLite and against Postgres. All 17 should pass.

@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "jest",
-    "test:relay": "node --test relay/test/worker.test.mjs",
+    "test:relay": "npm --prefix relay test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

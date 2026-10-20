@@ -59,8 +59,9 @@ export const useTaskStore = create<TaskState>((set, get) => {
   const rollRepeating = async (task: Task): Promise<boolean> => {
     const next = task.dueAt !== null ? nextOccurrence(task.dueAt, task.repeat ?? "never", Date.now()) : null;
     if (next === null) return false;
+    const finishedAt = Date.now();
     try {
-      await rollTaskForward(task.id, next);
+      await rollTaskForward(task.id, next, finishedAt);
     } catch {
       set({ error: "Done, but the next repeat could not be scheduled." });
       return false;
@@ -69,7 +70,7 @@ export const useTaskStore = create<TaskState>((set, get) => {
     const reminderId = task.reminderId ? await scheduleTaskReminder(task, next).catch(() => null) : null;
     await updateTaskReminderId(task.id, reminderId).catch(() => {});
     set((s) => ({
-      tasks: s.tasks.map((t) => (t.id === task.id ? { ...t, status: "pending", completedAt: null, dueAt: next, reminderId } : t)),
+      tasks: s.tasks.map((t) => (t.id === task.id ? { ...t, status: "pending", completedAt: finishedAt, dueAt: next, reminderId } : t)),
     }));
     return true;
   };

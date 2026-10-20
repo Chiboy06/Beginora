@@ -50,12 +50,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - set-up guide in `docs/TELEGRAM_RELAY_GUIDE.md`;
   - two-way replies work through the relay too;
   - "Use my own bot" is still available.
+  - The relay also runs on **Supabase** (Edge Function + Postgres, `supabase/functions/telegram-relay`). The relay tests run on both SQLite and Postgres (PGlite).
 - **Settings**:
   - Appearance: follow phone, Light or Dark (dark palette checked at 4.5:1 or better);
   - Notifications: hide reminder text on the lock screen, and your own quiet hours for check-ins;
   - links to Routines, Journal, Online model and Telegram.
 
 ### Changed
+- A finished repeating task still counts in "done today" after moving to its next date.
 - The chat moved to the **Talk** tab. `beginora://chat` links open it.
 - Hard-coded light colours were replaced by theme tokens, so screens work in dark mode.
 - Android `versionCode` 14 / version 0.2.12.

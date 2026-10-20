@@ -1,11 +1,14 @@
-// End-to-end test of the relay against a real SQLite database (node:sqlite,
-// wrapped in the D1 API) with Telegram's API stubbed. Run: npm run test:relay
+// End-to-end test of the relay against real databases: SQLite (as on
+// Cloudflare D1) and Postgres via PGlite (as on Supabase), with Telegram's API
+// stubbed. Run: npm run test:relay
 
-import { test, beforeEach } from "node:test";
+import { describe, test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { PGlite } from "@electric-sql/pglite";
 import worker from "../src/worker.js";
+import { d1FromPostgres, toPg } from "../src/pg-adapter.js";
 
 // The small part of Cloudflare D1's API the worker uses.
 function d1(db) {
@@ -23,13 +26,30 @@ function d1(db) {
   };
 }
 
+const BACKENDS = {
+  "SQLite (Cloudflare D1)": async () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+    return d1(db);
+  },
+  "Postgres (Supabase)": async () => {
+    const pg = new PGlite();
+    await pg.exec(readFileSync(new URL("../schema.postgres.sql", import.meta.url), "utf8"));
+    return d1FromPostgres((text, params) => pg.query(text, params).then((r) => r.rows));
+  },
+};
+
+test("placeholders become $1, $2 ... for Postgres", () => {
+  assert.equal(toPg("SELECT * FROM t WHERE a = ? AND b >= ?"), "SELECT * FROM t WHERE a = $1 AND b >= $2");
+});
+
 let env;
 let sent;
 
-beforeEach(() => {
-  const db = new DatabaseSync(":memory:");
-  db.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
-  env = { DB: d1(db), BOT_TOKEN: "123:secret-token", WEBHOOK_SECRET: "hook-secret", BOT_USERNAME: "BeginoraBot" };
+for (const [backend, makeDb] of Object.entries(BACKENDS)) describe(backend, () => {
+
+beforeEach(async () => {
+  env = { DB: await makeDb(), BOT_TOKEN: "123:secret-token", WEBHOOK_SECRET: "hook-secret", BOT_USERNAME: "BeginoraBot" };
   sent = [];
   globalThis.fetch = async (url, init) => {
     assert.ok(String(url).startsWith("https://api.telegram.org/bot123:secret-token/"));
@@ -116,4 +136,6 @@ test("connecting a second phone to the same chat replaces the first", async () =
   const second = await linkedDevice();
   assert.equal((await call("/status", { auth: first })).status, 401);
   assert.equal((await (await call("/status", { auth: second })).json()).linked, true);
+});
+
 });

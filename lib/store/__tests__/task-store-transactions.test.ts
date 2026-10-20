@@ -11,6 +11,7 @@ import {
 } from "../../storage/database";
 import { cancelLocalReminder } from "../../native/reminders";
 import { useTaskStore } from "../task-store";
+import { doneToday } from "../../planner/schedule";
 
 jest.mock("../../storage/database", () => ({
   saveTask: jest.fn(),
@@ -135,7 +136,10 @@ describe("planner fields", () => {
     expect(next).toBeGreaterThan(Date.now());
     expect(new Date(next).getHours()).toBe(new Date(due).getHours());
     expect(reminders.cancelLocalReminder).toHaveBeenCalledWith("rem-old");
-    expect(useTaskStore.getState().tasks[0]).toMatchObject({ status: "pending", dueAt: next, reminderId: "rem-new", completedAt: null });
+    const rolled = useTaskStore.getState().tasks[0];
+    expect(rolled).toMatchObject({ status: "pending", dueAt: next, reminderId: "rem-new" });
+    // Still counts as done today.
+    expect(doneToday([rolled], new Date())).toBe(1);
   });
 
   test("editing the time replaces the old reminder", async () => {
