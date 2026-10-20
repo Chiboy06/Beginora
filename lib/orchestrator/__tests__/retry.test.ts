@@ -207,7 +207,7 @@ describe("processMessage — break_down_task answers with the plan", () => {
     mockGenerate.mockResolvedValueOnce(gen('{"tool":"set_timer","parameters":{"minutes":5},"message":"Timer set."}'));
     mockDispatch.mockResolvedValue({ success: true, message: "native says ok" });
 
-    const res = await processMessage("5 minute timer", [], "en");
+    const res = await processMessage("start a timer", [], "en");
 
     if (res.type === "tool_call") expect(res.message).toBe("Timer set for 5 minutes.");
   });
@@ -255,5 +255,13 @@ describe("processMessage — notes keep the user's words", () => {
     const res = await processMessage("save a note: buy bread and call Ada", [], "en");
     if (res.type === "tool_call") expect(res.parameters).toEqual({ text: "buy bread and call Ada" });
     expect(mockDispatch).toHaveBeenCalledWith("save_note", { text: "buy bread and call Ada" }, "en");
+  });
+});
+
+describe("withoutTimeTags", () => {
+  it("removes the internal time tag a model echoes back", () => {
+    const { withoutTimeTags } = jest.requireActual("../orchestrator");
+    expect(withoutTimeTags("The capital of Nigeria is Abuja.   [Time context: Tuesday 2026-10-20T15:00]")).toBe("The capital of Nigeria is Abuja.");
+    expect(withoutTimeTags("[Contesto temporale: martedì]\nCiao")).toBe("Ciao");
   });
 });

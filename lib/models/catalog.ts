@@ -15,6 +15,24 @@ const APACHE = "https://www.apache.org/licenses/LICENSE-2.0";
 
 export const CATALOG: CatalogModel[] = [
   {
+    id: "qwen3-0.6b-q4",
+    displayName: "Qwen3 0.6B (fastest)",
+    description:
+      "Fastest, about 400 MB. Quick answers on any phone; Beginora handles alarms, reminders and timers itself, so actions stay reliable.",
+    hfRepo: "unsloth/Qwen3-0.6B-GGUF",
+    preferredFile: "Qwen3-0.6B-Q4_K_M.gguf",
+    quant: "Q4_K_M",
+    sizeBytesApprox: 396_705_472,
+    minRamMb: 2048,
+    paramsB: 0.6,
+    contextSize: 4096,
+    role: "primary",
+    recommendedFor: "phone",
+    supportsTools: true,
+    license: "Apache-2.0",
+    licenseUrl: APACHE,
+  },
+  {
     id: "qwen3-1.7b-q4",
     displayName: "Qwen3 1.7B",
     description:

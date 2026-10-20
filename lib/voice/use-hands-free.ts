@@ -10,7 +10,7 @@ import * as Speech from "expo-speech";
 import { startVoiceRecognition } from "../native/voice-input";
 import { useChatStore } from "../store/chat-store";
 import { prefs } from "../store/prefs";
-import { greeting, interpretVoice, shouldStopForAppState, toSpeech } from "./hands-free";
+import { interpretVoice, shouldStopForAppState, toSpeech } from "./hands-free";
 
 // The outcome stored on a confirmed action's message, if any.
 function toolResultMessage(raw: string | undefined): string | null {
@@ -22,12 +22,16 @@ function toolResultMessage(raw: string | undefined): string | null {
   }
 }
 
+// Greet once per app session; after that, just say it is listening.
+let greetedThisSession = false;
+
 export function useHandsFree() {
   const [active, setActive] = useState(false);
   const activeRef = useRef(false);
   // True between sending a message and speaking the reply to it.
   const awaitingReplyRef = useRef(false);
   const listenRef = useRef<() => void>(() => {});
+  const [speaking, setSpeaking] = useState(false);
   // The recognizer is its own screen; while it is open the app reports "background".
   const recognizerOpenRef = useRef(false);
   const router = useRouter();
@@ -43,8 +47,20 @@ export function useHandsFree() {
   }, []);
 
   const speakThenListen = useCallback((text: string) => {
-    const next = () => listenRef.current();
-    Speech.speak(text, { onDone: next, onError: next });
+    const next = () => {
+      setSpeaking(false);
+      listenRef.current();
+    };
+    setSpeaking(true);
+    // onStopped: the user tapped to talk; interrupt() starts listening itself.
+    Speech.speak(text, { onDone: next, onError: next, onStopped: () => setSpeaking(false) });
+  }, []);
+
+  // Tap while Beginora is talking: stop talking and listen straight away.
+  const interrupt = useCallback(() => {
+    void Speech.stop();
+    setSpeaking(false);
+    listenRef.current();
   }, []);
 
   listenRef.current = () => {
@@ -103,13 +119,11 @@ export function useHandsFree() {
   }, [isGenerating, messages, pendingConfirmation, speakThenListen]);
 
   const start = useCallback(() => {
-    if (!useChatStore.getState().modelLoaded) {
-      Speech.speak("Please download a model in Settings, then we can talk.");
-      return;
-    }
     activeRef.current = true;
     setActive(true);
-    speakThenListen(greeting(prefs.userName, new Date().getHours()));
+    const name = prefs.userName;
+    speakThenListen(greetedThisSession ? "I'm listening." : `Hi${name ? `, ${name}` : ""}.`);
+    greetedThisSession = true;
   }, [speakThenListen]);
 
   // Never keep listening or talking once the app is in the background.
@@ -124,5 +138,5 @@ export function useHandsFree() {
     };
   }, [stop]);
 
-  return { active, start, stop };
+  return { active, speaking, start, stop, interrupt };
 }

@@ -4,7 +4,7 @@
 
 import { generate, isLoaded, estimatePromptTokens, getContextSize } from "../llm/llm-engine";
 import type { CompletionMessage } from "../llm/llm-engine";
-import { buildStablePrefix, annotateUserMessage } from "./prompt-builder";
+import { buildChatPrompt, buildStablePrefix, annotateUserMessage } from "./prompt-builder";
 import { schedulePrefixPersist } from "./session-warmer";
 import { parseResponse, stripThinkTags, looksLikeToolAttempt } from "./response-parser";
 import type {
@@ -35,6 +35,7 @@ import { prefs } from "../store/prefs";
 import { dateFromText, localDateTime, relativeTime, routeIntent } from "./intent-router";
 import { describeAction, unclearAction } from "./action-text";
 import { smallTalkReply } from "./small-talk";
+import { directAction } from "./direct-actions";
 
 const MAX_HISTORY_MESSAGES = 20;
 // Once the conversation exceeds the window, `slice(-MAX)` would re-slice to a
@@ -50,6 +51,8 @@ const HISTORY_SLIDE_STRIDE = 8;
 // ctx_shift evicts the oldest tokens (the system prompt) and small models
 // lose their instructions and ramble.
 export const REPLY_TOKENS = 1024;
+// Answers to questions: a few sentences. Small budgets mean fast replies.
+export const CHAT_REPLY_TOKENS = 320;
 
 // The index of the first history message to include. Rounds the "last MAX"
 // start DOWN to a stride boundary so it advances every STRIDE messages, not
@@ -57,6 +60,21 @@ export const REPLY_TOKENS = 1024;
 export function historyWindowStart(total: number): number {
   const minStart = Math.max(0, total - MAX_HISTORY_MESSAGES);
   return Math.floor(minStart / HISTORY_SLIDE_STRIDE) * HISTORY_SLIDE_STRIDE;
+}
+
+// Readable calendar data when no model is loaded to summarize it.
+function plainToolData(message: string, data: string | undefined): string {
+  try {
+    const items = JSON.parse(data ?? "[]") as { title?: string; start?: string; startDate?: string }[];
+    if (!Array.isArray(items) || items.length === 0) return message;
+    return [message, ...items.slice(0, 10).map((e) => `• ${e.title ?? "Event"}${e.start || e.startDate ? ` (${e.start ?? e.startDate})` : ""}`)].join("\n");
+  } catch {
+    return message;
+  }
+}
+
+export function withoutTimeTags(text: string): string {
+  return text.replace(/\[(Time context|Contesto temporale):[^\]]*\]/g, "").replace(/[ \t]+$/gm, "").trim();
 }
 
 function syntheticCompletion(text: string) {
@@ -96,14 +114,34 @@ export async function processMessage(
   // construction, which is the KV-cache invariant. Defaults to now.
   sentAt: Date = new Date(),
 ): Promise<OrchestratorResponse> {
-  if (!isLoaded()) {
-    return { type: "error", error: "No model loaded" };
-  }
-
   // Greetings, thanks, feelings and crisis wording are answered instantly in
   // code: small models loop or copy earlier replies on exactly these turns.
   const instant = smallTalkReply(userText, prefs.userName, history.filter((m) => m.role === "assistant").length);
   if (instant) return { type: "text", content: instant };
+
+  // Step 1, route: a clear action request names its tool (see intent-router).
+  const routedTool = routeIntent(userText);
+  // Step 2, fill: alarms, timers, reminders and texts are read from the words
+  // without a model call, so they are instant and work with any model or none.
+  const direct = routedTool ? directAction(routedTool, userText, sentAt) : null;
+  const modelReady = isLoaded();
+  const forced: string | null = direct
+    ? JSON.stringify(direct)
+    : routedTool === "get_calendar_events"
+      // Calendar questions are answered only from the real calendar.
+      ? JSON.stringify({ tool: routedTool, parameters: { date: dateFromText(userText, sentAt) } })
+      : !modelReady && routedTool === "break_down_task"
+        // The planner's rule engine works without a model.
+        ? JSON.stringify({ tool: routedTool, parameters: { task: userText } })
+        : null;
+  if (!modelReady && !forced) {
+    return {
+      type: "text",
+      content: lang === "it"
+        ? "Senza un modello posso già gestire sveglie, timer, promemoria, SMS, calendario e primi passi. Per domande libere scarica un modello in Impostazioni > Modelli (Qwen3 0.6B è il più veloce)."
+        : "Without a model I can already do alarms, timers, reminders, texts, your calendar and first steps. For open questions, download a model in Settings > Models (Qwen3 0.6B is the fastest).",
+    };
+  }
 
   // Fetch relevant memories and knowledge files for context injection, plus the
   // destructive-action confirmation setting (default ON for safety).
@@ -129,11 +167,13 @@ export async function processMessage(
   // so the replayed history is byte-identical across turns and the whole
   // conversation stays a growing KV-cache prefix.
   const name = prefs.userName;
-  // A clear action request gets a prompt listing only its tool (see intent-router).
-  const routedTool = routeIntent(userText);
-  const stablePrefix = buildStablePrefix(lang, memoriesBlock, knowledgeBlock, routedTool ? [routedTool] : undefined) +
-    (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "") +
-    (routedTool ? `\n\nThe latest message asks for ${routedTool}. Reply ONLY with the JSON for ${routedTool}.` : "");
+  // A routed action lists only its tool. Anything else is a question: a short
+  // tool-free prompt and a short answer keep small models fast and on point.
+  const stablePrefix = (routedTool
+    ? buildStablePrefix(lang, memoriesBlock, knowledgeBlock, [routedTool]) +
+      `\n\nThe latest message asks for ${routedTool}. Reply ONLY with the JSON for ${routedTool}.`
+    : buildChatPrompt(lang, memoriesBlock)) +
+    (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "");
 
   // Build conversation messages for the LLM
   const messages: CompletionMessage[] = [
@@ -188,13 +228,14 @@ export async function processMessage(
     // tool-selection consistency without hurting chat quality much (LLM-5).
     // Calendar questions are answered only from the real calendar: the date
     // comes from the words, so a small model can't answer from imagination.
-    const result = routedTool === "get_calendar_events"
-      ? syntheticCompletion(JSON.stringify({ tool: routedTool, parameters: { date: dateFromText(userText, sentAt) } }))
+    const result = forced !== null
+      ? syntheticCompletion(forced)
       : await generate(
         messages,
         // Qwen3 "thinking" would spend the reply budget on hidden reasoning
         // before answering; templates without the mode ignore the flag.
-        { maxTokens: REPLY_TOKENS, temperature: 0.3, enableThinking: false },
+        // Questions get a short answer budget: faster, and no rambling.
+        { maxTokens: routedTool ? REPLY_TOKENS : CHAT_REPLY_TOKENS, temperature: 0.3, enableThinking: false },
         onToken,
       );
     const raw = result.text;
@@ -259,6 +300,8 @@ export async function processMessage(
           // e.g. permission denied or no data — surface the reason as text.
           return { type: "text", content: toolResult.message };
         }
+        // Without a model, show the data itself instead of a summary.
+        if (!isLoaded()) return { type: "text", content: plainToolData(toolResult.message, toolResult.data) };
         // Clear the streamed tool-call JSON, then stream the real answer.
         onStreamReset?.();
         extraGenerationRan = true;
@@ -389,7 +432,8 @@ export async function processMessage(
       }
     } else {
       // Plain text response — keep think tags for styled UI rendering
-      response = { type: "text", content: raw };
+      // Small models echo the per-message time tag; it is never for the user.
+      response = { type: "text", content: withoutTimeTags(raw) };
       // A word-for-word copy of the previous reply: try once more, less greedily.
       const previous = [...history].reverse().find((m) => m.role === "assistant")?.content;
       if (previous && stripThinkTags(raw).trim() === stripThinkTags(previous).trim() && !result.stoppedByUser) {

@@ -410,14 +410,14 @@ export default function ChatScreen() {
       {Platform.OS === "android" && (
         <Pressable
           style={({ pressed }) => [styles.handsFree, handsFree.active && styles.handsFreeActive, pressed && { opacity: 0.8 }]}
-          onPress={handsFree.active ? handsFree.stop : handsFree.start}
+          onPress={!handsFree.active ? handsFree.start : handsFree.speaking ? handsFree.interrupt : handsFree.stop}
           accessibilityRole="button"
-          accessibilityLabel={handsFree.active ? "Stop hands-free conversation" : "Start hands-free conversation"}
+          accessibilityLabel={!handsFree.active ? "Start hands-free conversation" : handsFree.speaking ? "Stop talking and listen" : "Stop hands-free conversation"}
           accessibilityHint="Talk to Beginora and hear replies aloud. Say stop to end."
         >
           <Ionicons name={handsFree.active ? "stop-circle" : "headset"} size={20} color={handsFree.active ? "#FFFFFF" : colors.accent} />
           <Text style={[styles.handsFreeText, handsFree.active && { color: "#FFFFFF" }]}>
-            {handsFree.active ? "Listening… say \"stop\" to end" : "Talk hands-free"}
+            {!handsFree.active ? "Talk hands-free" : handsFree.speaking ? "Tap to talk now" : "Listening… tap or say \"stop\" to end"}
           </Text>
         </Pressable>
       )}
@@ -427,7 +427,7 @@ export default function ChatScreen() {
         onSend={sendMessage}
         onStop={stopGenerating}
         isGenerating={isGenerating}
-        disabled={!modelLoaded}
+        disabled={false}
       />
     </>
   );
