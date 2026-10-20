@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.10] — Reminders with sound, faster answers
+
+### Changed
+- Android `versionCode` 12 / version 0.2.10, so it installs over the 0.2.9 (build 11) test APK.
+
+---
+
 ## [0.2.9] — Hands-free voice fix
 
 ### Fixed
