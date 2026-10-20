@@ -63,7 +63,7 @@
   <li><b>Safety first:</b> deterministic pre-check before any model call; prompt-injection attempts are blocked; model output is never shown unless it passes the schema.</li>
   <li><b>Private by design:</b> tasks stay on the device; every signal source is off until the user turns it on.</li>
   <li><b>Calm language:</b> no streaks, guilt, urgency or claims about the user.</li>
-  <li><b>Tested:</b> 66 automated test suites (512 tests) plus a real-model evaluation: on a 0.6B Qwen3, 16/16 cases (actions with valid details, factual answers) and a non-repeating conversation cover the planner, safety rules, check-in rules, usage signals and the Telegram bot; fixes are checked by tests that fail on the old code.</li>
+  <li><b>Tested:</b> 67 automated test suites (538 tests) plus a real-model evaluation on a 0.6B Qwen3: every action and date question correct, a non-repeating conversation, and honest limits (it still misses some general-knowledge facts) cover the planner, safety rules, check-in rules, usage signals and the Telegram bot; fixes are checked by tests that fail on the old code.</li>
 </ul>
 <h2>Limits and next steps</h2>
 <p>A planning aid, not a medical device: it does not diagnose or treat ADHD. Background timing depends on each phone's battery rules. Next: a real-model evaluation set on desktop and phone, data export and delete-all, and a small consented pilot with students.</p>
