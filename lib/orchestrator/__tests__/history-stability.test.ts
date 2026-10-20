@@ -287,3 +287,46 @@ describe("phone transcript: date answer, then a fact question (Qwen3 0.6B)", () 
     expect(res).toEqual({ type: "text", content: "Tomorrow is Wednesday. That makes sense." });
   });
 });
+
+describe("online model", () => {
+  const { prefs } = jest.requireActual("../../store/prefs");
+  const remote = jest.requireActual("../../llm/remote-engine");
+  let remoteSpy: jest.SpyInstance;
+  let settingsSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    prefs.onlineMode = "always";
+    settingsSpy = jest.spyOn(remote, "onlineSettings").mockResolvedValue({ url: "https://x/v1/chat/completions", model: "m", key: "k" });
+    remoteSpy = jest.spyOn(remote, "remoteGenerate");
+  });
+  afterEach(() => {
+    prefs.onlineMode = "off";
+    remoteSpy.mockRestore();
+    settingsSpy.mockRestore();
+  });
+
+  test("a question goes online and is marked as an online answer", async () => {
+    remoteSpy.mockResolvedValue(gen("Nigeria has 36 states and the FCT."));
+    const res = await processMessage("how many states are in Nigeria?", [], "en");
+    expect(mockGenerate).not.toHaveBeenCalled();
+    expect(res).toEqual({ type: "text", content: "Nigeria has 36 states and the FCT.", source: "online" });
+  });
+
+  test("an alarm never goes online", async () => {
+    await processMessage("set an alarm for 7am", [], "en");
+    expect(remoteSpy).not.toHaveBeenCalled();
+  });
+
+  test("when the online model fails, the phone model answers", async () => {
+    remoteSpy.mockRejectedValue(new Error("No internet connection to the online model."));
+    mockGenerate.mockResolvedValue(gen("Abuja."));
+    const res = await processMessage("what is the capital of Nigeria?", [], "en");
+    expect(res).toEqual({ type: "text", content: "Abuja." });
+  });
+
+  test("memories are not sent online unless the user allows it", async () => {
+    remoteSpy.mockResolvedValue(gen("ok"));
+    await processMessage("what do you know about me?", [], "en");
+    expect(remoteSpy.mock.calls[0][0][0].content).not.toContain("ama il caffè");
+  });
+});

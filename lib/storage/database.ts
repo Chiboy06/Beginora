@@ -161,6 +161,33 @@ export const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_task_outcomes_task ON task_outcomes(task_id, created_at DESC);
     `,
   },
+  {
+    // Planner, mood journal and routines: task notes and repeat, daily mood and
+    // journal entries, and the user's saved routines.
+    version: 6,
+    sql: `
+      ALTER TABLE tasks ADD COLUMN notes TEXT;
+      ALTER TABLE tasks ADD COLUMN repeat TEXT NOT NULL DEFAULT 'never';
+
+      CREATE TABLE IF NOT EXISTS journal_entries (
+        id TEXT PRIMARY KEY,
+        mood TEXT,
+        title TEXT,
+        body TEXT,
+        tags TEXT NOT NULL DEFAULT '[]',
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_journal_created ON journal_entries(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS routines (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        emoji TEXT,
+        steps TEXT NOT NULL DEFAULT '[]',
+        created_at INTEGER NOT NULL
+      );
+    `,
+  },
 ];
 
 // Exported for testing. Applies every migration whose version exceeds the DB's
@@ -854,17 +881,21 @@ export interface Task {
   completedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  notes?: string | null;
+  repeat?: Repeat;
 }
+
+export type Repeat = "never" | "daily" | "weekdays" | "weekly";
 
 async function insertTaskRow(d: SQLite.SQLiteDatabase, task: Task): Promise<void> {
   await d.runAsync(
     `INSERT OR REPLACE INTO tasks
-       (id, title, first_action, steps, reminder_id, status, priority, due_at, completed_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, title, first_action, steps, reminder_id, status, priority, due_at, completed_at, created_at, updated_at, notes, repeat)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     task.id, task.title, task.firstAction ?? null, JSON.stringify(task.steps), task.reminderId,
     task.status,
     task.priority, task.dueAt ?? null, task.completedAt ?? null,
-    task.createdAt, task.updatedAt,
+    task.createdAt, task.updatedAt, task.notes ?? null, task.repeat ?? "never",
   );
 }
 
@@ -919,6 +950,7 @@ export async function getTasks(status?: Task["status"]): Promise<Task[]> {
     steps: parseTaskSteps(r.steps), reminderId: r.reminder_id ?? null,
     status: r.status, priority: r.priority, dueAt: r.due_at,
     completedAt: r.completed_at, createdAt: r.created_at, updatedAt: r.updated_at,
+    notes: r.notes ?? null, repeat: (r.repeat ?? "never") as Repeat,
   }));
 }
 
@@ -1053,4 +1085,104 @@ export async function deleteTask(id: string): Promise<void> {
     await d.runAsync("DELETE FROM task_outcomes WHERE task_id = ?", id);
     await d.runAsync("DELETE FROM tasks WHERE id = ?", id);
   });
+}
+
+// Title, notes, time and repeat edited together from the task form.
+export async function updateTaskDetails(
+  id: string,
+  fields: { title: string; notes: string | null; dueAt: number | null; repeat: Repeat; steps: string[] },
+): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync(
+    "UPDATE tasks SET title = ?, notes = ?, due_at = ?, repeat = ?, steps = ?, updated_at = ? WHERE id = ?",
+    fields.title, fields.notes, fields.dueAt, fields.repeat, JSON.stringify(fields.steps), Date.now(), id,
+  );
+}
+
+// A repeating task moves to its next time instead of staying done.
+export async function rollTaskForward(id: string, dueAt: number): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync(
+    "UPDATE tasks SET status = 'pending', completed_at = NULL, due_at = ?, updated_at = ? WHERE id = ?",
+    dueAt, Date.now(), id,
+  );
+}
+
+// --- Mood and journal ---
+
+export interface JournalEntry {
+  id: string;
+  mood: string | null;
+  title: string | null;
+  body: string | null;
+  tags: string[];
+  createdAt: number;
+}
+
+export async function saveJournalEntry(entry: JournalEntry): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync(
+    "INSERT OR REPLACE INTO journal_entries (id, mood, title, body, tags, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    entry.id, entry.mood, entry.title, entry.body, JSON.stringify(entry.tags), entry.createdAt,
+  );
+}
+
+export async function getJournalEntries(sinceMs = 0): Promise<JournalEntry[]> {
+  const d = await getDatabase();
+  const rows = await d.getAllAsync<any>(
+    "SELECT * FROM journal_entries WHERE created_at >= ? ORDER BY created_at DESC",
+    sinceMs,
+  );
+  return rows.map((r) => ({
+    id: r.id, mood: r.mood ?? null, title: r.title ?? null, body: r.body ?? null,
+    tags: parseTaskSteps(r.tags), createdAt: r.created_at,
+  }));
+}
+
+export async function deleteJournalEntry(id: string): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync("DELETE FROM journal_entries WHERE id = ?", id);
+}
+
+// --- Routines ---
+
+export interface RoutineStep {
+  title: string;
+  minutes: number;
+}
+
+export interface Routine {
+  id: string;
+  name: string;
+  emoji: string | null;
+  steps: RoutineStep[];
+  createdAt: number;
+}
+
+export async function saveRoutine(routine: Routine): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync(
+    "INSERT OR REPLACE INTO routines (id, name, emoji, steps, created_at) VALUES (?, ?, ?, ?, ?)",
+    routine.id, routine.name, routine.emoji, JSON.stringify(routine.steps), routine.createdAt,
+  );
+}
+
+export async function getRoutines(): Promise<Routine[]> {
+  const d = await getDatabase();
+  const rows = await d.getAllAsync<any>("SELECT * FROM routines ORDER BY created_at ASC");
+  return rows.map((r) => {
+    let steps: RoutineStep[] = [];
+    try {
+      const parsed = JSON.parse(r.steps);
+      if (Array.isArray(parsed)) {
+        steps = parsed.filter((x) => x && typeof x.title === "string").map((x) => ({ title: x.title, minutes: Number(x.minutes) || 5 }));
+      }
+    } catch {}
+    return { id: r.id, name: r.name, emoji: r.emoji ?? null, steps, createdAt: r.created_at };
+  });
+}
+
+export async function deleteRoutine(id: string): Promise<void> {
+  const d = await getDatabase();
+  await d.runAsync("DELETE FROM routines WHERE id = ?", id);
 }

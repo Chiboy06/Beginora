@@ -383,7 +383,7 @@ function AddFromHuggingFace({
           autoCorrect={false}
         />
         <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={browse} disabled={loading} activeOpacity={0.7}>
-          {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnPrimaryText}>Browse</Text>}
+          {loading ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={styles.btnPrimaryText}>Browse</Text>}
         </TouchableOpacity>
       </View>
       {err && <Text style={styles.rowError}>{err}</Text>}
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   btnRow: { flexDirection: "row", gap: 10, marginTop: 14, flexWrap: "wrap" },
   btn: { borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10, justifyContent: "center" },
   btnPrimary: { backgroundColor: colors.accent },
-  btnPrimaryText: { color: "#fff", ...typography.button },
+  btnPrimaryText: { color: colors.onAccent, ...typography.button },
   btnOutline: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.accent },
   btnOutlineText: { color: colors.accent, ...typography.button },
   btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.error },

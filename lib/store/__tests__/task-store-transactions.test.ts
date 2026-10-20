@@ -22,8 +22,10 @@ jest.mock("../../storage/database", () => ({
   updateTaskReminderId: jest.fn(),
   recordTaskOutcome: jest.fn(),
   deleteTask: jest.fn(),
+  updateTaskDetails: jest.fn(),
+  rollTaskForward: jest.fn(),
 }));
-jest.mock("../../native/reminders", () => ({ cancelLocalReminder: jest.fn() }));
+jest.mock("../../native/reminders", () => ({ cancelLocalReminder: jest.fn(), scheduleLocalReminder: jest.fn() }));
 jest.mock("uuid", () => ({ v4: () => "generated-task-id" }));
 
 const baseTask = {
@@ -102,5 +104,46 @@ describe("task store transaction ordering", () => {
 
     expect(updateTaskReminderId).not.toHaveBeenCalled();
     expect(useTaskStore.getState().tasks[0].reminderId).toBe("notification-1");
+  });
+});
+
+
+describe("planner fields", () => {
+  const db = jest.requireMock("../../storage/database");
+  const reminders = jest.requireMock("../../native/reminders");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    reminders.cancelLocalReminder.mockResolvedValue(true);
+    reminders.scheduleLocalReminder.mockResolvedValue({ success: true, identifier: "rem-new", message: "ok" });
+    for (const fn of ["saveTask", "updateTaskStatus", "updateTaskReminderId", "updateTaskDetails", "rollTaskForward"]) db[fn].mockResolvedValue(undefined);
+  });
+
+  test("a new task with a time gets a reminder at that time", async () => {
+    useTaskStore.setState({ tasks: [] });
+    const at = Date.now() + 60 * 60_000;
+    const task = await useTaskStore.getState().addTask("Call the dentist", { dueAt: at, remind: true });
+    expect(reminders.scheduleLocalReminder).toHaveBeenCalledWith("Call the dentist", new Date(at).toISOString(), null, { kind: "task", taskId: task.id });
+    expect(db.saveTask.mock.calls[0][0]).toMatchObject({ dueAt: at, reminderId: "rem-new", repeat: "never" });
+  });
+
+  test("finishing a daily task moves it to tomorrow with a new reminder instead of closing it", async () => {
+    const due = Date.now() - 60_000;
+    useTaskStore.setState({ tasks: [{ ...baseTask, dueAt: due, repeat: "daily", reminderId: "rem-old" }] });
+    await useTaskStore.getState().setStatus("existing", "done");
+    const next = db.rollTaskForward.mock.calls[0][1];
+    expect(next).toBeGreaterThan(Date.now());
+    expect(new Date(next).getHours()).toBe(new Date(due).getHours());
+    expect(reminders.cancelLocalReminder).toHaveBeenCalledWith("rem-old");
+    expect(useTaskStore.getState().tasks[0]).toMatchObject({ status: "pending", dueAt: next, reminderId: "rem-new", completedAt: null });
+  });
+
+  test("editing the time replaces the old reminder", async () => {
+    useTaskStore.setState({ tasks: [{ ...baseTask, reminderId: "rem-old" }] });
+    const at = Date.now() + 2 * 60 * 60_000;
+    await useTaskStore.getState().updateDetails("existing", { title: "Review notes", dueAt: at, repeat: "weekly", remind: true });
+    expect(reminders.cancelLocalReminder).toHaveBeenCalledWith("rem-old");
+    expect(db.updateTaskDetails).toHaveBeenCalledWith("existing", expect.objectContaining({ dueAt: at, repeat: "weekly" }));
+    expect(useTaskStore.getState().tasks[0]).toMatchObject({ dueAt: at, repeat: "weekly", reminderId: "rem-new" });
   });
 });

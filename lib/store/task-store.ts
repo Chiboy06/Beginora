@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { v4 as uuid } from "uuid";
-import type { Task, TaskOutcome } from "../storage/database";
+import type { Repeat, Task, TaskOutcome } from "../storage/database";
 import {
   saveTask,
   saveTaskWithPlan,
@@ -11,8 +11,28 @@ import {
   updateTaskReminderId,
   recordTaskOutcome,
   deleteTask,
+  updateTaskDetails,
+  rollTaskForward,
 } from "../storage/database";
-import { cancelLocalReminder } from "../native/reminders";
+import { cancelLocalReminder, scheduleLocalReminder } from "../native/reminders";
+import { nextOccurrence } from "../planner/schedule";
+
+export interface TaskDetails {
+  title: string;
+  notes?: string | null;
+  dueAt?: number | null;
+  repeat?: Repeat;
+  steps?: string[];
+  // Ring at dueAt. Ignored when dueAt is empty or already past.
+  remind?: boolean;
+}
+
+// One reminder at the task's time; null when there is nothing to schedule.
+async function scheduleTaskReminder(task: { id: string; title: string }, dueAt: number | null | undefined): Promise<string | null> {
+  if (!dueAt || dueAt <= Date.now() + 1000) return null;
+  const result = await scheduleLocalReminder(task.title, new Date(dueAt).toISOString(), null, { kind: "task", taskId: task.id });
+  return result.success && result.identifier ? result.identifier : null;
+}
 
 interface TaskState {
   tasks: Task[];
@@ -20,7 +40,8 @@ interface TaskState {
   error: string | null;
 
   loadTasks: () => Promise<void>;
-  addTask: (title: string) => Promise<Task>;
+  addTask: (title: string, details?: Omit<TaskDetails, "title">) => Promise<Task>;
+  updateDetails: (id: string, details: TaskDetails) => Promise<void>;
   createTaskWithPlan: (title: string, firstAction: string, steps: string[]) => Promise<Task>;
   setPlan: (id: string, firstAction: string, steps: string[]) => Promise<void>;
   setFirstAction: (id: string, firstAction: string) => Promise<void>;
@@ -33,7 +54,27 @@ interface TaskState {
   clearError: () => void;
 }
 
-export const useTaskStore = create<TaskState>((set, get) => ({
+export const useTaskStore = create<TaskState>((set, get) => {
+  // A repeating task that is done moves to its next time, with a new reminder.
+  const rollRepeating = async (task: Task): Promise<boolean> => {
+    const next = task.dueAt !== null ? nextOccurrence(task.dueAt, task.repeat ?? "never", Date.now()) : null;
+    if (next === null) return false;
+    try {
+      await rollTaskForward(task.id, next);
+    } catch {
+      set({ error: "Done, but the next repeat could not be scheduled." });
+      return false;
+    }
+    if (task.reminderId) await cancelLocalReminder(task.reminderId).catch(() => false);
+    const reminderId = task.reminderId ? await scheduleTaskReminder(task, next).catch(() => null) : null;
+    await updateTaskReminderId(task.id, reminderId).catch(() => {});
+    set((s) => ({
+      tasks: s.tasks.map((t) => (t.id === task.id ? { ...t, status: "pending", completedAt: null, dueAt: next, reminderId } : t)),
+    }));
+    return true;
+  };
+
+  return {
   tasks: [],
   loading: false,
   error: null,
@@ -48,21 +89,24 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  addTask: async (title) => {
+  addTask: async (title, details = {}) => {
     const now = Date.now();
     const task: Task = {
       id: uuid(),
       title,
       firstAction: null,
-      steps: [],
+      steps: details.steps ?? [],
       reminderId: null,
       status: "pending",
       priority: 0,
-      dueAt: null,
+      dueAt: details.dueAt ?? null,
       completedAt: null,
       createdAt: now,
       updatedAt: now,
+      notes: details.notes ?? null,
+      repeat: details.repeat ?? "never",
     };
+    if (details.remind) task.reminderId = await scheduleTaskReminder(task, task.dueAt).catch(() => null);
     try {
       await saveTask(task);
       set((s) => ({ tasks: [task, ...s.tasks], error: null }));
@@ -71,6 +115,31 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       set({ error: "Failed to save task" });
       throw new Error("Failed to save task");
     }
+  },
+
+  updateDetails: async (id, details) => {
+    const previous = get().tasks.find((task) => task.id === id);
+    if (!previous) return;
+    const next: Task = {
+      ...previous,
+      title: details.title,
+      notes: details.notes ?? null,
+      dueAt: details.dueAt ?? null,
+      repeat: details.repeat ?? "never",
+      steps: details.steps ?? previous.steps,
+      updatedAt: Date.now(),
+    };
+    try {
+      await updateTaskDetails(id, { title: next.title, notes: next.notes ?? null, dueAt: next.dueAt, repeat: next.repeat ?? "never", steps: next.steps });
+    } catch {
+      set({ error: "Failed to save task" });
+      throw new Error("Failed to save task");
+    }
+    // The old reminder rang at the old time: replace it.
+    if (previous.reminderId) await cancelLocalReminder(previous.reminderId).catch(() => false);
+    next.reminderId = details.remind ? await scheduleTaskReminder(next, next.dueAt).catch(() => null) : null;
+    await updateTaskReminderId(id, next.reminderId).catch(() => {});
+    set((s) => ({ tasks: s.tasks.map((task) => (task.id === id ? next : task)) }));
   },
 
   createTaskWithPlan: async (title, firstAction, steps) => {
@@ -138,6 +207,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           : task,
       ),
     }));
+    if (status === "done" && previous && (await rollRepeating(previous))) return;
     if (status === "done" && previous?.reminderId) {
       try {
         if (await cancelLocalReminder(previous.reminderId)) {
@@ -172,6 +242,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           : task,
       ),
     }));
+    if (status === "done" && previous && (await rollRepeating(previous))) return;
     if (status === "done" && previous?.reminderId) {
       try {
         if (await cancelLocalReminder(previous.reminderId)) {
@@ -253,4 +324,5 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
-}));
+  };
+});

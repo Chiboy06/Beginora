@@ -272,5 +272,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: spacing.sm,
   },
-  importBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
+  importBtnText: { color: colors.onAccent, fontSize: 15, fontWeight: "600" },
 });

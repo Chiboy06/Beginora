@@ -1,6 +1,6 @@
 {
   "name": "beginora",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "jest",
+    "test:relay": "node --test relay/test/worker.test.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

@@ -31,7 +31,7 @@ import { createNativeSplashHideController } from "../lib/startup/native-splash";
 import { startTelegramBot, stopTelegramBot } from "../lib/telegram/telegram-runner";
 import { setCheckInsScheduled } from "../lib/focus/background-check-ins";
 import { smsUrl } from "../lib/native/communication";
-import { colors, spacing, typography } from "../lib/theme";
+import { colors, isDark, spacing, typography } from "../lib/theme";
 
 // Keep Expo's default first-frame splash dismissal. A module-level manual hold
 // can strand the user on the native splash if this tree fails before mounting.
@@ -203,7 +203,7 @@ export default function RootLayout() {
       <View
         style={styles.splash}
       >
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <View style={styles.splashInner}>
           <Text style={styles.splashWordmark}>Beginora</Text>
           <Text style={styles.splashTagline}>Getting your tasks ready…</Text>
@@ -219,7 +219,7 @@ export default function RootLayout() {
   // blinks. Gate screens with Stack.Protected instead.
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? "light" : "dark"} />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.surface },
@@ -247,6 +247,15 @@ export default function RootLayout() {
           <Stack.Screen name="calendar" options={{ title: "Calendar preparation", presentation: "modal" }} />
           <Stack.Screen name="appointment/new" options={{ title: "Add appointment", presentation: "modal" }} />
           <Stack.Screen name="email" options={{ title: "Email draft", presentation: "modal" }} />
+          <Stack.Screen name="capture" options={{ title: "Capture", presentation: "modal" }} />
+          <Stack.Screen name="task/edit" options={{ title: "Edit task", presentation: "modal" }} />
+          <Stack.Screen name="reset" options={{ title: "Reset my day" }} />
+
+          {/* Routines, mood and journal */}
+          <Stack.Screen name="routines/index" options={{ title: "Routines" }} />
+          <Stack.Screen name="routines/[id]" options={{ title: "Routine" }} />
+          <Stack.Screen name="journal/index" options={{ title: "Mood & journal" }} />
+          <Stack.Screen name="journal/new" options={{ title: "Journal entry", presentation: "modal" }} />
 
           {/* Utility screens */}
           <Stack.Screen name="connectors" options={{ title: "Permissions" }} />
@@ -255,6 +264,8 @@ export default function RootLayout() {
           <Stack.Screen name="documents" options={{ title: "Documents" }} />
           <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
           <Stack.Screen name="memory" options={{ title: "Memory" }} />
+          <Stack.Screen name="online-ai" options={{ title: "Online model" }} />
+          <Stack.Screen name="telegram" options={{ title: "Telegram" }} />
           <Stack.Screen name="mcp" options={{ title: "MCP Server" }} />
         </Stack.Protected>
       </Stack>

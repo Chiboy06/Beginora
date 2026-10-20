@@ -1,0 +1,17 @@
+name = "beginora-telegram-relay"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Your bot's username, without @ (from BotFather).
+BOT_USERNAME = "BeginoraBot"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "beginora-relay"
+# Paste the database_id printed by: npx wrangler d1 create beginora-relay
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+
+# Secrets (never in this file):
+#   npx wrangler secret put BOT_TOKEN
+#   npx wrangler secret put WEBHOOK_SECRET

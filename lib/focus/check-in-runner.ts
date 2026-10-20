@@ -34,7 +34,12 @@ export async function runCheckInScan(now = Date.now()): Promise<CheckIn | null> 
   );
   const log = pruneNudgeLog(prefs.checkInLog, now);
 
-  const checkIn = pickCheckIn({ now, tasks, outcomes, lastNudgeAt: log, drift: await detectDrift(now) });
+  // The user's quiet hours from Settings; otherwise the default 22:00-08:00.
+  const quiet = prefs.quietHours;
+  const checkIn = pickCheckIn({
+    now, tasks, outcomes, lastNudgeAt: log, drift: await detectDrift(now),
+    ...(quiet.enabled ? { quietStartHour: quiet.start, quietEndHour: quiet.end } : {}),
+  });
   if (!checkIn) {
     prefs.checkInLog = log;
     return null;

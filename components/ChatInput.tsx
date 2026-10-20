@@ -138,10 +138,10 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 3,
-    backgroundColor: "#fff",
+    backgroundColor: colors.onAccent,
   },
   sendText: {
-    color: "#fff",
+    color: colors.onAccent,
     fontSize: 18,
     fontWeight: "bold",
   },

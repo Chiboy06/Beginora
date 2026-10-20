@@ -70,7 +70,13 @@ export async function scheduleLocalReminder(
       return { success: false, message: "Notifications are off. You can still use Beginora without reminders." };
     }
     const identifier = await Notifications.scheduleNotificationAsync({
-      content: { title: "Beginora reminder", body: text, sound: "default", ...(data ? { data } : {}) },
+      content: {
+        title: "Beginora reminder",
+        // The lock screen can show a plain line instead of what the reminder is about.
+        body: prefs.hideReminderText ? "You have a reminder." : text,
+        sound: "default",
+        ...(data ? { data } : {}),
+      },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: when,

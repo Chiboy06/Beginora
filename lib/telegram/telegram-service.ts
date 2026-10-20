@@ -4,6 +4,8 @@
 
 import * as SecureStore from "expo-secure-store";
 import { deleteConfig, getConfig, setConfig } from "../storage/database";
+import { prefs } from "../store/prefs";
+import { relaySend, RelayError } from "./relay-client";
 
 const KEY_TOKEN = "telegram_bot_token";
 const KEY_CHAT_ID = "telegram_chat_id";
@@ -66,6 +68,15 @@ export interface TelegramSendResult {
 }
 
 export async function sendTelegramMessage(text: string): Promise<TelegramSendResult> {
+  // Connected to the shared Beginora bot: send through the relay.
+  if (prefs.telegramRelayLinked) {
+    try {
+      await relaySend(text, true);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof RelayError ? err.message : "Could not reach the Beginora bot." };
+    }
+  }
   const cfg = await getTelegramConfig();
   if (!cfg.enabled || !cfg.botToken || !cfg.chatId) {
     return { ok: false, error: "Telegram is not configured." };

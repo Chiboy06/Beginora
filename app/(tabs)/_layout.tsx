@@ -49,16 +49,25 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Today",
+          headerShown: false,
           tabBarLabel: "Today",
           tabBarIcon: tabIcon("sunny", "sunny-outline"),
         }}
       />
       <Tabs.Screen
+        name="talk"
+        options={{
+          title: "Talk",
+          tabBarLabel: "Talk",
+          tabBarIcon: tabIcon("chatbubble-ellipses", "chatbubble-ellipses-outline"),
+        }}
+      />
+      <Tabs.Screen
         name="tasks"
         options={{
-          title: "Tasks",
-          tabBarLabel: "Tasks",
-          tabBarIcon: tabIcon("checkmark-circle", "checkmark-circle-outline"),
+          title: "Plan",
+          tabBarLabel: "Plan",
+          tabBarIcon: tabIcon("calendar", "calendar-outline"),
         }}
       />
       <Tabs.Screen

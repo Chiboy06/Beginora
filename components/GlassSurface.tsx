@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: "rgba(255, 255, 255, 0.78)",
+    backgroundColor: colors.glassStrong,
   },
   glowAmber: {
     position: "absolute",
@@ -122,8 +122,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.88)",
-    backgroundColor: "rgba(255,255,255,0.58)",
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glass,
     shadowColor: "#34443B",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -131,8 +131,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   surface: {
-    backgroundColor: "rgba(255,255,255,0.58)",
+    backgroundColor: colors.glass,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.5)",
+    borderColor: colors.glassBorder,
   },
 });

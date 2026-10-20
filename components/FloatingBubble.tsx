@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  openLabel: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  openLabel: { fontSize: 13, fontWeight: "700", color: colors.onAccent },
   closeBtn: {
     width: 44,
     height: 44,

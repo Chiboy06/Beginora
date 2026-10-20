@@ -93,5 +93,5 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
   },
-  btnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  btnText: { color: colors.onAccent, fontSize: 16, fontWeight: "700" },
 });

@@ -10,5 +10,5 @@ export default function ChatLinkRoute() {
     ...(typeof focus === "string" && focus ? { focus } : {}),
   };
 
-  return <Redirect href={{ pathname: "/", params }} />;
+  return <Redirect href={{ pathname: "/talk", params }} />;
 }

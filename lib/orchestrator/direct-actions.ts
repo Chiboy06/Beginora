@@ -125,3 +125,24 @@ export function directAction(tool: string, text: string, now: Date): DirectCall 
       return null;
   }
 }
+
+export interface Capture {
+  title: string;
+  // The time the user said, if any.
+  at: Date | null;
+  // A day without a clock ("tomorrow"): the capture screen offers times instead of guessing.
+  day: Date | null;
+}
+
+// Quick capture: "call the dentist tomorrow at 9" becomes a title and a time.
+export function captureFrom(text: string, now: Date): Capture {
+  const said = text.trim().replace(/^(please\s+)?(remind me (to|about)|add (a )?(new )?task( to)?|i need to|i have to|don'?t forget to)\s+/i, "");
+  const at = when(said, now);
+  const dayWord = /\b(tomorrow|tonight|today)\b/i.exec(said)?.[1]?.toLowerCase();
+  const day = !at && dayWord
+    ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + (dayWord === "tomorrow" ? 1 : 0))
+    : null;
+  const stripped = at || day ? withoutTime(said) : said;
+  const title = (stripped || said).replace(/^[a-z]/, (c) => c.toUpperCase()).slice(0, 200);
+  return { title, at, day };
+}

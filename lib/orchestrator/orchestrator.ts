@@ -2,7 +2,7 @@
 // Routes user messages through the LLM, parses tool calls, dispatches actions.
 // Now includes memory retrieval (inject into prompt) and extraction (post-response).
 
-import { generate, isLoaded, estimatePromptTokens, getContextSize } from "../llm/llm-engine";
+import { generate, isLoaded, estimatePromptTokens, getContextSize, getModelInfo } from "../llm/llm-engine";
 import type { CompletionMessage } from "../llm/llm-engine";
 import { chatSystemPrompt, buildStablePrefix, annotateUserMessage } from "./prompt-builder";
 import { schedulePrefixPersist } from "./session-warmer";
@@ -38,6 +38,7 @@ import { dateTimeReply, smallTalkReply } from "./small-talk";
 import { directAction } from "./direct-actions";
 import { asksAboutUser } from "./memory-gate";
 import { tidyReply } from "./reply-tidy";
+import { onlineSettings, remoteGenerate, wantsOnline, type OnlineSettings } from "../llm/remote-engine";
 
 const MAX_HISTORY_MESSAGES = 20;
 // Once the conversation exceeds the window, `slice(-MAX)` would re-slice to a
@@ -164,7 +165,13 @@ export async function processMessage(
         // The planner's rule engine works without a model.
         ? JSON.stringify({ tool: routedTool, parameters: { task: userText } })
         : null;
-  if (!modelReady && !forced) {
+  // Questions (never actions) may go to the user's online model.
+  let online: OnlineSettings | null = null;
+  if (!routedTool && wantsOnline(prefs.onlineMode, modelReady, () => getModelInfo().path ?? "")) {
+    const settings = await onlineSettings().catch(() => null);
+    if (settings?.url && settings.model) online = settings;
+  }
+  if (!modelReady && !forced && !online) {
     return {
       type: "text",
       content: lang === "it"
@@ -198,7 +205,7 @@ export async function processMessage(
   // conversation stays a growing KV-cache prefix.
   const name = prefs.userName;
   // Questions see memories only when they are about the user.
-  const withMemories = asksAboutUser(userText);
+  const withMemories = asksAboutUser(userText) && (!online || prefs.onlineSendMemories);
   // A routed action lists only its tool. Anything else is a question: a short
   // tool-free prompt and a short answer keep small models fast and on point.
   const stablePrefix = routedTool
@@ -266,16 +273,26 @@ export async function processMessage(
     // (LLM-5). Questions use CHAT_SAMPLING, which avoids repetition loops.
     // Calendar questions are answered only from the real calendar: the date
     // comes from the words, so a small model can't answer from imagination.
+    const chatOptions = { maxTokens: CHAT_REPLY_TOKENS, ...CHAT_SAMPLING, enableThinking: false };
+    let usedOnline = false;
     const result = forced !== null
       ? syntheticCompletion(forced)
-      : await generate(
+      : online
+        ? await remoteGenerate(messages, chatOptions, online).then((r) => { usedOnline = true; return r; }).catch((err: Error) =>
+          // Offline or refused: the phone model answers instead, or the user is told why.
+          modelReady
+            ? generate(messages, chatOptions, onToken)
+            : syntheticCompletion(lang === "it"
+              ? `Non riesco a raggiungere il modello online: ${err.message}`
+              : `I couldn't reach the online model: ${err.message} Your alarms, reminders and tasks still work offline.`))
+        : await generate(
         messages,
         // Qwen3 "thinking" would spend the reply budget on hidden reasoning
         // before answering; templates without the mode ignore the flag.
         // Questions get a short answer budget: faster, and no rambling.
         routedTool
           ? { maxTokens: REPLY_TOKENS, temperature: 0.3, enableThinking: false }
-          : { maxTokens: CHAT_REPLY_TOKENS, ...CHAT_SAMPLING, enableThinking: false },
+          : chatOptions,
         // An action turn produces tool JSON, not prose: show the typing
         // indicator instead of streaming raw JSON onto the screen.
         routedTool ? undefined : onToken,
@@ -405,13 +422,14 @@ export async function processMessage(
     };
 
     // Try to parse as tool call
-    const toolCall = parseResponse(raw);
+    // Online answers are always prose: the online prompt lists no tools.
+    const toolCall = usedOnline ? null : parseResponse(raw);
 
     let response: OrchestratorResponse;
 
     if (toolCall) {
       response = await handleToolCall(toolCall, raw);
-    } else if (looksLikeToolAttempt(raw)) {
+    } else if (!usedOnline && looksLikeToolAttempt(raw)) {
       // The model tried to emit a tool call but it didn't parse — malformed or
       // truncated. Per the Fase 2 exit gate, retry ONCE with a correction prompt
       // demanding valid JSON only; if it still fails, degrade gracefully instead
@@ -478,7 +496,7 @@ export async function processMessage(
       response = { type: "text", content: tidyReply(withoutTimeTags(raw)) };
       // A word-for-word copy of the previous reply: try once more, less greedily.
       const previous = [...history].reverse().find((m) => m.role === "assistant")?.content;
-      if (previous && stripThinkTags(raw).trim() === stripThinkTags(previous).trim() && !result.stoppedByUser) {
+      if (previous && !usedOnline && stripThinkTags(raw).trim() === stripThinkTags(previous).trim() && !result.stoppedByUser) {
         onStreamReset?.();
         extraGenerationRan = true;
         const again = await generate(messages, { maxTokens: CHAT_REPLY_TOKENS, ...CHAT_SAMPLING, temperature: 0.9, enableThinking: false }, onToken);
@@ -504,7 +522,7 @@ export async function processMessage(
     // the extraction generate and captures the just-finished turn's KV state.
     // Only question turns: their prompt is the one the startup warmer restores.
     // Only the memory-free prompt is cached: it is the one the warmer restores.
-    if (!routedTool && !withMemories && !result.stoppedByUser && !extraGenerationRan) {
+    if (!routedTool && !withMemories && !usedOnline && !result.stoppedByUser && !extraGenerationRan) {
       schedulePrefixPersist(stablePrefix, lang, messages, result.tokensPredicted);
     }
 
@@ -525,6 +543,7 @@ export async function processMessage(
       });
     }
 
+    if (usedOnline && response.type === "text") response = { ...response, source: "online" };
     return response;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

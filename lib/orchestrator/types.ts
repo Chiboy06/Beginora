@@ -11,7 +11,7 @@ export interface ParsedToolCall {
 export type OrchestratorResponse =
   | { type: "tool_call"; tool: string; parameters: Record<string, unknown>; message: string; result: ToolCallResult }
   | { type: "pending_tool_call"; tool: string; parameters: Record<string, unknown>; message: string }
-  | { type: "text"; content: string }
+  | { type: "text"; content: string; source?: "online" }
   | { type: "error"; error: string };
 
 export interface ToolCallResult {

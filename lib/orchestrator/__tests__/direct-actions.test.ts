@@ -114,3 +114,26 @@ describe("drafting a text for someone", () => {
     });
   });
 });
+
+describe("captureFrom", () => {
+  const { captureFrom } = jest.requireActual("../direct-actions");
+  const NOW = new Date(2026, 9, 20, 15, 0);
+
+  test("a time and a title", () => {
+    const c = captureFrom("Remind me to call the dentist tomorrow at 9am", NOW);
+    expect(c.title).toBe("Call the dentist");
+    expect(c.at).toEqual(new Date(2026, 9, 21, 9, 0));
+  });
+
+  test("a day without a clock asks for a time instead of guessing", () => {
+    const c = captureFrom("submit the document tomorrow", NOW);
+    expect(c.title).toBe("Submit the document");
+    expect(c.at).toBeNull();
+    expect(c.day).toEqual(new Date(2026, 9, 21));
+  });
+
+  test("no time at all goes to the inbox", () => {
+    const c = captureFrom("buy bread", NOW);
+    expect(c).toEqual({ title: "Buy bread", at: null, day: null });
+  });
+});

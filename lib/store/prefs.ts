@@ -124,4 +124,79 @@ export const prefs = {
   set keepModelInBackground(v: boolean) {
     storage.set("keep_model_in_background", v);
   },
+
+  // Last time Today was opened; a long gap shows "Welcome back".
+  get lastOpenedAt(): number {
+    return storage.getNumber("last_opened_at") ?? 0;
+  },
+  set lastOpenedAt(v: number) {
+    storage.set("last_opened_at", v);
+  },
+
+  // "system", "light" or "dark"; read by lib/theme.ts at start-up.
+  get appearance(): "system" | "light" | "dark" {
+    const v = storage.getString("appearance");
+    return v === "light" || v === "dark" ? v : "system";
+  },
+  set appearance(v: "system" | "light" | "dark") {
+    storage.set("appearance", v);
+  },
+
+  // Quiet hours for check-ins (hours 0-23). Reminders you set still ring.
+  get quietHours(): { enabled: boolean; start: number; end: number } {
+    return {
+      enabled: storage.getBoolean("quiet_enabled") ?? false,
+      start: storage.getNumber("quiet_start") ?? 22,
+      end: storage.getNumber("quiet_end") ?? 7,
+    };
+  },
+  set quietHours(v: { enabled: boolean; start: number; end: number }) {
+    storage.set("quiet_enabled", v.enabled);
+    storage.set("quiet_start", v.start);
+    storage.set("quiet_end", v.end);
+  },
+
+  // Lock screen shows "You have a reminder" instead of the reminder text.
+  get hideReminderText(): boolean {
+    return storage.getBoolean("hide_reminder_text") ?? false;
+  },
+  set hideReminderText(v: boolean) {
+    storage.set("hide_reminder_text", v);
+  },
+
+  // Online model: "off", "fallback" (no model or a tiny one) or "always".
+  get onlineMode(): "off" | "fallback" | "always" {
+    const v = storage.getString("online_mode");
+    return v === "fallback" || v === "always" ? v : "off";
+  },
+  set onlineMode(v: "off" | "fallback" | "always") {
+    storage.set("online_mode", v);
+  },
+  get onlineBaseUrl(): string {
+    return storage.getString("online_base_url") ?? "";
+  },
+  set onlineBaseUrl(v: string) {
+    storage.set("online_base_url", v.trim());
+  },
+  get onlineModel(): string {
+    return storage.getString("online_model") ?? "";
+  },
+  set onlineModel(v: string) {
+    storage.set("online_model", v.trim());
+  },
+  // Send memories and documents with online questions. Off by default.
+  get onlineSendMemories(): boolean {
+    return storage.getBoolean("online_send_memories") ?? false;
+  },
+  set onlineSendMemories(v: boolean) {
+    storage.set("online_send_memories", v);
+  },
+
+  // Linked to the shared Beginora Telegram bot through the relay.
+  get telegramRelayLinked(): boolean {
+    return storage.getBoolean("telegram_relay_linked") ?? false;
+  },
+  set telegramRelayLinked(v: boolean) {
+    storage.set("telegram_relay_linked", v);
+  },
 };

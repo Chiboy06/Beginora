@@ -358,6 +358,7 @@ export const useChatStore = create<ChatState>((set, get) => {
           conversationId,
           role: "assistant",
           content: response.content,
+          ...(response.source === "online" ? { modelUsed: `online:${prefs.onlineModel}` } : {}),
           createdAt: Date.now(),
         };
         break;
