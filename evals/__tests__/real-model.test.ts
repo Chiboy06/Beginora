@@ -116,6 +116,9 @@ type Expect = { tool?: string; text?: true; contains?: RegExp };
 const CASES: [string, Expect][] = [
   ["hi", { text: true }],
   ["what is the capital of Nigeria?", { text: true, contains: /abuja/i }],
+  ["can you define photosynthesis for my assignment?", { text: true, contains: /light|sun|plant/i }],
+  ["remind me to call Dr. Ben by 12 a.m.", { tool: "set_reminder" }],
+  ["add a task to finish my essay by 6pm", { tool: "add_task" }],
   ["set an alarm for 7 o'clock today", { tool: "set_alarm" }],
   ["Set a reminder for 5 a.m. tomorrow", { tool: "set_reminder" }],
   ["how are you?", { text: true }],

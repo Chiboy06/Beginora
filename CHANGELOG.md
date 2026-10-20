@@ -12,7 +12,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Small on-device models (verified against a real qwen3:0.6b with `evals/`): clear action requests now list only their tool; calendar questions read the real calendar; relative times ("in 1 hour") come from the clock; dates, alarm times and event titles are repaired and validated before you are asked to confirm; confirmation text is written by the app; notes keep your words; greetings, thanks, feelings and "what can you do" are answered instantly without the model; a reply identical to the previous one is regenerated. Result: 10/10 action cases with valid details and a varied 5-turn conversation, up from 7/10 with invalid times and a looping chat.
 
+- Common actions are filled from your words without the model (alarms, timers, reminders, texts, tasks, screen time): 2 to 9 ms instead of seconds, identical on any model. Chat works with no model loaded. Questions get a short prompt and short answers (capital of Nigeria: Abuja in 3 s on qwen3:0.6b).
+- Downloads pause with a resume point when the connection drops; Models shows Resume.
+- The keyboard no longer covers text fields (Android edge-to-edge).
+- Hands-free greets once per session and stops talking when you tap.
+
 ### Added
+- Qwen3 0.6B (397 MB) in the catalog as the fastest model.
+- "Add a task to … by 6pm" saves the task with a reminder; "how much screen time today?" lists your top apps.
 - Real-model evaluation (`evals/__tests__/real-model.test.ts`, run with `REAL_MODEL=qwen3:0.6b`): the app's own orchestrator against a model served by Ollama.
 - Design: a soft sage-to-stone gradient backdrop and a floating, rounded tab bar with filled/outlined vector icons; the bar hides while typing.
 - Voice navigation in hands-free mode: "open settings", "show my tasks", "go to the calendar", "open permissions", "open models", "open history", "open documents", "open new task" and "go back", matched without the model.
