@@ -96,6 +96,8 @@ interface ModelState {
   reloadActive: () => Promise<void>;
   remove: (id: string) => Promise<void>;
   cancel: (id: string) => Promise<void>;
+  // Continue a paused or interrupted download from where it stopped.
+  resume: (id: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -293,6 +295,27 @@ export const useModelStore = create<ModelState>((set, get) => ({
     await get().refresh();
   },
 
+  resume: async (id: string) => {
+    set({ error: null });
+    const model = await getModelById(id);
+    if (!model?.hfRepo || !model.hfFile) {
+      set({ error: "This download can't be resumed. Delete it and download again." });
+      return;
+    }
+    await setModelState(id, "downloading");
+    await continueDownload(set, get, {
+      id,
+      url: resolveUrl(model.hfRepo, model.hfFile),
+      fileName: baseName(model.filePath),
+      filePath: model.filePath,
+      expectedBytes: model.sizeBytes,
+      // The stored size may be approximate; never fail a complete download on it.
+      verifySize: false,
+      role: model.role,
+      resumeToken: model.resumeToken,
+    });
+  },
+
   cancel: async (id: string) => {
     await cancelTask(id);
     const model = await getModelById(id);
@@ -344,7 +367,37 @@ async function runDownload(
     state: "downloading",
   });
 
-  const id = model.id;
+  await continueDownload(set, get, {
+    id: model.id,
+    url: resolveUrl(args.repo, args.file.path),
+    fileName,
+    filePath,
+    expectedBytes: args.file.sizeBytes,
+    verifySize: args.exactSize,
+    role: args.role,
+    resumeToken: null,
+  });
+}
+
+interface DownloadJob {
+  id: string;
+  url: string;
+  fileName: string;
+  filePath: string;
+  expectedBytes: number;
+  verifySize: boolean;
+  role: InstalledModel["role"];
+  resumeToken: string | null;
+}
+
+// Runs (or resumes) a download and records the outcome. Shared by new
+// downloads and Resume after a pause or a dropped connection.
+async function continueDownload(
+  set: (partial: Partial<ModelState> | ((s: ModelState) => Partial<ModelState>)) => void,
+  get: () => ModelState,
+  job: DownloadJob,
+): Promise<void> {
+  const id = job.id;
   set((s) => ({
     progress: {
       ...s.progress,
@@ -352,7 +405,7 @@ async function runDownload(
         modelId: id,
         status: "downloading",
         bytesWritten: 0,
-        bytesTotal: args.file.sizeBytes,
+        bytesTotal: job.expectedBytes,
         bytesPerSec: 0,
         etaSeconds: null,
       },
@@ -362,11 +415,12 @@ async function runDownload(
 
   const outcome = await downloadModel({
     modelId: id,
-    url: resolveUrl(args.repo, args.file.path),
-    fileName,
-    filePath,
-    expectedBytes: args.file.sizeBytes,
-    verifySize: args.exactSize,
+    url: job.url,
+    fileName: job.fileName,
+    filePath: job.filePath,
+    expectedBytes: job.expectedBytes,
+    verifySize: job.verifySize,
+    resumeToken: job.resumeToken,
     onProgress: (p) =>
       set((s) => ({
         progress: {
@@ -383,7 +437,7 @@ async function runDownload(
   // the download may have committed in the cancel race so it can't orphan (C1).
   const stillExists = await getModelById(id);
   if (!stillExists) {
-    await deleteFileIfUnreferenced(filePath);
+    await deleteFileIfUnreferenced(job.filePath);
     return;
   }
 
@@ -401,9 +455,13 @@ async function runDownload(
     return;
   }
 
-  // Paused: keep the row + partial so the user can resume later.
+  // Paused (by the user or a dropped connection): keep the row, the partial
+  // file and the resume point so Resume continues where it stopped.
   if (outcome.paused) {
     await setModelState(id, "paused");
+    set((s) => ({
+      progress: { ...s.progress, [id]: { ...(s.progress[id] ?? { modelId: id, bytesWritten: 0, bytesTotal: job.expectedBytes, bytesPerSec: 0, etaSeconds: null }), status: "paused" } },
+    }));
     await get().refresh();
     return;
   }
@@ -417,7 +475,7 @@ async function runDownload(
           modelId: id,
           status: "error",
           bytesWritten: 0,
-          bytesTotal: args.file.sizeBytes,
+          bytesTotal: job.expectedBytes,
           bytesPerSec: 0,
           etaSeconds: null,
           error: outcome.error,
@@ -452,7 +510,7 @@ async function runDownload(
 
   // Auto-activate the first model the user installs. Guarded so concurrent
   // downloads don't both pass the no-active-model check and double-load (H1).
-  if (args.role === "primary" && !autoActivateInFlight) {
+  if (job.role === "primary" && !autoActivateInFlight) {
     autoActivateInFlight = true;
     try {
       const active = await getActiveModel();

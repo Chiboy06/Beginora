@@ -168,3 +168,40 @@ describe("downloadModel — free-space preflight", () => {
     expect(mockFS.createDownloadResumable).not.toHaveBeenCalled();
   });
 });
+
+describe("downloadModel — network drop", () => {
+  it("a dropped connection pauses with a resume point instead of failing", async () => {
+    setupFS(0);
+    const onResumeToken = jest.fn();
+    mockFS.createDownloadResumable.mockReturnValue(makeTask({
+      downloadAsync: jest.fn(async () => { throw new Error("Network connection was lost"); }),
+      savable: jest.fn(() => ({ resumeData: "resume-here" })),
+    }) as never);
+
+    const out = await downloadModel(params({ onResumeToken }));
+
+    expect(out).toMatchObject({ ok: false, paused: true, resumeToken: "resume-here" });
+    expect(onResumeToken).toHaveBeenCalledWith("resume-here");
+    // The partial file is kept so Resume continues from it.
+    expect(mockFS.deleteAsync).not.toHaveBeenCalled();
+  });
+
+  it("without a resume point it is still reported as an error", async () => {
+    setupFS(0);
+    mockFS.createDownloadResumable.mockReturnValue(makeTask({
+      downloadAsync: jest.fn(async () => { throw new Error("boom"); }),
+      savable: jest.fn(() => ({ resumeData: undefined })),
+    }) as never);
+    expect(await downloadModel(params())).toEqual({ ok: false, error: "boom" });
+  });
+
+  it("resuming uses the saved point", async () => {
+    setupFS(1_000_000);
+    const task = makeTask();
+    mockFS.createDownloadResumable.mockReturnValue(task as never);
+    const out = await downloadModel(params({ resumeToken: "resume-here" }));
+    expect(task.resumeAsync).toHaveBeenCalled();
+    expect(task.downloadAsync).not.toHaveBeenCalled();
+    expect(out.ok).toBe(true);
+  });
+});
