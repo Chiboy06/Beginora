@@ -29,6 +29,7 @@ jest.mock("../../native/communication", () => ({}));
 jest.mock("../../native/calendar", () => ({}));
 jest.mock("../../connectors/email-connector", () => ({}));
 jest.mock("../../telegram/telegram-service", () => ({}));
+jest.mock("../../store/task-store", () => ({ useTaskStore: { getState: () => ({}) } }));
 jest.mock("../memory-manager", () => ({
   getMemoriesForPrompt: jest.fn(async () => null),
   extractMemories: jest.fn(async () => {}),

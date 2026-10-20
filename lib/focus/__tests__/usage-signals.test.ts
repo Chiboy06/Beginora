@@ -50,3 +50,21 @@ test("repeated resumes of the same app are one session", () => {
 test("events arriving out of order are sorted first", () => {
   expect(summarizeUsage([on(NOTES, 5), on(TIKTOK, 20)], NOW, OWN).distractingMinutes).toBe(15);
 });
+
+describe("screenTime", () => {
+  const { screenTime, appName } = jest.requireActual("../usage-signals");
+
+  test("totals minutes per app since midnight, most used first, with friendly names", () => {
+    const midnight = NOW - 300 * MIN;
+    const events = [on(TIKTOK, 400), off(TIKTOK, 280), on(NOTES, 60), off(NOTES, 30), on("com.whatsapp", 20)];
+    expect(screenTime(events, midnight, NOW)).toEqual([
+      { app: "Keep", minutes: 30 },
+      { app: "TikTok", minutes: 20 },
+      { app: "WhatsApp", minutes: 20 },
+    ]);
+  });
+
+  test("unknown packages show their last part", () => {
+    expect(appName("com.example.studyplanner")).toBe("Studyplanner");
+  });
+});

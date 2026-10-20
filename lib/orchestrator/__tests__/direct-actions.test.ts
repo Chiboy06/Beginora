@@ -65,3 +65,36 @@ describe("directAction", () => {
     expect(directAction("create_event", "add Batman to my calendar", NOW)).toBeNull();
   });
 });
+
+describe("add_task", () => {
+  test.each([
+    ["add a task: finish my essay", "finish my essay"],
+    ["Add task to call the landlord", "call the landlord"],
+    ["create a new task called revise chapter 3", "revise chapter 3"],
+    ["new task clean my room", "clean my room"],
+  ])("%s", (said, title) => {
+    expect(directAction("add_task", said, NOW)).toEqual({ tool: "add_task", parameters: { title } });
+  });
+
+  test("no task text means the model or a question takes over", () => {
+    expect(directAction("add_task", "add a task", NOW)).toBeNull();
+  });
+});
+
+describe("reminders and tasks with a time", () => {
+  test("'remind me to call Dr. Ben by 12 a.m.' notifies at midnight", () => {
+    expect(directAction("set_reminder", "remind me to call Dr. Ben by 12 a.m.", NOW)?.parameters).toEqual({
+      text: "call Dr. Ben", datetime: "2026-10-21T00:00:00",
+    });
+  });
+
+  test("a task with a time gets a reminder at that time", () => {
+    expect(directAction("add_task", "add a task to finish my essay by 6pm", NOW)?.parameters).toEqual({
+      title: "finish my essay", remindAt: "2026-10-20T18:00:00",
+    });
+  });
+
+  test("a task without a time has no reminder", () => {
+    expect(directAction("add_task", "add a task to finish my essay", NOW)?.parameters).toEqual({ title: "finish my essay" });
+  });
+});

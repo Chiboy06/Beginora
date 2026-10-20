@@ -4,6 +4,8 @@
 // a narrowed prompt fixes both. Anything not matched goes to the model as before.
 
 const RULES: { tool: string; test: RegExp }[] = [
+  { tool: "get_screen_time", test: /\b(screen ?time|app usage|phone usage|time (i )?spent on|how (long|much time) (have i|did i|i)\b)/i },
+  { tool: "add_task", test: /^(please\s+)?(add|create|new|save|make)\s+(a\s+)?(new\s+)?task\b/i },
   { tool: "send_telegram", test: /\btelegram\b/i },
   { tool: "draft_email", test: /\be-?mail\b/i },
   {

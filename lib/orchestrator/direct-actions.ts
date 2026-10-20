@@ -100,6 +100,20 @@ export function directAction(tool: string, text: string, now: Date): DirectCall 
       const at = when(said, now);
       return at ? { tool, parameters: { contact, text: body, datetime: localDateTime(at) } } : null;
     }
+    case "get_screen_time":
+      return { tool, parameters: {} };
+    case "add_task": {
+      const title = /^(?:please\s+)?(?:add|create|new|save|make)\s+(?:a\s+)?(?:new\s+)?task\b\s*(?:to\s+|called\s+|named\s+)?[:,-]?\s*(.+)$/i.exec(said)?.[1]?.trim();
+      if (!title) return null;
+      // "finish my essay by 6pm": save the task and remind at that time.
+      const at = when(title, now);
+      const cleanTitle = at ? withoutTime(title) : title;
+      if (!cleanTitle) return null;
+      return {
+        tool,
+        parameters: { title: cleanTitle.slice(0, 200), ...(at ? { remindAt: localDateTime(at) } : {}) },
+      };
+    }
     default:
       return null;
   }

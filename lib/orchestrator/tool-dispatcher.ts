@@ -4,7 +4,7 @@
 import type { ToolCallResult, Language } from "./types";
 import { MVP_TOOLS } from "../tools/tool-registry";
 import { setAlarm, createEvent, setTimer, navigateTo } from "../native/system-actions";
-import { scheduleReminder } from "../native/reminders";
+import { scheduleLocalReminder, scheduleReminder } from "../native/reminders";
 import { searchContacts } from "../native/contacts";
 import { makeCall, saveNote, scheduleSms, sendSms } from "../native/communication";
 import { getCalendarEvents } from "../native/calendar";
@@ -12,6 +12,9 @@ import { queryDocuments } from "./document-retriever";
 import { isValidYMD } from "./date-utils";
 import { decompose } from "../ai/decomposer";
 import { openEmailDraft } from "../connectors/email-connector";
+import { useTaskStore } from "../store/task-store";
+import { getAppEvents, hasUsageAccess } from "../native/usage-access";
+import { screenTime } from "../focus/usage-signals";
 import { sendTelegramMessage } from "../telegram/telegram-service";
 import { formatPlan } from "../ai/format-plan";
 
@@ -194,6 +197,54 @@ export async function dispatchToolCall(
           parameters.text as string,
           lang,
         );
+
+      case "get_screen_time": {
+        if (!(await hasUsageAccess())) {
+          return {
+            success: false,
+            message: lang === "it"
+              ? "Per vedere il tempo nelle app, consenti l'accesso all'utilizzo in Impostazioni > Permessi."
+              : "To see your screen time, allow usage access in Settings > Permissions and connections.",
+          };
+        }
+        const now = Date.now();
+        const midnight = new Date(new Date(now).setHours(0, 0, 0, 0)).getTime();
+        const top = screenTime(await getAppEvents(midnight), midnight, now).slice(0, 5);
+        const total = top.reduce((n, a) => n + a.minutes, 0);
+        const message = top.length === 0
+          ? (lang === "it" ? "Nessun uso registrato oggi." : "No app use recorded today.")
+          : (lang === "it" ? `Oggi, app principali (${total} min):` : `Today, top apps (${total} min):`);
+        return { success: true, message, data: JSON.stringify(top.map((a) => ({ title: `${a.app}: ${a.minutes} min` }))) };
+      }
+
+      case "add_task": {
+        // Saved with a first step from the planner (rule engine without a model).
+        const title = String(parameters.title).trim();
+        const plan = await decompose(title);
+        if (plan.source === "safety_block") return { success: true, message: plan.firstAction };
+        const task = await useTaskStore.getState().createTaskWithPlan(title, plan.firstAction, plan.steps);
+        let reminderNote = "";
+        if (typeof parameters.remindAt === "string") {
+          // A task with a time also notifies at that time, and the notification opens the task.
+          const reminder = await scheduleLocalReminder(
+            `${title}: ${plan.firstAction}`,
+            parameters.remindAt,
+            null,
+            { kind: "task", taskId: task.id },
+          );
+          if (reminder.success && reminder.identifier) {
+            await useTaskStore.getState().setReminderId(task.id, reminder.identifier);
+            const at = new Date(parameters.remindAt).toLocaleString(lang === "it" ? "it-IT" : "en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+            reminderNote = lang === "it" ? ` Ti ricorderò ${at}.` : ` I'll remind you ${at}.`;
+          } else {
+            reminderNote = ` ${reminder.message}`;
+          }
+        }
+        return {
+          success: true,
+          message: (lang === "it" ? `Salvato "${title}".` : `Saved "${title}".`) + reminderNote + ` ${formatPlan(plan)}`,
+        };
+      }
 
       case "draft_email": {
         const to = typeof parameters.to === "string" ? parameters.to.trim() : "";

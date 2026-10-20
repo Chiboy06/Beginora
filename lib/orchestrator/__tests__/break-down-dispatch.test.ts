@@ -1,12 +1,15 @@
 jest.mock("../document-retriever", () => ({ queryDocuments: jest.fn() }));
 jest.mock("../../native/system-actions", () => ({}));
-jest.mock("../../native/reminders", () => ({}));
+jest.mock("../../native/reminders", () => ({ scheduleLocalReminder: jest.fn(async () => ({ success: true, message: "ok", identifier: "n1" })) }));
 jest.mock("../../native/contacts", () => ({}));
 jest.mock("../../native/communication", () => ({}));
 jest.mock("../../native/calendar", () => ({}));
 jest.mock("../../ai/decomposer", () => ({ decompose: jest.fn() }));
 jest.mock("../../connectors/email-connector", () => ({ openEmailDraft: jest.fn() }));
 jest.mock("../../telegram/telegram-service", () => ({ sendTelegramMessage: jest.fn() }));
+const mockCreateTaskWithPlan = jest.fn(async (..._args: unknown[]) => ({ id: "t1" }));
+const mockSetReminderId = jest.fn(async (..._args: unknown[]) => {});
+jest.mock("../../store/task-store", () => ({ useTaskStore: { getState: () => ({ createTaskWithPlan: mockCreateTaskWithPlan, setReminderId: mockSetReminderId }) }, createTaskWithPlan: mockCreateTaskWithPlan }));
 
 import { dispatchToolCall } from "../tool-dispatcher";
 import { decompose } from "../../ai/decomposer";
@@ -62,4 +65,20 @@ describe("email and Telegram from chat", () => {
     telegram.sendTelegramMessage.mockResolvedValue({ ok: false, error: "Telegram is not configured." });
     expect(await dispatchToolCall("send_telegram", { text: "hi" }, "en")).toMatchObject({ success: false, message: "Telegram is not configured." });
   });
+});
+
+test("add_task saves the task with the planner's first step", async () => {
+  (decompose as jest.Mock).mockResolvedValue({ firstAction: "Open the document", steps: ["a", "b", "c"], source: "rule_engine" });
+  const result = await dispatchToolCall("add_task", { title: "finish my essay" }, "en");
+  expect(mockCreateTaskWithPlan).toHaveBeenCalledWith("finish my essay", "Open the document", ["a", "b", "c"]);
+  expect(result.message).toContain('Saved "finish my essay"');
+});
+
+test("add_task with a time schedules a reminder that opens the task", async () => {
+  (decompose as jest.Mock).mockResolvedValue({ firstAction: "Open the document", steps: ["a", "b", "c"], source: "rule_engine" });
+  const { scheduleLocalReminder } = jest.requireMock("../../native/reminders");
+  const result = await dispatchToolCall("add_task", { title: "finish my essay", remindAt: "2026-10-20T18:00:00" }, "en");
+  expect(scheduleLocalReminder).toHaveBeenCalledWith("finish my essay: Open the document", "2026-10-20T18:00:00", null, { kind: "task", taskId: "t1" });
+  expect(mockSetReminderId).toHaveBeenCalledWith("t1", "n1");
+  expect(result.message).toContain("I'll remind you");
 });

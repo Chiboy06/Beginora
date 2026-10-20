@@ -1,3 +1,4 @@
+jest.mock("../../store/task-store", () => ({ useTaskStore: { getState: () => ({ createTaskWithPlan: jest.fn() }) } }));
 jest.mock("../../orchestrator/tool-dispatcher", () => ({
   dispatchToolCall: jest.fn(),
 }));

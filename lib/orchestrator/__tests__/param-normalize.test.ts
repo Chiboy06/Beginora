@@ -7,6 +7,7 @@
 
 // tool-dispatcher transitively imports the embedding engine via
 // document-retriever; mock that away so the real dispatcher module loads.
+jest.mock("../../store/task-store", () => ({ useTaskStore: { getState: () => ({ createTaskWithPlan: jest.fn() }) } }));
 jest.mock("../document-retriever", () => ({
   queryDocuments: jest.fn(),
 }));

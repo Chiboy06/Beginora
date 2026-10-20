@@ -79,3 +79,41 @@ export function summarizeUsage(events: AppEvent[], now: number, ownPackage: stri
 export function isDrift(summary: UsageSummary): boolean {
   return summary.switches >= DRIFT_SWITCHES || summary.distractingMinutes >= DRIFT_DISTRACTING_MINUTES;
 }
+
+// Friendly names for common apps; others show their package's last part.
+const APP_NAMES: Record<string, string> = {
+  "com.zhiliaoapp.musically": "TikTok",
+  "com.ss.android.ugc.trill": "TikTok",
+  "com.instagram.android": "Instagram",
+  "com.facebook.katana": "Facebook",
+  "com.twitter.android": "X (Twitter)",
+  "com.google.android.youtube": "YouTube",
+  "com.snapchat.android": "Snapchat",
+  "com.reddit.frontpage": "Reddit",
+  "com.netflix.mediaclient": "Netflix",
+  "com.whatsapp": "WhatsApp",
+  "org.telegram.messenger": "Telegram",
+  "com.android.chrome": "Chrome",
+  "com.google.android.gm": "Gmail",
+  "com.spotify.music": "Spotify",
+  "app.beginora.android": "Beginora",
+};
+
+export function appName(packageName: string): string {
+  if (APP_NAMES[packageName]) return APP_NAMES[packageName];
+  const last = packageName.split(".").pop() ?? packageName;
+  return last.charAt(0).toUpperCase() + last.slice(1);
+}
+
+// Minutes in each app since `since`, most-used first.
+export function screenTime(events: AppEvent[], since: number, now: number): { app: string; minutes: number }[] {
+  const totals = new Map<string, number>();
+  for (const s of sessions(events, now)) {
+    const ms = Math.max(0, Math.min(s.end, now) - Math.max(s.start, since));
+    if (ms > 0) totals.set(appName(s.packageName), (totals.get(appName(s.packageName)) ?? 0) + ms);
+  }
+  return [...totals]
+    .map(([app, ms]) => ({ app, minutes: Math.round(ms / 60_000) }))
+    .filter((a) => a.minutes > 0)
+    .sort((a, b) => b.minutes - a.minutes);
+}

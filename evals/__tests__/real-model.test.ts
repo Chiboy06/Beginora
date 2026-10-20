@@ -10,6 +10,7 @@
 const MODEL = process.env.REAL_MODEL;
 const OLLAMA = process.env.OLLAMA_URL ?? "http://localhost:11434";
 
+jest.mock("../../lib/store/task-store", () => ({ useTaskStore: { getState: () => ({ createTaskWithPlan: jest.fn() }) } }));
 jest.mock("../../lib/llm/llm-engine", () => {
   const actual = jest.requireActual("../../lib/llm/llm-engine");
   return {
