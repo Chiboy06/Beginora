@@ -18,6 +18,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Hands-free greets once per session and stops talking when you tap.
 - Reminders ring on time with sound and vibration (new "Reminders" alert channel, `alarmClock` delivery, `SCHEDULE_EXACT_ALARM`); before, they arrived silently and could be late.
 - Date and time questions are answered from the phone clock, and the hidden time tag is only added to messages about times, so small models stop answering "today" to unrelated questions.
+- Faster answers: questions send only the last 6 messages, and the startup cache warms the exact question prompt (it previously warmed an unused prompt).
+- A repeated answer is retried once; if it repeats again, Beginora says it isn't sure instead of repeating a likely-wrong fact.
+- "Type / write / draft an SMS for Daniel" opens a text to Daniel (message filled in when given, scheduled when a time is given).
+- Models warns about reasoning models (DeepSeek-R1 distills, QwQ): slow, wordy replies on a phone.
+- Long chat titles no longer run under the header buttons.
 
 ### Added
 - Qwen3 0.6B (397 MB) in the catalog as the fastest model.
