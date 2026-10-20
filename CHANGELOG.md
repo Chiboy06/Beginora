@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.11] — Small models stop repeating themselves
+
+### Fixed
+- Questions no longer get an earlier date answer back. Replies written by the app (dates, greetings) are left out of what the model sees; Qwen3 0.6B answered "How many states are in Nigeria?" with "Tomorrow is Wednesday".
+- Memories are added to the prompt only when a question is about you ("my…", "remember…", "what do you know about me"). Before, the model recited them in unrelated answers.
+- Models under 1.5B no longer save memories, and a "memory" that copies Beginora's own instructions is rejected.
+- Chat replies use the Qwen3 model card's non-thinking settings (temperature 0.7, top_p 0.8, top_k 20, presence penalty 1.0) instead of near-greedy decoding, which loops. A reply is cut at its first repeated sentence and plain prose keeps at most 4 sentences.
+
+### Added
+- Settings > Memory: see what Beginora remembers and delete any of it.
+- Qwen3 0.6B is labelled "Quick helper: can be wrong on facts"; Qwen3 1.7B is recommended on phones with 6 GB RAM or more.
+
+### Known limit
+- Qwen3 0.6B still gets facts wrong (real-model eval: 19/22; it says Nigeria has 18 states, the answer is 36 plus the FCT). Use Qwen3 1.7B or larger for factual questions.
+
+### Changed
+- Android `versionCode` 13 / version 0.2.11.
+
+---
+
 ## [0.2.10] — Reminders with sound, faster answers
 
 ### Changed

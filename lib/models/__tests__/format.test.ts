@@ -125,3 +125,23 @@ describe("isReasoningModel", () => {
     expect(isReasoningModel(name)).toBe(false);
   });
 });
+
+describe("tiny models", () => {
+  const { paramsFromName, isTinyModel } = jest.requireActual("../format");
+
+  it.each([
+    ["Qwen3-0.6B-Q4_K_M.gguf", 0.6],
+    ["SmolLM2-360M-Instruct", 0.36],
+    ["DeepSeek-R1-Distill-Qwen-1.5B", 1.5],
+    ["Llama-3.2-3B-Instruct", 3],
+    ["gemma-3-1b-it", 1],
+  ])("%s has %f B parameters", (name, b) => {
+    expect(paramsFromName(name)).toBeCloseTo(b);
+  });
+
+  it("flags models under 1.5B only", () => {
+    expect(isTinyModel("Qwen3 0.6B (fastest)")).toBe(true);
+    expect(isTinyModel("Qwen3 1.7B")).toBe(false);
+    expect(isTinyModel("unknown model")).toBe(false);
+  });
+});

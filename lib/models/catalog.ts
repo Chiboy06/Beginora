@@ -18,7 +18,7 @@ export const CATALOG: CatalogModel[] = [
     id: "qwen3-0.6b-q4",
     displayName: "Qwen3 0.6B (fastest)",
     description:
-      "Fastest, about 400 MB. Quick answers on any phone; Beginora handles alarms, reminders and timers itself, so actions stay reliable.",
+      "Quick helper, about 400 MB. Fast on any phone, but it can be wrong on facts. Beginora handles alarms, reminders and timers itself, so actions stay reliable.",
     hfRepo: "unsloth/Qwen3-0.6B-GGUF",
     preferredFile: "Qwen3-0.6B-Q4_K_M.gguf",
     quant: "Q4_K_M",
@@ -36,7 +36,7 @@ export const CATALOG: CatalogModel[] = [
     id: "qwen3-1.7b-q4",
     displayName: "Qwen3 1.7B",
     description:
-      "Smallest and fastest. Good for low-RAM phones; weaker at complex tool calls.",
+      "Recommended on phones with 6 GB RAM or more. Better answers and facts than 0.6B, about 1.1 GB.",
     hfRepo: "unsloth/Qwen3-1.7B-GGUF",
     preferredFile: "Qwen3-1.7B-Q4_K_M.gguf",
     quant: "Q4_K_M",

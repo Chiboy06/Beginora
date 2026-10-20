@@ -247,3 +247,43 @@ describe("smooth streaming", () => {
     expect(mockGenerate.mock.calls[0][2]).toBe(onToken);
   });
 });
+
+describe("phone transcript: date answer, then a fact question (Qwen3 0.6B)", () => {
+  const base = new Date(2026, 9, 20, 12, 0).getTime();
+  const history: Message[] = [
+    userMsg("u1", "what will be tomorrow's date", base),
+    assistantMsg("a1", "Tomorrow is Wednesday, 21 October 2026.", base + 1000),
+  ];
+
+  test("replies written in code are not replayed to the model", async () => {
+    mockGenerate.mockResolvedValue(gen("Nigeria has 36 states."));
+    await processMessage("how many states are in Nigeria?", history, "en");
+    const sent: CompletionMessage[] = mockGenerate.mock.calls[0][0];
+    expect(sent.map((m) => m.content).join("\n")).not.toContain("Tomorrow is Wednesday");
+    expect(sent).toHaveLength(2);
+  });
+
+  test("memories stay out of questions that are not about the user", async () => {
+    mockGenerate.mockResolvedValue(gen("Nigeria has 36 states."));
+    await processMessage("how many states are in Nigeria?", [], "en");
+    expect(mockGenerate.mock.calls[0][0][0].content).not.toContain("ama il caffè");
+  });
+
+  test("memories are given when the user asks about themselves", async () => {
+    mockGenerate.mockResolvedValue(gen("You love coffee."));
+    await processMessage("what do you know about me?", [], "en");
+    expect(mockGenerate.mock.calls[0][0][0].content).toContain("ama il caffè");
+  });
+
+  test("questions use the Qwen3 non-thinking sampling, not near-greedy decoding", async () => {
+    mockGenerate.mockResolvedValue(gen("Nigeria has 36 states."));
+    await processMessage("how many states are in Nigeria?", [], "en");
+    expect(mockGenerate.mock.calls[0][1]).toMatchObject({ temperature: 0.7, topP: 0.8, topK: 20, penaltyPresent: 1.0, enableThinking: false });
+  });
+
+  test("a looping answer is cut at the first repeat", async () => {
+    mockGenerate.mockResolvedValue(gen("Tomorrow is Wednesday. That makes sense. Tomorrow is Wednesday. That makes sense."));
+    const res = await processMessage("how many states are in Nigeria?", [], "en");
+    expect(res).toEqual({ type: "text", content: "Tomorrow is Wednesday. That makes sense." });
+  });
+});

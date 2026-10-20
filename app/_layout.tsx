@@ -254,6 +254,7 @@ export default function RootLayout() {
           <Stack.Screen name="models" options={{ title: "Models" }} />
           <Stack.Screen name="documents" options={{ title: "Documents" }} />
           <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
+          <Stack.Screen name="memory" options={{ title: "Memory" }} />
           <Stack.Screen name="mcp" options={{ title: "MCP Server" }} />
         </Stack.Protected>
       </Stack>

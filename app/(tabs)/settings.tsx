@@ -643,6 +643,20 @@ export default function SettingsScreen() {
         {perfBusy && <Text style={[styles.toggleHint, { marginTop: spacing.sm }]}>Reloading model…</Text>}
       </View>
 
+      {/* Memory */}
+      <Text style={styles.sectionTitle}>Memory</Text>
+      <View style={styles.card}>
+        <Text style={styles.desc}>What Beginora remembers about you. Small models (under 1.5B) do not save new memories, because they get facts wrong.</Text>
+        <TouchableOpacity
+          style={[styles.btn, styles.btnPrimary, { marginTop: spacing.md }]}
+          onPress={() => router.push("/memory")}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+        >
+          <Text style={styles.btnPrimaryText}>View memories</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Diagnostics */}
       <Text style={styles.sectionTitle}>Diagnostics</Text>
       <View style={styles.card}>

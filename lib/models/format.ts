@@ -115,3 +115,21 @@ export function isReasoningModel(name: string): boolean {
 
 export const REASONING_MODEL_NOTE =
   "Reasoning model: it thinks at length before each answer, so replies are slow and wordy on a phone. Qwen3 1.7B or 0.6B work better here.";
+
+// Parameter count in billions read from a model name ("Qwen3-0.6B", "SmolLM2-360M"), or null.
+export function paramsFromName(name: string): number | null {
+  const m = name.match(/(\d+(?:\.\d+)?)\s*([bm])(?![a-z])/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return m[2].toLowerCase() === "m" ? n / 1000 : n;
+}
+
+// Under 1.5B a model is fast but unreliable on facts and copies earlier text
+// (seen with Qwen3 0.6B: "Nigeria has 20 states").
+export function isTinyModel(name: string): boolean {
+  const b = paramsFromName(name);
+  return b !== null && b < 1.5;
+}
+
+export const TINY_MODEL_NOTE =
+  "Quick helper: fast, but it can be wrong on facts. For better answers use Qwen3 1.7B on a phone with 6 GB RAM or more.";

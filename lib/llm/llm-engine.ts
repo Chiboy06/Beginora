@@ -245,6 +245,9 @@ export function generate(
         top_p: opts.topP,
         penalty_repeat: opts.penaltyRepeat,
         penalty_last_n: opts.penaltyLastN,
+        ...(opts.topK !== undefined ? { top_k: opts.topK } : {}),
+        ...(opts.minP !== undefined ? { min_p: opts.minP } : {}),
+        ...(opts.penaltyPresent !== undefined ? { penalty_present: opts.penaltyPresent } : {}),
         stop: opts.stopSequences.length > 0 ? opts.stopSequences : undefined,
         // Pass through only when explicitly set, so the model's default stands otherwise.
         ...(options?.enableThinking === false ? { enable_thinking: false } : {}),

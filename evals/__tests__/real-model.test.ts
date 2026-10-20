@@ -20,7 +20,7 @@ jest.mock("../../lib/llm/llm-engine", () => {
     stopGeneration: async () => {},
     generate: async (
       messages: { role: string; content: string }[],
-      opts: { maxTokens?: number; temperature?: number; topP?: number; enableThinking?: boolean } = {},
+      opts: { maxTokens?: number; temperature?: number; topP?: number; topK?: number; minP?: number; penaltyPresent?: number; enableThinking?: boolean } = {},
     ) => {
       const started = Date.now();
       // The React Native Jest preset stubs fetch, so talk to Ollama with node:http.
@@ -47,6 +47,9 @@ jest.mock("../../lib/llm/llm-engine", () => {
             num_predict: opts.maxTokens ?? 4096,
             temperature: opts.temperature ?? 0.7,
             top_p: opts.topP ?? 0.95,
+            ...(opts.topK !== undefined ? { top_k: opts.topK } : {}),
+            ...(opts.minP !== undefined ? { min_p: opts.minP } : {}),
+            ...(opts.penaltyPresent !== undefined ? { presence_penalty: opts.penaltyPresent } : {}),
             // Same anti-loop defaults as lib/llm/llm-engine.ts.
             repeat_penalty: 1.1,
             repeat_last_n: 256,
@@ -194,5 +197,26 @@ run(`real model conversation: ${MODEL}`, () => {
     for (const reply of replies) expect(isRepetitive(reply)).toBe(false);
     // No reply is a copy of the one before it.
     for (let i = 1; i < replies.length; i += 1) expect(replies[i]).not.toBe(replies[i - 1]);
+  });
+
+  // The phone transcript: a date answer, then the same fact question twice.
+  // The model must not copy the date answer or recite memories.
+  test("a fact question after a date answer is not answered with the date", async () => {
+    const history: { id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: number }[] = [];
+    let at = new Date(2026, 9, 20, 15, 0).getTime();
+    const replies: string[] = [];
+    for (const said of ["what will be tomorrow's date", "how many states are in Nigeria?", "how many states are in Nigeria?"]) {
+      const res = await processMessage(said, [...history], "en", undefined, undefined, new Date(at));
+      const reply = res.type === "text" ? res.content : res.type === "error" ? `ERROR ${res.error}` : res.message;
+      replies.push(reply);
+      history.push({ id: `u${at}`, conversationId: "c", role: "user", content: said, createdAt: at });
+      history.push({ id: `a${at}`, conversationId: "c", role: "assistant", content: reply, createdAt: at + 1 });
+      at += 60_000;
+    }
+    console.log(replies.join("\n---\n"));
+    for (const reply of replies.slice(1)) {
+      expect(reply).not.toMatch(/wednesday|21 october/i);
+      expect(isRepetitive(reply)).toBe(false);
+    }
   });
 });
