@@ -30,6 +30,7 @@ export default function ModelsScreen() {
   const activate = useModelStore((s) => s.activate);
   const remove = useModelStore((s) => s.remove);
   const cancel = useModelStore((s) => s.cancel);
+  const resume = useModelStore((s) => s.resume);
   const importLocalModel = useModelStore((s) => s.importLocalModel);
   const clearError = useModelStore((s) => s.clearError);
 
@@ -97,6 +98,7 @@ export default function ModelsScreen() {
           onDownload={() => downloadFromCatalog(m)}
           onActivate={activate}
           onCancel={cancel}
+          onResume={resume}
           onRemove={confirmRemove}
         />
       ))}
@@ -114,6 +116,7 @@ export default function ModelsScreen() {
                 progress={progress[m.id]}
                 onActivate={activate}
                 onCancel={cancel}
+                onResume={resume}
                 onRemove={confirmRemove}
               />
             ))}
@@ -183,6 +186,7 @@ function CatalogRow({
   onDownload,
   onActivate,
   onCancel,
+  onResume,
   onRemove,
 }: {
   model: CatalogModel;
@@ -192,6 +196,7 @@ function CatalogRow({
   onDownload: () => void;
   onActivate: (id: string) => void;
   onCancel: (id: string) => void;
+  onResume: (id: string) => void;
   onRemove: (m: InstalledModel) => void;
 }) {
   const prog = installed ? progress[installed.id] : undefined;
@@ -218,8 +223,19 @@ function CatalogRow({
       {downloading && prog && (
         <ProgressBar written={prog.bytesWritten} total={prog.bytesTotal} etaSeconds={prog.etaSeconds} />
       )}
+      {installed?.state === "paused" && !downloading && (
+        <Text style={styles.rowHint}>Paused. Your progress is saved: tap Resume when you are back online.</Text>
+      )}
+      {installed && installed.state !== "ready" && installed.state !== "paused" && !downloading && (
+        <Text style={styles.rowError}>Download didn’t finish. Tap Resume to try again, or Delete.</Text>
+      )}
 
       <View style={styles.btnRow}>
+        {installed && installed.state !== "ready" && !downloading && (
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={() => onResume(installed.id)} activeOpacity={0.7}>
+            <Text style={styles.btnPrimaryText}>Resume</Text>
+          </TouchableOpacity>
+        )}
         {!installed && (
           <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={onDownload} activeOpacity={0.7}>
             <Text style={styles.btnPrimaryText}>Download</Text>
@@ -255,12 +271,14 @@ function InstalledRow({
   progress,
   onActivate,
   onCancel,
+  onResume,
   onRemove,
 }: {
   model: InstalledModel;
   progress?: { bytesWritten: number; bytesTotal: number; etaSeconds: number | null; status: string };
   onActivate: (id: string) => void;
   onCancel: (id: string) => void;
+  onResume: (id: string) => void;
   onRemove: (m: InstalledModel) => void;
 }) {
   const downloading = progress?.status === "downloading";
@@ -272,8 +290,11 @@ function InstalledRow({
       </View>
       {model.hfRepo && <Text style={styles.rowHint}>{model.hfRepo}</Text>}
       {/* Also catches rows left "downloading" when Android killed the app mid-download. */}
-      {model.state !== "ready" && !downloading && (
-        <Text style={styles.rowError}>Download didn’t finish — delete it and download again.</Text>
+      {model.state === "paused" && !downloading && (
+        <Text style={styles.rowHint}>Paused. Your progress is saved: tap Resume when you are back online.</Text>
+      )}
+      {model.state !== "ready" && model.state !== "paused" && !downloading && (
+        <Text style={styles.rowError}>Download didn’t finish. Tap Resume to try again, or Delete.</Text>
       )}
 
       {downloading && progress && (
@@ -284,6 +305,11 @@ function InstalledRow({
         {downloading && (
           <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnOutline]} onPress={() => onCancel(model.id)} activeOpacity={0.7}>
             <Text style={styles.btnOutlineText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
+        {model.state !== "ready" && !downloading && (
+          <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={() => onResume(model.id)} activeOpacity={0.7}>
+            <Text style={styles.btnPrimaryText}>Resume</Text>
           </TouchableOpacity>
         )}
         {model.state === "ready" && !model.isActive && (

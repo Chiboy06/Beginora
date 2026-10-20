@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   KeyboardAvoidingView,
-  Keyboard,
   Platform,
   Linking,
   Pressable,
@@ -25,6 +24,7 @@ import { colors, spacing, typography, radii, shadow } from "../../lib/theme";
 import type { Message } from "../../lib/orchestrator/types";
 import { prefs } from "../../lib/store/prefs";
 import { useHandsFree } from "../../lib/voice/use-hands-free";
+import { useKeyboardHeight } from "../../lib/ui/use-keyboard-height";
 
 // Tapping a chip fills the message box; the user edits names and times before sending.
 const PROMPT_CHIPS = [
@@ -49,19 +49,6 @@ const StreamingFooter = React.memo(function StreamingFooter({
   if (!streamingText) return <FlameIndicator />;
   return <StreamingBubble text={streamingText} />;
 });
-
-function useKeyboardHeight() {
-  const [height, setHeight] = useState(0);
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    const show = Keyboard.addListener("keyboardDidShow", (e) =>
-      setHeight(e.endCoordinates.height),
-    );
-    const hide = Keyboard.addListener("keyboardDidHide", () => setHeight(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
-  return height;
-}
 
 function timeGreeting(hour: number): string {
   return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -410,14 +397,14 @@ export default function ChatScreen() {
       {Platform.OS === "android" && (
         <Pressable
           style={({ pressed }) => [styles.handsFree, handsFree.active && styles.handsFreeActive, pressed && { opacity: 0.8 }]}
-          onPress={handsFree.active ? handsFree.stop : handsFree.start}
+          onPress={!handsFree.active ? handsFree.start : handsFree.speaking ? handsFree.interrupt : handsFree.stop}
           accessibilityRole="button"
-          accessibilityLabel={handsFree.active ? "Stop hands-free conversation" : "Start hands-free conversation"}
+          accessibilityLabel={!handsFree.active ? "Start hands-free conversation" : handsFree.speaking ? "Stop talking and listen" : "Stop hands-free conversation"}
           accessibilityHint="Talk to Beginora and hear replies aloud. Say stop to end."
         >
           <Ionicons name={handsFree.active ? "stop-circle" : "headset"} size={20} color={handsFree.active ? "#FFFFFF" : colors.accent} />
           <Text style={[styles.handsFreeText, handsFree.active && { color: "#FFFFFF" }]}>
-            {handsFree.active ? "Listening… say \"stop\" to end" : "Talk hands-free"}
+            {!handsFree.active ? "Talk hands-free" : handsFree.speaking ? "Tap to talk now" : "Listening… tap or say \"stop\" to end"}
           </Text>
         </Pressable>
       )}
@@ -427,14 +414,14 @@ export default function ChatScreen() {
         onSend={sendMessage}
         onStop={stopGenerating}
         isGenerating={isGenerating}
-        disabled={!modelLoaded}
+        disabled={false}
       />
     </>
   );
 
   if (Platform.OS === "android") {
     return (
-      <GlassScreen>
+      <GlassScreen avoidKeyboard={false}>
         <View style={[styles.container, { paddingBottom: keyboardHeight }]}>
           {chatContent}
         </View>
@@ -443,7 +430,7 @@ export default function ChatScreen() {
   }
 
   return (
-    <GlassScreen>
+    <GlassScreen avoidKeyboard={false}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior="padding"

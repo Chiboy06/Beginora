@@ -214,6 +214,30 @@ export const MVP_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "get_screen_time",
+    description_it: "Mostra il tempo passato oggi nelle app",
+    description_en: "Show today's time spent in apps",
+    category: "knowledge",
+    confirmRequired: false,
+    returnsData: true,
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "add_task",
+    description_it: "Salva un nuovo compito con la sua prima azione",
+    description_en: "Save a new task with its first step",
+    category: "utility",
+    confirmRequired: false,
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "The task, in a few words" },
+        remindAt: { type: "string", description: "Optional: when to remind, in ISO 8601 format", format: "ISO8601" },
+      },
+      required: ["title"],
+    },
+  },
+  {
     name: "draft_email",
     description_it: "Prepara una email nell'app di posta; l'utente la rivede e la invia",
     description_en: "Prepare an email in the mail app; the user reviews and sends it",

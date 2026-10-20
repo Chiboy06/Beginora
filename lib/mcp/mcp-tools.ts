@@ -18,7 +18,8 @@ export function isReadOnlyDataSource(name: string): boolean {
 }
 
 export function buildMcpToolList(): McpTool[] {
-  return MVP_TOOLS.filter((t) => t.returnsData === true).map((t) => ({
+  // Screen time stays on the phone: never offered to other devices.
+  return MVP_TOOLS.filter((t) => t.returnsData === true && t.name !== "get_screen_time").map((t) => ({
     name: t.name,
     description: t.description_en,
     inputSchema: t.parameters,

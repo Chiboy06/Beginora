@@ -227,6 +227,18 @@ export async function downloadModel(
       return { ok: false, canceled: true };
     }
     const message = err instanceof Error ? err.message : String(err);
+    // A dropped connection: keep the partial file and the resume point so the
+    // download continues from where it stopped instead of starting over.
+    let resumePoint: string | undefined;
+    try {
+      resumePoint = task.savable().resumeData;
+    } catch {
+      /* no resume data available */
+    }
+    if (resumePoint) {
+      onResumeToken?.(resumePoint);
+      return { ok: false, paused: true, resumeToken: resumePoint, error: message };
+    }
     return { ok: false, error: message };
   } finally {
     active.delete(modelId);

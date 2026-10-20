@@ -63,3 +63,19 @@ describe("times from the clock", () => {
     expect(dateFromText(said, NOW)).toBe(expected);
   });
 });
+
+test.each([
+  ["add a task: finish my essay", "add_task"],
+  ["create a new task called revise chapter 3", "add_task"],
+  ["add I am Batman to my calendar", "create_event"],
+])("task vs calendar: %s -> %s", (said, tool) => {
+  expect(routeIntent(said)).toBe(tool);
+});
+
+test.each([
+  "how much screen time today?",
+  "show my app usage",
+  "how long have I been on TikTok today",
+])("screen time: %s", (said) => {
+  expect(routeIntent(said)).toBe("get_screen_time");
+});

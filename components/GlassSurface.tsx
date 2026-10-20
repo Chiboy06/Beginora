@@ -9,6 +9,7 @@ import {
 import { BlurTargetView, BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../lib/theme";
+import { useKeyboardHeight } from "../lib/ui/use-keyboard-height";
 
 type ViewInstance = ComponentRef<typeof View>;
 
@@ -18,13 +19,18 @@ const BlurTargetContext = createContext<RefObject<ViewInstance | null> | null>(n
 export function GlassScreen({
   children,
   style,
+  avoidKeyboard = true,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  // Pad for the keyboard so the focused field stays visible; off for screens
+  // that handle the keyboard themselves (chat).
+  avoidKeyboard?: boolean;
 }) {
   const targetRef = useRef<ViewInstance | null>(null);
+  const keyboardHeight = useKeyboardHeight();
   return (
-    <View style={[styles.screen, style]}>
+    <View style={[styles.screen, style, avoidKeyboard && keyboardHeight > 0 ? { paddingBottom: keyboardHeight } : null]}>
       <BlurTargetView
         ref={targetRef}
         pointerEvents="none"

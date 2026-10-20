@@ -231,3 +231,18 @@ describe("user name", () => {
     expect(mockGenerate.mock.calls[0][0][0].content).not.toContain("The user's name");
   });
 });
+
+describe("smooth streaming", () => {
+  test("an action turn does not stream tool JSON to the screen", async () => {
+    mockGenerate.mockResolvedValue(gen('{"tool":"create_event","parameters":{"title":"x","start":"2026-10-20T16:00:00"}}'));
+    await processMessage("add a dentist appointment to my calendar", [], "en", jest.fn());
+    expect(mockGenerate.mock.calls[0][2]).toBeUndefined();
+  });
+
+  test("an answer to a question streams as it is written", async () => {
+    mockGenerate.mockResolvedValue(gen("Abuja."));
+    const onToken = jest.fn();
+    await processMessage("what is the capital of Nigeria?", [], "en", onToken);
+    expect(mockGenerate.mock.calls[0][2]).toBe(onToken);
+  });
+});

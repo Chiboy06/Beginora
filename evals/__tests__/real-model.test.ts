@@ -10,6 +10,7 @@
 const MODEL = process.env.REAL_MODEL;
 const OLLAMA = process.env.OLLAMA_URL ?? "http://localhost:11434";
 
+jest.mock("../../lib/store/task-store", () => ({ useTaskStore: { getState: () => ({ createTaskWithPlan: jest.fn() }) } }));
 jest.mock("../../lib/llm/llm-engine", () => {
   const actual = jest.requireActual("../../lib/llm/llm-engine");
   return {
@@ -111,9 +112,15 @@ export function isRepetitive(text: string): boolean {
   return false;
 }
 
-type Expect = { tool?: string; text?: true };
+type Expect = { tool?: string; text?: true; contains?: RegExp };
 const CASES: [string, Expect][] = [
   ["hi", { text: true }],
+  ["what is the capital of Nigeria?", { text: true, contains: /abuja/i }],
+  ["can you define photosynthesis for my assignment?", { text: true, contains: /light|sun|plant/i }],
+  ["remind me to call Dr. Ben by 12 a.m.", { tool: "set_reminder" }],
+  ["add a task to finish my essay by 6pm", { tool: "add_task" }],
+  ["set an alarm for 7 o'clock today", { tool: "set_alarm" }],
+  ["Set a reminder for 5 a.m. tomorrow", { tool: "set_reminder" }],
   ["how are you?", { text: true }],
   ["add I am Batman to my calendar, I will be taking my task in the next 1 hour", { tool: "create_event" }],
   ["set an alarm for 7am tomorrow", { tool: "set_alarm" }],
@@ -154,7 +161,8 @@ run(`real model: ${MODEL}`, () => {
     const { checkToolParams } = jest.requireActual("../../lib/orchestrator/tool-dispatcher");
     const paramsValid = !(res.type === "tool_call" || res.type === "pending_tool_call") ||
       res.tool === "break_down_task" || checkToolParams(res.tool, res.parameters).error === null;
-    const ok = (expected.tool ? tool === expected.tool : res.type === "text" && text.trim().length > 0) && paramsValid;
+    const ok = (expected.tool ? tool === expected.tool : res.type === "text" && text.trim().length > 0) &&
+      paramsValid && (!expected.contains || expected.contains.test(text)) && !/\[Time context/.test(text);
     const repetitive = isRepetitive(text);
     const params = res.type === "tool_call" || res.type === "pending_tool_call" ? JSON.stringify(res.parameters) : "";
     results.push({ said, got: tool ? `${tool} ${params} :: ${text.slice(0, 100)}` : text.slice(0, 160).replace(/\n/g, " "), ok, repetitive, ms });

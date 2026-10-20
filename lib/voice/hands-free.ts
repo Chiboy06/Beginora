@@ -52,7 +52,7 @@ export function greeting(name: string | undefined, hour: number): string {
 }
 
 // Markdown symbols, links and long lists read badly aloud.
-export function toSpeech(text: string, maxChars = 600): string {
+export function toSpeech(text: string, maxChars = 320): string {
   const plain = text
     .replace(/<think>[\s\S]*?<\/think>/g, "")
     .replace(/```[\s\S]*?```/g, "")

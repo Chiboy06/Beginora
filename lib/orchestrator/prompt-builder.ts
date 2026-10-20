@@ -145,3 +145,28 @@ ${toolsBlock}
 
 If the request doesn't match any tool, respond in plain text.${memoriesSection}${knowledgeSection}`;
 }
+
+// Questions and conversation: a short prompt without tools, so a small model
+// starts answering quickly and keeps the answer short.
+export function buildChatPrompt(lang: Language, memoriesBlock?: string | null): string {
+  const memories = memoriesBlock
+    ? lang === "it" ? `
+
+Cosa sai dell'utente:
+${memoriesBlock}` : `
+
+What you know about the user:
+${memoriesBlock}`
+    : "";
+  return lang === "it"
+    ? `Sei Beginora, un assistente calmo e pratico che aiuta le persone a iniziare i propri compiti.
+Rispondi in modo diretto e breve: al massimo 3 frasi. Niente elenchi lunghi, niente ripetizioni.
+I messaggi iniziano con [Contesto temporale: ...]: usalo per date e orari, non citarlo.
+Se l'utente descrive un compito da iniziare, suggerisci UNA prima azione piccola e concreta.
+Non usare linguaggio clinico e non mettere fretta.${memories}`
+    : `You are Beginora, a calm, practical assistant that helps people get started on their tasks.
+Answer directly and briefly: 3 sentences at most. No long lists, no repetition.
+Messages start with [Time context: ...]: use it for dates and times, do not quote it.
+If the user describes a task to start, suggest ONE small, concrete first action.
+Do not use clinical language and do not add pressure.${memories}`;
+}
