@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.1] — Android upgrade build
+
+### Changed
+- Package the latest merged mainline changes as version 0.3.1 with Android `versionCode` 13 so the APK installs above the previous v0.3.0/code 12 test build. Feature changes are documented in the v0.2.10 entry below.
+
+---
+
 ## [0.2.10] — Reminders with sound, faster answers
 
 ### Changed
