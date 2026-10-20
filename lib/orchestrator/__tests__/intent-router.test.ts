@@ -79,3 +79,21 @@ test.each([
 ])("screen time: %s", (said) => {
   expect(routeIntent(said)).toBe("get_screen_time");
 });
+
+describe("mentionsTime", () => {
+  const { mentionsTime } = jest.requireActual("../intent-router");
+  test.each(["remind me at 6pm", "what's on tomorrow", "meet at 14:30", "in 20 minutes", "this week"])("time: %s", (said) => {
+    expect(mentionsTime(said)).toBe(true);
+  });
+  test.each(["which day does Nigeria celebrate Independence", "how many states does Nigeria have", "define photosynthesis"])("not time: %s", (said) => {
+    expect(mentionsTime(said)).toBe(false);
+  });
+});
+
+test.each([
+  ["type an SMS message for Daniel Phantom", "send_sms"],
+  ["write a text to Ada saying I'll be late", "send_sms"],
+  ["draft a message for Ada saying happy birthday at 9am", "schedule_sms"],
+])("drafted texts: %s -> %s", (said, tool) => {
+  expect(routeIntent(said)).toBe(tool);
+});

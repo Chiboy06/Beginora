@@ -83,14 +83,16 @@ describe("schedulePrefixPersist", () => {
 });
 
 describe("warmSessionCache", () => {
-  test("builds the production stable prefix and hands it to restore", async () => {
+  test("warms the exact prompt questions use, so the cached prefix is reused", async () => {
     await warmSessionCache();
     expect(mockRestore).toHaveBeenCalledTimes(1);
     const prefix = mockRestore.mock.calls[0][0];
-    // Italian persona (language config mocked to "it"), tools included, and
-    // strictly time-free — the same invariants prompt-builder.test.ts locks.
+    const { chatSystemPrompt } = jest.requireActual("../prompt-builder");
+    // Italian (language config mocked to "it"), no tool list, time-free.
+    // Memories are mocked to null and no name is set.
+    expect(prefix).toBe(chatSystemPrompt("it", null, ""));
     expect(prefix).toContain("Sei Beginora");
-    expect(prefix).toContain("Strumenti disponibili:");
+    expect(prefix).not.toContain("Strumenti disponibili:");
     expect(prefix).not.toContain("Contesto temporale corrente:");
   });
 

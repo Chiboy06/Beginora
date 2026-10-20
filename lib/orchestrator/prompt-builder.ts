@@ -170,3 +170,12 @@ Messages start with [Time context: ...]: use it for dates and times, do not quot
 If the user describes a task to start, suggest ONE small, concrete first action.
 Do not use clinical language and do not add pressure.${memories}`;
 }
+
+// The exact system prompt for questions, shared by the chat and the startup
+// cache warmer: the cached prefix is only reused when the text matches.
+export function chatSystemPrompt(lang: Language, memoriesBlock: string | null | undefined, userName: string): string {
+  return buildChatPrompt(lang, memoriesBlock) +
+    (userName ? `
+
+The user's name is ${userName}. Use it now and then, warmly and naturally.` : "");
+}

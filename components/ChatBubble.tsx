@@ -109,6 +109,10 @@ export const ChatBubble = React.memo(function ChatBubble({
             </Text>
           </View>
         )}
+        {/* What actually happened, e.g. "Reminder set." or why it failed. */}
+        {typeof toolResult?.message === "string" && toolResult.message !== "OK" && toolResult.message !== message.content && (
+          <Text style={[styles.toolNote, !toolResult.success && styles.toolErrorText]}>{toolResult.message}</Text>
+        )}
 
         {/* Confirmation prompt for a destructive action awaiting approval */}
         {awaitingConfirmation && (
@@ -239,6 +243,11 @@ const styles = StyleSheet.create({
   },
   toolErrorText: {
     color: colors.error,
+  },
+  toolNote: {
+    ...typography.footnote,
+    color: colors.textSecondary,
+    marginTop: 6,
   },
   toolPendingText: {
     color: colors.accent,

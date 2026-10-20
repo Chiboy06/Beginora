@@ -91,7 +91,14 @@ export function directAction(tool: string, text: string, now: Date): DirectCall 
     }
     case "send_sms":
     case "schedule_sms": {
-      const m = /^(?:please\s+)?(?:send\s+(?:a\s+)?)?(?:text|message|sms)(?:\s+to)?\s+(.+?)\s+(?:that|saying|to say|and say)\s+(.+)$/i.exec(said);
+      // "type an SMS for Daniel Phantom (saying ...)": the message text is optional.
+      const drafted = /\b(?:type|write|draft|compose|prepare|create)\s+(?:an?\s+)?(?:sms(?:\s+message)?|text(?:\s+message)?|message)\s+(?:for|to)\s+(.+?)(?:\s+(?:that|saying|to say|and say)\s+(.+))?$/i.exec(said);
+      if (drafted && tool === "send_sms") {
+        const contact = withoutTime(drafted[1]);
+        return contact ? { tool, parameters: { contact, text: drafted[2] ? withoutTime(drafted[2]) : "" } } : null;
+      }
+      const m = /^(?:please\s+)?(?:send\s+(?:a\s+)?)?(?:text|message|sms)(?:\s+to)?\s+(.+?)\s+(?:that|saying|to say|and say)\s+(.+)$/i.exec(said) ??
+        (drafted?.[2] ? drafted : null);
       if (!m) return null;
       const contact = withoutTime(m[1]);
       const body = withoutTime(m[2]);

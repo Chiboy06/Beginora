@@ -98,3 +98,19 @@ describe("reminders and tasks with a time", () => {
     expect(directAction("add_task", "add a task to finish my essay", NOW)?.parameters).toEqual({ title: "finish my essay" });
   });
 });
+
+describe("drafting a text for someone", () => {
+  test("'type an SMS message for Daniel Phantom' opens a text to Daniel Phantom", () => {
+    expect(directAction("send_sms", "another thing I want you to do is type an SMS message for Daniel Phantom", NOW)?.parameters).toEqual({ contact: "Daniel Phantom", text: "" });
+  });
+
+  test("with a message, it is filled in", () => {
+    expect(directAction("send_sms", "write a text to Ada saying I'll be late", NOW)?.parameters).toEqual({ contact: "Ada", text: "I'll be late" });
+  });
+
+  test("with a time, it becomes a scheduled text", () => {
+    expect(directAction("schedule_sms", "draft a message for Ada saying happy birthday at 9am", NOW)?.parameters).toEqual({
+      contact: "Ada", text: "happy birthday", datetime: "2026-10-21T09:00:00",
+    });
+  });
+});

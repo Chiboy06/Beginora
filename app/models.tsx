@@ -14,7 +14,7 @@ import { useModelStore } from "../lib/store/model-store";
 import { CATALOG } from "../lib/models/catalog";
 import { listGgufFiles, type HfFile } from "../lib/models/hf-client";
 import type { CatalogModel, InstalledModel } from "../lib/models/types";
-import { formatBytes, formatDuration, percent, fitLabel, type FitLabel } from "../lib/models/format";
+import { formatBytes, formatDuration, percent, fitLabel, isReasoningModel, REASONING_MODEL_NOTE, type FitLabel } from "../lib/models/format";
 import { colors, spacing, radii, typography } from "../lib/theme";
 
 export default function ModelsScreen() {
@@ -289,6 +289,9 @@ function InstalledRow({
         <Text style={styles.rowMeta}>{formatBytes(model.sizeBytes)}</Text>
       </View>
       {model.hfRepo && <Text style={styles.rowHint}>{model.hfRepo}</Text>}
+      {isReasoningModel(`${model.displayName} ${model.hfRepo ?? ""} ${model.hfFile ?? ""}`) && (
+        <Text style={styles.rowError}>{REASONING_MODEL_NOTE}</Text>
+      )}
       {/* Also catches rows left "downloading" when Android killed the app mid-download. */}
       {model.state === "paused" && !downloading && (
         <Text style={styles.rowHint}>Paused. Your progress is saved: tap Resume when you are back online.</Text>
@@ -383,6 +386,7 @@ function AddFromHuggingFace({
         </TouchableOpacity>
       </View>
       {err && <Text style={styles.rowError}>{err}</Text>}
+      {isReasoningModel(repo) && <Text style={styles.rowError}>{REASONING_MODEL_NOTE}</Text>}
       {files?.map((f) => (
         <View key={f.path} style={styles.fileRow}>
           <View style={{ flex: 1, marginRight: 10 }}>

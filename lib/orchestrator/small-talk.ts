@@ -47,3 +47,23 @@ export function smallTalkReply(text: string, name: string, turn: number): string
   const options = REPLIES[match.kind];
   return options[turn % options.length](name ? `, ${name}` : "");
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const longDate = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+// Date and time questions are answered from the phone clock: small models
+// misread the hidden time tag (e.g. "yesterday was 20 October" on the 20th).
+export function dateTimeReply(text: string, now: Date): string | null {
+  const said = text.trim().toLowerCase().replace(/[?.!]+$/, "");
+  if (/^(what('?s| is)|tell me) (the )?(current )?time( now| right now)?$|^what time is it( now)?$/.test(said)) {
+    return `It's ${now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.`;
+  }
+  const day = /\byesterday\b/.test(said) ? -1 : /\btomorrow\b/.test(said) ? 1 : /\btoday\b|\bnow\b/.test(said) ? 0 : null;
+  const asksDate = /^(what('?s| is| was| will be)?|which|tell me)\b.*\b(date|day)\b/.test(said) && !/\b(celebrate|independence|holiday|birthday|christmas|easter|born|founded)\b/.test(said);
+  if (!asksDate) return null;
+  const offset = day ?? (/^(what('?s| is) (the )?date|what day is it|what('?s| is) the day)$/.test(said) ? 0 : null);
+  if (offset === null) return null;
+  const target = new Date(now.getTime() + offset * DAY_MS);
+  const label = offset === -1 ? "Yesterday was" : offset === 1 ? "Tomorrow is" : "Today is";
+  return `${label} ${longDate(target)}.`;
+}

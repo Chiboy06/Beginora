@@ -75,7 +75,7 @@ describe("V4 history byte-stability across turns", () => {
     // Turn 1: sent at 22:41 on July 1st.
     const t1 = new Date(2026, 6, 1, 22, 41, 12);
     jest.useFakeTimers().setSystemTime(t1);
-    await processMessage("ciao", [], "it", undefined, undefined, t1);
+    await processMessage("cosa faccio oggi", [], "it", undefined, undefined, t1);
     const turn1: CompletionMessage[] = mockGenerate.mock.calls[0][0];
 
     // Turn 2: the clock has crossed a minute, an hour, and a DAY boundary.
@@ -83,10 +83,10 @@ describe("V4 history byte-stability across turns", () => {
     const t2 = new Date(2026, 6, 2, 9, 5, 44);
     jest.setSystemTime(t2);
     const history = [
-      userMsg("m1", "ciao", t1.getTime()),
+      userMsg("m1", "cosa faccio oggi", t1.getTime()),
       assistantMsg("m2", "Ciao! Come posso aiutarti?", t1.getTime() + 8000),
     ];
-    await processMessage("che tempo fa", history, "it", undefined, undefined, t2);
+    await processMessage("e domani cosa faccio", history, "it", undefined, undefined, t2);
     const turn2: CompletionMessage[] = mockGenerate.mock.calls[1][0];
 
     // The V4 invariant: everything turn 1 sent is a byte-identical prefix of
@@ -136,7 +136,7 @@ describe("historyWindowStart — anchored sliding window", () => {
 });
 
 describe("V4 byte-stability holds on long conversations (anchored window)", () => {
-  test("consecutive turns within a stride bucket stay a pure append", async () => {
+  test("questions replay only the last 6 messages and keep an identical system prompt", async () => {
     mockGenerate.mockResolvedValue(gen("risposta"));
     const base = new Date(2026, 6, 1, 12, 0, 0).getTime();
 
@@ -165,12 +165,13 @@ describe("V4 byte-stability holds on long conversations (anchored window)", () =
     const promptB: CompletionMessage[] = mockGenerate.mock.calls[1][0];
 
     expect(historyWindowStart(30)).toBe(8);
-    expect(historyWindowStart(32)).toBe(8);
-    // Everything turn A sent is a byte-identical prefix of turn B — a pure
-    // append despite both being well past the 20-message window.
-    expect(JSON.stringify(promptB.slice(0, promptA.length))).toBe(
-      JSON.stringify(promptA),
-    );
+    // System prompt + 6 history messages + the new message: a phone re-reads a
+    // few short turns instead of the whole conversation.
+    expect(promptA).toHaveLength(8);
+    expect(promptB).toHaveLength(8);
+    // The system prompt is byte-identical, so its cached state is reused.
+    expect(promptB[0]).toEqual(promptA[0]);
+    expect(promptB[promptB.length - 2].content).toBe("risposta");
   });
 });
 

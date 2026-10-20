@@ -225,7 +225,10 @@ export default function ChatScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: conversationTitle || "Today",
+      // Short enough to never run under the header buttons on narrow phones.
+      title: conversationTitle && conversationTitle.length > 22
+        ? `${conversationTitle.slice(0, 21).trimEnd()}…`
+        : conversationTitle || "Today",
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => router.push("/history")}

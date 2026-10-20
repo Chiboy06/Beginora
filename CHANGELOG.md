@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.10] — Reminders with sound, faster answers
+
+### Changed
+- Android `versionCode` 12 / version 0.2.10, so it installs over the 0.2.9 (build 11) test APK.
+
+---
+
 ## [0.2.9] — Hands-free voice fix
 
 ### Fixed
@@ -16,10 +23,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Downloads pause with a resume point when the connection drops; Models shows Resume.
 - The keyboard no longer covers text fields (Android edge-to-edge).
 - Hands-free greets once per session and stops talking when you tap.
+- Reminders ring on time with sound and vibration (new "Reminders" alert channel, `alarmClock` delivery, `SCHEDULE_EXACT_ALARM`); before, they arrived silently and could be late.
+- Date and time questions are answered from the phone clock, and the hidden time tag is only added to messages about times, so small models stop answering "today" to unrelated questions.
+- Faster answers: questions send only the last 6 messages, and the startup cache warms the exact question prompt (it previously warmed an unused prompt).
+- A repeated answer is retried once; if it repeats again, Beginora says it isn't sure instead of repeating a likely-wrong fact.
+- "Type / write / draft an SMS for Daniel" opens a text to Daniel (message filled in when given, scheduled when a time is given).
+- Models warns about reasoning models (DeepSeek-R1 distills, QwQ): slow, wordy replies on a phone.
+- Long chat titles no longer run under the header buttons.
 
 ### Added
 - Qwen3 0.6B (397 MB) in the catalog as the fastest model.
 - "Add a task to … by 6pm" saves the task with a reminder; "how much screen time today?" lists your top apps.
+- Tasks screen lists upcoming reminders (with Cancel) and recent past ones; Permissions has "Allow on-time reminders".
 - Real-model evaluation (`evals/__tests__/real-model.test.ts`, run with `REAL_MODEL=qwen3:0.6b`): the app's own orchestrator against a model served by Ollama.
 - Design: a soft sage-to-stone gradient backdrop and a floating, rounded tab bar with filled/outlined vector icons; the bar hides while typing.
 - Voice navigation in hands-free mode: "open settings", "show my tasks", "go to the calendar", "open permissions", "open models", "open history", "open documents", "open new task" and "go back", matched without the model.

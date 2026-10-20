@@ -19,7 +19,7 @@ const RULES: { tool: string; test: RegExp }[] = [
   { tool: "set_alarm", test: /\balarm\b|\bwake me( up)?\b/i },
   { tool: "set_timer", test: /\btimer\b|\bcount ?down\b/i },
   { tool: "set_reminder", test: /\bremind me\b|\breminder\b/i },
-  { tool: "sms", test: /^(please\s+)?(text|sms|message)\b|\bsend (a |an )?(text|sms|message)\b/i },
+  { tool: "sms", test: /^(please\s+)?(text|sms|message)\b|\bsend (a |an )?(text|sms|message)\b|\b(type|write|draft|compose|prepare|create)\s+(an?\s+)?(sms( message)?|text( message)?|message)\s+(for|to)\b/i },
   { tool: "make_call", test: /^(please\s+)?(call|phone|ring|dial)\b/i },
   { tool: "save_note", test: /\b(save|take|make|write|add)\b[^.?!]*\bnotes?\b|^note\b/i },
   {
@@ -69,4 +69,11 @@ export function dateFromText(text: string, now: Date): string {
     if (named !== -1) day.setDate(day.getDate() + ((named - day.getDay() + 7) % 7));
   }
   return localDate(day);
+}
+
+// Whether a message is about a time or date. Only those messages carry the
+// hidden time tag; on other questions small models copy it into answers
+// ("Independence is on 20 October, which is today in the Time context").
+export function mentionsTime(text: string): boolean {
+  return /\b(today|tonight|tomorrow|yesterday|now|morning|afternoon|evening|o'?clock|noon|midnight|weekend|next week|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|am|pm|a\.m\.|p\.m\.|oggi|stasera|domani|ieri|adesso|mattina|pomeriggio|sera)\b|\d\s*(am|pm|a\.m\.|p\.m\.)|\d{1,2}[:.]\d{2}|\bin \d+\s*(min|minute|hour|hr)s?\b/i.test(text);
 }

@@ -4,7 +4,7 @@
 
 import { generate, isLoaded, estimatePromptTokens, getContextSize } from "../llm/llm-engine";
 import type { CompletionMessage } from "../llm/llm-engine";
-import { buildChatPrompt, buildStablePrefix, annotateUserMessage } from "./prompt-builder";
+import { chatSystemPrompt, buildStablePrefix, annotateUserMessage } from "./prompt-builder";
 import { schedulePrefixPersist } from "./session-warmer";
 import { parseResponse, stripThinkTags, looksLikeToolAttempt } from "./response-parser";
 import type {
@@ -32,9 +32,9 @@ import { getKnowledgeForPrompt } from "./knowledge-manager";
 import { getConfig } from "../storage/database";
 import { toolRequiresConfirmation, toolReturnsData } from "../tools/tool-registry";
 import { prefs } from "../store/prefs";
-import { dateFromText, localDateTime, relativeTime, routeIntent } from "./intent-router";
+import { dateFromText, localDateTime, mentionsTime, relativeTime, routeIntent } from "./intent-router";
 import { describeAction, unclearAction } from "./action-text";
-import { smallTalkReply } from "./small-talk";
+import { dateTimeReply, smallTalkReply } from "./small-talk";
 import { directAction } from "./direct-actions";
 
 const MAX_HISTORY_MESSAGES = 20;
@@ -53,6 +53,7 @@ const HISTORY_SLIDE_STRIDE = 8;
 export const REPLY_TOKENS = 1024;
 // Answers to questions: a few sentences. Small budgets mean fast replies.
 export const CHAT_REPLY_TOKENS = 320;
+export const CHAT_HISTORY_MESSAGES = 6;
 
 // The index of the first history message to include. Rounds the "last MAX"
 // start DOWN to a stride boundary so it advances every STRIDE messages, not
@@ -74,7 +75,14 @@ function plainToolData(message: string, data: string | undefined): string {
 }
 
 export function withoutTimeTags(text: string): string {
-  return text.replace(/\[(Time context|Contesto temporale):[^\]]*\]/g, "").replace(/[ \t]+$/gm, "").trim();
+  // Any bracketed "... context ..." tag (models reword it, e.g. "Timespan context")
+  // and copied "[Tool: x -> status]" notes from history.
+  return text
+    .replace(/\[[^\]]*(context|contesto)[^\]]*\]/gi, "")
+    .replace(/\[Tool:[^\]]*\]/g, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function syntheticCompletion(text: string) {
@@ -116,7 +124,8 @@ export async function processMessage(
 ): Promise<OrchestratorResponse> {
   // Greetings, thanks, feelings and crisis wording are answered instantly in
   // code: small models loop or copy earlier replies on exactly these turns.
-  const instant = smallTalkReply(userText, prefs.userName, history.filter((m) => m.role === "assistant").length);
+  const instant = dateTimeReply(userText, sentAt) ??
+    smallTalkReply(userText, prefs.userName, history.filter((m) => m.role === "assistant").length);
   if (instant) return { type: "text", content: instant };
 
   // Step 1, route: a clear action request names its tool (see intent-router).
@@ -169,11 +178,11 @@ export async function processMessage(
   const name = prefs.userName;
   // A routed action lists only its tool. Anything else is a question: a short
   // tool-free prompt and a short answer keep small models fast and on point.
-  const stablePrefix = (routedTool
+  const stablePrefix = routedTool
     ? buildStablePrefix(lang, memoriesBlock, knowledgeBlock, [routedTool]) +
-      `\n\nThe latest message asks for ${routedTool}. Reply ONLY with the JSON for ${routedTool}.`
-    : buildChatPrompt(lang, memoriesBlock)) +
-    (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "");
+      `\n\nThe latest message asks for ${routedTool}. Reply ONLY with the JSON for ${routedTool}.` +
+      (name ? `\n\nThe user's name is ${name}. Use it now and then, warmly and naturally.` : "")
+    : chatSystemPrompt(lang, memoriesBlock, name);
 
   // Build conversation messages for the LLM
   const messages: CompletionMessage[] = [
@@ -181,12 +190,18 @@ export async function processMessage(
   ];
 
   // Add recent history (anchored sliding window — see historyWindowStart).
-  const recent = history.slice(historyWindowStart(history.length));
+  // Questions see only the last few messages (like a chat-history window):
+  // re-reading a long history took 14 s per reply on a phone, and small
+  // models copy old answers. Actions keep the anchored window.
+  const recent = routedTool
+    ? history.slice(historyWindowStart(history.length))
+    : history.slice(-CHAT_HISTORY_MESSAGES);
   for (const msg of recent) {
     if (msg.role === "user") {
       messages.push({
         role: "user",
-        content: annotateUserMessage(lang, new Date(msg.createdAt), msg.content),
+        // Same rule as the current message, so replayed history stays byte-identical.
+        content: mentionsTime(msg.content) ? annotateUserMessage(lang, new Date(msg.createdAt), msg.content) : msg.content,
       });
     } else if (msg.role === "assistant") {
       let content = msg.content;
@@ -208,7 +223,8 @@ export async function processMessage(
   // Add current user message with this turn's time context.
   messages.push({
     role: "user",
-    content: annotateUserMessage(lang, sentAt, userText),
+    // Actions and time questions need the clock; other questions must not see it.
+    content: routedTool || mentionsTime(userText) ? annotateUserMessage(lang, sentAt, userText) : userText,
   });
 
   // Drop the oldest history turns until prompt plus reply fits the context.
@@ -441,8 +457,17 @@ export async function processMessage(
       if (previous && stripThinkTags(raw).trim() === stripThinkTags(previous).trim() && !result.stoppedByUser) {
         onStreamReset?.();
         extraGenerationRan = true;
-        const again = await generate(messages, { maxTokens: REPLY_TOKENS, temperature: 0.8, enableThinking: false }, onToken);
-        if (!parseResponse(again.text)) response = { type: "text", content: again.text };
+        const again = await generate(messages, { maxTokens: CHAT_REPLY_TOKENS, temperature: 0.8, enableThinking: false }, onToken);
+        const retried = withoutTimeTags(again.text);
+        // Still the same answer: say so honestly rather than repeat a likely-wrong one.
+        response = retried && retried !== withoutTimeTags(previous) && !parseResponse(again.text)
+          ? { type: "text", content: retried }
+          : {
+              type: "text",
+              content: lang === "it"
+                ? "Non ne sono sicuro: un modello piccolo sul telefono può sbagliare i fatti. Un modello più grande in Impostazioni > Modelli risponde meglio."
+                : "I'm not sure about that one: a small on-device model can get facts wrong. A larger model in Settings > Models answers more reliably.",
+            };
       }
     }
 
@@ -453,7 +478,8 @@ export async function processMessage(
     // called BEFORE extractMemories: the persist path is synchronous up to its
     // engine-lock enqueue, so the snapshot enters the FIFO lock queue ahead of
     // the extraction generate and captures the just-finished turn's KV state.
-    if (!result.stoppedByUser && !extraGenerationRan) {
+    // Only question turns: their prompt is the one the startup warmer restores.
+    if (!routedTool && !result.stoppedByUser && !extraGenerationRan) {
       schedulePrefixPersist(stablePrefix, lang, messages, result.tokensPredicted);
     }
 

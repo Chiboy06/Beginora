@@ -38,3 +38,29 @@ test.each([
 ])("anything with a real request goes on to the model: %s", (said) => {
   expect(smallTalkReply(said, "", 0)).toBeNull();
 });
+
+describe("dateTimeReply", () => {
+  const { dateTimeReply } = jest.requireActual("../small-talk");
+  const NOW = new Date(2026, 9, 20, 12, 40); // Tue 20 Oct 2026, 12:40
+
+  test.each([
+    ["What was yesterday's date", "Yesterday was Monday, 19 October 2026."],
+    ["What was yesterday date?", "Yesterday was Monday, 19 October 2026."],
+    ["what's today's date", "Today is Tuesday, 20 October 2026."],
+    ["what is the date", "Today is Tuesday, 20 October 2026."],
+    ["what day is it", "Today is Tuesday, 20 October 2026."],
+    ["what will be tomorrow's date", "Tomorrow is Wednesday, 21 October 2026."],
+    ["what time is it?", "It's 12:40."],
+  ])("%s", (said, expected) => {
+    expect(dateTimeReply(said, NOW)).toBe(expected);
+  });
+
+  test.each([
+    "which day does Nigeria celebrate Independence",
+    "what day is my exam",
+    "how many states does Nigeria have",
+    "set an alarm for tomorrow",
+  ])("not a clock question: %s", (said) => {
+    expect(dateTimeReply(said, NOW)).toBeNull();
+  });
+});

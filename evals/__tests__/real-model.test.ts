@@ -116,6 +116,10 @@ type Expect = { tool?: string; text?: true; contains?: RegExp };
 const CASES: [string, Expect][] = [
   ["hi", { text: true }],
   ["what is the capital of Nigeria?", { text: true, contains: /abuja/i }],
+  ["How many states does Nigeria have", { text: true, contains: /36|thirty-six/i }],
+  ["which day does Nigeria celebrate Independence", { text: true, contains: /(1(st)? october|october 1)/i }],
+  ["What was yesterday's date", { text: true, contains: /19/ }],
+  ["List all the states in Nigeria", { text: true, contains: /lagos[\s\S]*kano|kano[\s\S]*lagos/i }],
   ["can you define photosynthesis for my assignment?", { text: true, contains: /light|sun|plant/i }],
   ["remind me to call Dr. Ben by 12 a.m.", { tool: "set_reminder" }],
   ["add a task to finish my essay by 6pm", { tool: "add_task" }],
