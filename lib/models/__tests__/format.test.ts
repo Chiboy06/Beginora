@@ -115,3 +115,13 @@ describe("fitLabel", () => {
     expect(f.text).toBe("");
   });
 });
+
+describe("isReasoningModel", () => {
+  const { isReasoningModel } = jest.requireActual("../format");
+  test.each(["DeepSeek-R1-Distill-Qwen-1.5B-GGUF", "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF", "Qwen/QwQ-32B-GGUF", "Phi-4-reasoning-Q4_K_M.gguf"])("%s", (name) => {
+    expect(isReasoningModel(name)).toBe(true);
+  });
+  test.each(["unsloth/Qwen3-0.6B-GGUF", "Qwen3-4B-Instruct-2507-Q4_K_M.gguf", "gemma-3-1b-it"])("not reasoning: %s", (name) => {
+    expect(isReasoningModel(name)).toBe(false);
+  });
+});

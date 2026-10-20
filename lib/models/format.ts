@@ -105,3 +105,13 @@ export function fitLabel(
       return { level: "unknown", text: "" };
   }
 }
+
+// Reasoning ("thinking") models write long hidden reasoning before every
+// answer: on a phone that means slow, rambling replies (seen with
+// DeepSeek-R1-Distill-Qwen-1.5B at 6.8 tokens/s).
+export function isReasoningModel(name: string): boolean {
+  return /deepseek[-_ ]?r1|r1[-_ ]distill|\bqwq\b|reasoning|-think(ing)?\b|phi-4-reasoning/i.test(name);
+}
+
+export const REASONING_MODEL_NOTE =
+  "Reasoning model: it thinks at length before each answer, so replies are slow and wordy on a phone. Qwen3 1.7B or 0.6B work better here.";

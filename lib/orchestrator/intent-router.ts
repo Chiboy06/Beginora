@@ -19,7 +19,7 @@ const RULES: { tool: string; test: RegExp }[] = [
   { tool: "set_alarm", test: /\balarm\b|\bwake me( up)?\b/i },
   { tool: "set_timer", test: /\btimer\b|\bcount ?down\b/i },
   { tool: "set_reminder", test: /\bremind me\b|\breminder\b/i },
-  { tool: "sms", test: /^(please\s+)?(text|sms|message)\b|\bsend (a |an )?(text|sms|message)\b/i },
+  { tool: "sms", test: /^(please\s+)?(text|sms|message)\b|\bsend (a |an )?(text|sms|message)\b|\b(type|write|draft|compose|prepare|create)\s+(an?\s+)?(sms( message)?|text( message)?|message)\s+(for|to)\b/i },
   { tool: "make_call", test: /^(please\s+)?(call|phone|ring|dial)\b/i },
   { tool: "save_note", test: /\b(save|take|make|write|add)\b[^.?!]*\bnotes?\b|^note\b/i },
   {

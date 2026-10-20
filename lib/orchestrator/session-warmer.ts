@@ -11,7 +11,8 @@ import {
   persistPrefixSession,
   restorePrefixSession,
 } from "../llm/session-cache";
-import { buildStablePrefix, annotateUserMessage } from "./prompt-builder";
+import { chatSystemPrompt, annotateUserMessage } from "./prompt-builder";
+import { prefs } from "../store/prefs";
 import { getMemoriesForPrompt } from "./memory-manager";
 import { getKnowledgeForPrompt } from "./knowledge-manager";
 import { getConfig } from "../storage/database";
@@ -38,13 +39,13 @@ const PERSIST_SAFETY_MARGIN = 256;
  */
 export async function warmSessionCache(): Promise<void> {
   try {
-    const [lang, memoriesBlock, knowledgeBlock] = await Promise.all([
+    const [lang, memoriesBlock] = await Promise.all([
       getConfig("language"),
       getMemoriesForPrompt(),
-      getKnowledgeForPrompt(),
     ]);
     const language: Language = lang === "en" ? "en" : "it";
-    const stablePrefix = buildStablePrefix(language, memoriesBlock, knowledgeBlock);
+    // Must match the question prompt in orchestrator.ts exactly.
+    const stablePrefix = chatSystemPrompt(language, memoriesBlock, prefs.userName);
     await restorePrefixSession(stablePrefix);
   } catch (err) {
     console.warn("[SessionWarmer] warm failed (starting cold):", err);

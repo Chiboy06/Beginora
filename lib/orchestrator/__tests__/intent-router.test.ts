@@ -89,3 +89,11 @@ describe("mentionsTime", () => {
     expect(mentionsTime(said)).toBe(false);
   });
 });
+
+test.each([
+  ["type an SMS message for Daniel Phantom", "send_sms"],
+  ["write a text to Ada saying I'll be late", "send_sms"],
+  ["draft a message for Ada saying happy birthday at 9am", "schedule_sms"],
+])("drafted texts: %s -> %s", (said, tool) => {
+  expect(routeIntent(said)).toBe(tool);
+});

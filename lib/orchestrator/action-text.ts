@@ -26,6 +26,7 @@ export function describeAction(tool: string, p: Record<string, unknown>, lang: L
     case "set_timer":
       return it ? `Timer di ${p.minutes} minuti avviato.` : `Timer set for ${p.minutes} minutes.`;
     case "send_sms":
+      if (!String(p.text ?? "").trim()) return it ? `Apro un SMS per ${p.contact}?` : `Open a text to ${p.contact}?`;
       return it ? `Apro un SMS per ${p.contact}: ${q(p.text)}?` : `Open a text to ${p.contact}: ${q(p.text)}?`;
     case "schedule_sms":
       return it

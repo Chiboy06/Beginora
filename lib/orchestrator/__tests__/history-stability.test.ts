@@ -136,7 +136,7 @@ describe("historyWindowStart — anchored sliding window", () => {
 });
 
 describe("V4 byte-stability holds on long conversations (anchored window)", () => {
-  test("consecutive turns within a stride bucket stay a pure append", async () => {
+  test("questions replay only the last 6 messages and keep an identical system prompt", async () => {
     mockGenerate.mockResolvedValue(gen("risposta"));
     const base = new Date(2026, 6, 1, 12, 0, 0).getTime();
 
@@ -165,12 +165,13 @@ describe("V4 byte-stability holds on long conversations (anchored window)", () =
     const promptB: CompletionMessage[] = mockGenerate.mock.calls[1][0];
 
     expect(historyWindowStart(30)).toBe(8);
-    expect(historyWindowStart(32)).toBe(8);
-    // Everything turn A sent is a byte-identical prefix of turn B — a pure
-    // append despite both being well past the 20-message window.
-    expect(JSON.stringify(promptB.slice(0, promptA.length))).toBe(
-      JSON.stringify(promptA),
-    );
+    // System prompt + 6 history messages + the new message: a phone re-reads a
+    // few short turns instead of the whole conversation.
+    expect(promptA).toHaveLength(8);
+    expect(promptB).toHaveLength(8);
+    // The system prompt is byte-identical, so its cached state is reused.
+    expect(promptB[0]).toEqual(promptA[0]);
+    expect(promptB[promptB.length - 2].content).toBe("risposta");
   });
 });
 

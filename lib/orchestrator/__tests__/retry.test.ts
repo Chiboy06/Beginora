@@ -266,3 +266,23 @@ describe("withoutTimeTags", () => {
     expect(withoutTimeTags("[Contesto temporale: martedì]\nCiao")).toBe("Ciao");
   });
 });
+
+describe("processMessage — repeated answers", () => {
+  beforeEach(() => jest.clearAllMocks());
+  const previous = [
+    { id: "u1", conversationId: "c", role: "user" as const, content: "how many states does Nigeria have", createdAt: 1 },
+    { id: "a1", conversationId: "c", role: "assistant" as const, content: "Nigeria has 20 states.", createdAt: 2 },
+  ];
+
+  it("a retry that gives a new answer is used", async () => {
+    mockGenerate.mockResolvedValueOnce(gen("Nigeria has 20 states.")).mockResolvedValueOnce(gen("Nigeria has 36 states."));
+    const res = await processMessage("list all the states", previous, "en");
+    expect(res).toEqual({ type: "text", content: "Nigeria has 36 states." });
+  });
+
+  it("the same answer twice becomes an honest 'not sure' instead of a repeat", async () => {
+    mockGenerate.mockResolvedValueOnce(gen("Nigeria has 20 states.")).mockResolvedValueOnce(gen("Nigeria has 20 states."));
+    const res = await processMessage("list all the states", previous, "en");
+    expect(res).toEqual({ type: "text", content: expect.stringContaining("I'm not sure") });
+  });
+});
