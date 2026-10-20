@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.0] — Android upgrade build
+
+### Changed
+- Package the latest merged mainline changes as version 0.3.0 with Android `versionCode` 12 so the APK installs over v0.2.9/code 11. Feature changes are documented in the v0.2.9 mainline entry below.
+
+---
+
 ## [0.2.9] — Hands-free voice fix
 
 ### Fixed
