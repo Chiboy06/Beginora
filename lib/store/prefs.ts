@@ -4,6 +4,14 @@ import { MMKV } from "react-native-mmkv";
 // Synchronous reads make this ideal for settings that gate rendering.
 export const storage = new MMKV({ id: "beginora-prefs" });
 
+export interface ReminderLogEntry {
+  id: string;
+  text: string;
+  at: number;
+  createdAt: number;
+  cancelled: boolean;
+}
+
 export const prefs = {
   get language(): "en" | "it" {
     return (storage.getString("language") as "en" | "it") ?? "en";
@@ -51,6 +59,19 @@ export const prefs = {
     const name = v.replace(/\s+/g, " ").trim().slice(0, 40);
     if (name) storage.set("user_name", name);
     else storage.delete("user_name");
+  },
+
+  // Reminders the user set (newest first, at most 50), for the Reminders list.
+  get reminderLog(): ReminderLogEntry[] {
+    try {
+      const parsed = JSON.parse(storage.getString("reminder_log") ?? "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  },
+  set reminderLog(v: ReminderLogEntry[]) {
+    storage.set("reminder_log", JSON.stringify(v));
   },
 
   // Opt-in gentle check-in notifications (background scan). Off by default.

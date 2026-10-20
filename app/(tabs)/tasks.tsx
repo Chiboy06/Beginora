@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTaskStore } from "../../lib/store/task-store";
+import { RemindersList } from "../../components/RemindersList";
 import type { Task } from "../../lib/storage/database";
 import { colors, spacing, radii, typography } from "../../lib/theme";
 
@@ -139,6 +140,7 @@ export default function TasksScreen() {
           data={filtered}
           keyExtractor={(t) => t.id}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={<RemindersList />}
           renderItem={({ item }) => (
             <TaskItem
               task={item}

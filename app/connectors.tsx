@@ -9,6 +9,7 @@ import {
   REQUESTABLE_CONNECTORS,
 } from "../lib/connectors/permission-service";
 import { hasUsageAccess, openUsageAccessSettings } from "../lib/native/usage-access";
+import { allowOnTimeReminders, onTimeRemindersAllowed } from "../lib/native/reminders";
 import type { ConnectorPermissionState } from "../lib/connectors/types";
 import { colors, radii, spacing, typography } from "../lib/theme";
 
@@ -42,10 +43,12 @@ export default function ConnectorsScreen() {
   const [states, setStates] = useState<Record<string, ConnectorPermissionState>>({});
 
   const [usageGranted, setUsageGranted] = useState(false);
+  const [onTime, setOnTime] = useState(true);
 
   const refresh = useCallback(() => {
     readConnectorPermissionStates().then(setStates).catch(() => {});
     void hasUsageAccess().then(setUsageGranted);
+    void onTimeRemindersAllowed().then(setOnTime).catch(() => setOnTime(false));
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -90,6 +93,22 @@ export default function ConnectorsScreen() {
             {!usageGranted && (
               <TouchableOpacity style={styles.action} onPress={() => { void openUsageAccessSettings().catch(() => {}); }} accessibilityRole="button">
                 <Text style={styles.actionText}>Open usage access</Text>
+              </TouchableOpacity>
+            )}
+          </GlassSurface>
+        )}
+        {Platform.OS === "android" && (
+          <GlassSurface style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>On-time reminders</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{onTime ? "Allowed" : "Not allowed"}</Text>
+              </View>
+            </View>
+            <Text style={styles.description}>Lets reminders ring at the exact minute you set. Without it, Android may deliver them late to save battery.</Text>
+            {!onTime && (
+              <TouchableOpacity style={styles.action} onPress={() => { void allowOnTimeReminders().then(setOnTime).catch(() => {}); }} accessibilityRole="button">
+                <Text style={styles.actionText}>Allow on-time reminders</Text>
               </TouchableOpacity>
             )}
           </GlassSurface>
