@@ -236,7 +236,9 @@ export async function processMessage(
         // before answering; templates without the mode ignore the flag.
         // Questions get a short answer budget: faster, and no rambling.
         { maxTokens: routedTool ? REPLY_TOKENS : CHAT_REPLY_TOKENS, temperature: 0.3, enableThinking: false },
-        onToken,
+        // An action turn produces tool JSON, not prose: show the typing
+        // indicator instead of streaming raw JSON onto the screen.
+        routedTool ? undefined : onToken,
       );
     const raw = result.text;
     if (__DEV__) {
