@@ -5,6 +5,92 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.16] — Talk to it: follow-up questions by voice or text
+
+### Added
+- **Follow-up questions.** These work the same typed, with the microphone, or in hands-free voice, and run in code, so they work with any model or none.
+  - **Tasks.** "Set me a task" asks: What's the task? When? Remind you? Any details? Then it saves the task with a first small step. Saying the title and time at once ("add a task to call mum on Friday at 9am") skips the questions already answered. "No time" puts it in Sort later.
+  - **Lists.** "Add tasks: buy bread, call mum and pay rent on Friday" reads the list back ("I heard 3 tasks") and adds them after a yes.
+  - **Reminders.** "Set me a reminder" asks what and when.
+- **Moods by voice.** "I'm feeling happy today", "I feel so tired", "my day was good" (or "not good") save today's mood to the journal and ask how your day went.
+- **Daily "How was your day?" check-in.**
+  - After the first mood, Beginora asks when to ask you each day, and sets it.
+  - You can also say "ask me how my day was at 8 pm", or "stop asking about my day".
+  - It can be turned on and off, with a time, in Journal.
+  - The notification opens a new journal entry.
+- **Open any page by voice or text.** For example "open my journal", "show me the plan", "go to routines", "open my goals", "plan my week", "reset my day", "start a focus session", "bring up my memories", "open Telegram".
+
+### Fixed
+- Phrasings that silently failed before now work: "set me a task", "create a task", and "add tasks" (plural).
+- A task saved from chat with a time ("by 6pm") now also gets that due time, so it shows on its day in Plan.
+- An unanswered question never traps the conversation:
+  - a clear new request drops it;
+  - a missed answer is asked once more, then the words are handled normally;
+  - "cancel" stops it.
+
+### Changed
+- Android `versionCode` 18 / version 0.2.16.
+
+---
+
+## [0.2.15] — Local first, Liquid Glass tab bar, theme switch that works
+
+### Changed
+- **Local first everywhere.** The phone's own model is tried before the online model:
+  - **Chat in "When needed" mode:** goes online only when no phone model is loaded (before, it also went online whenever a small model was loaded). If the phone model fails on a question, the online model answers instead of showing an error.
+  - **Plan my week and Summarise my goals:** use the phone model (1.5B or more) first, then the online model, then the no-AI splitter. Before, they tried online first.
+  - **"Always for questions"** stays as an explicit choice in Settings > Online model.
+- **Liquid Glass tab bar.** It floats over the screens with a translucent fill and a light edge, so content shows through it. iOS adds a live blur; Android uses a translucent fill. Today, Plan, Talk and Settings leave room for it, and the + buttons and the chat box sit above it.
+- **Dark and light mode apply at once.** Choosing Light, Dark or Follow phone offers "Restart now", and Beginora restarts in a second with your data kept. Glass cards now use a dark blur in dark mode.
+- Android `versionCode` 17 / version 0.2.15.
+
+---
+
+## [0.2.14] — Plan your week with Beginora, step by step
+
+Follows the four steps of "Plan your week": talk instead of typing, a task manager, tell it your goals, and a weekly routine.
+
+### Added
+- **Summarise my goals**: talk freely, then Beginora tidies it into Goals, Projects and How I work, and finds your projects. You choose "Use this summary" or "Keep my words". Needs the online model or a phone model of 1.5B or more.
+- **Planning guide**: the weekly-planning instructions are saved after your goals and used every week. You can edit them, or reset to the default.
+- **Goals as a memory**: saving your goals also stores them as one memory, so Talk knows them when you ask about yourself. Saving again replaces it.
+- **The weekly-plan routine**: pick the day (Monday by default) and the time. Its only instruction is to ask "What's your plan for the week? Let's check it against your goals." and wait for your draft.
+- **Send to another task app**: share the approved plan, grouped by project, to Todoist, Google Tasks, Linear or any app on the phone. Beginora's own tasks stay the main task manager.
+
+### Fixed
+- Model answers with real line breaks inside JSON strings are now read instead of rejected.
+
+### Changed
+- Android `versionCode` 16 / version 0.2.14.
+
+---
+
+## [0.2.13] — Plan my week, checked against your goals
+
+### Added
+- **My goals**: write or speak your yearly or quarterly goals and how you work, and keep a list of projects. Everything stays on the phone.
+- **Plan my week**:
+  - Talk through a rough plan; it is checked against your goals.
+  - Up to 3 off-goal items are flagged kindly, each with "Remove from plan" or "Keep it".
+  - The plan becomes editable rows of project, task and due date. Due dates are added only when you name a day.
+  - Open tasks from last week are listed separately: Keep, Already done, or Let go (deleting asks first).
+  - "Create N tasks" adds them all at once.
+  - A new project or goal change is suggested, and saved only if you tap "Save to my goals".
+- **Monday check-in** (optional): a weekly notification at the hour you choose, "What's your plan for the week? Let's check it against your goals." It opens Plan my week. It is scheduled on the phone, so it needs no computer or internet.
+- **Projects on tasks**: shown in Plan, filterable in the list view, and editable on the Edit screen.
+- Saying "plan my week" in Talk points you to the screen.
+
+### Model choice for the goal check
+- The online model is used if set up, otherwise a phone model of 1.5B or more.
+- Otherwise (or for Qwen3 0.6B) the plan is split into tasks from your words, without the goal check.
+- In testing, Qwen3 0.6B dropped 3 of 5 items, so models under 1.5B are skipped for this.
+- If any model returns far fewer tasks than you said, its goal flags are kept but every task from your words is used.
+
+### Changed
+- Android `versionCode` 15 / version 0.2.13.
+
+---
+
 ## [0.2.12] — Planner, routines, journal, online model, shared Telegram bot
 
 ### Added

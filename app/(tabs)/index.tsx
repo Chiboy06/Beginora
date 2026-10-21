@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-nati
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTabBarSpace } from "../../lib/ui/tab-bar";
 import { GlassScreen } from "../../components/GlassSurface";
 import { Button, Card, MoodPicker, SectionTitle, kit } from "../../components/Kit";
 import { useTaskStore } from "../../lib/store/task-store";
@@ -25,6 +26,7 @@ function greeting(hour: number): string {
 export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const barSpace = useTabBarSpace();
   const tasks = useTaskStore((s) => s.tasks);
   const loadTasks = useTaskStore((s) => s.loadTasks);
   const setStatus = useTaskStore((s) => s.setStatus);
@@ -66,7 +68,7 @@ export default function TodayScreen() {
 
   return (
     <GlassScreen>
-      <ScrollView contentContainerStyle={[kit.screenPad, { paddingTop: insets.top + spacing.lg }]}>
+      <ScrollView contentContainerStyle={[kit.screenPad, { paddingTop: insets.top + spacing.lg, paddingBottom: barSpace + 90 }]}>
         <Text style={kit.h1} accessibilityRole="header">{greeting(now.getHours())}{name ? `, ${name}` : ""}</Text>
         <Text style={kit.sub}>{now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}. One step at a time.</Text>
 
@@ -168,6 +170,8 @@ export default function TodayScreen() {
         <SectionTitle>Tools</SectionTitle>
         <View style={styles.tools}>
           {[
+            { label: "Plan my week", icon: "calendar-outline" as const, to: "/weekly-plan" },
+            { label: "My goals", icon: "flag-outline" as const, to: "/goals" },
             { label: "Routines", icon: "repeat" as const, to: "/routines" },
             { label: "Focus", icon: "timer-outline" as const, to: "/task/focus" },
             { label: "Talk", icon: "chatbubble-ellipses-outline" as const, to: "/talk" },
@@ -185,7 +189,7 @@ export default function TodayScreen() {
         onPress={() => router.push("/capture")}
         accessibilityRole="button"
         accessibilityLabel="Capture something to remember"
-        style={styles.capture}
+        style={[styles.capture, { bottom: barSpace + spacing.md }]}
         activeOpacity={0.85}
       >
         <Ionicons name="add" size={24} color={colors.onAccent} />

@@ -1,6 +1,6 @@
 {
   "name": "beginora",
-  "version": "0.2.12",
+  "version": "0.2.16",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",

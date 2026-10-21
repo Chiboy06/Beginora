@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { BlurTargetView, BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors } from "../lib/theme";
+import { colors, isDark } from "../lib/theme";
 import { useKeyboardHeight } from "../lib/ui/use-keyboard-height";
 
 type ViewInstance = ComponentRef<typeof View>;
@@ -79,7 +79,7 @@ export function GlassSurface({
         blurMethod={blurMethod}
         blurReductionFactor={3}
         intensity={intensity}
-        tint="light"
+        tint={isDark ? "dark" : "light"}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />

@@ -5,7 +5,6 @@
 
 import * as SecureStore from "expo-secure-store";
 import { prefs } from "../store/prefs";
-import { isTinyModel } from "../models/format";
 import type { CompletionMessage, CompletionResult } from "./llm-engine";
 
 const KEY_NAME = "online_api_key";
@@ -52,13 +51,10 @@ export async function onlineSettings(): Promise<OnlineSettings> {
 }
 
 // Whether this question goes online. Actions never do: they run on the phone.
-export function wantsOnline(
-  mode: "off" | "fallback" | "always",
-  modelReady: boolean,
-  modelPath: () => string,
-): boolean {
+export function wantsOnline(mode: "off" | "fallback" | "always", modelReady: boolean): boolean {
   if (mode === "always") return true;
-  if (mode === "fallback") return !modelReady || isTinyModel(modelPath());
+  // Local first: "when needed" means only when no phone model is loaded.
+  if (mode === "fallback") return !modelReady;
   return false;
 }
 

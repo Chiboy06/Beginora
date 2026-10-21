@@ -188,6 +188,13 @@ export const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Weekly planning: each task can belong to a project from the user's goals.
+    version: 7,
+    sql: `
+      ALTER TABLE tasks ADD COLUMN project TEXT;
+    `,
+  },
 ];
 
 // Exported for testing. Applies every migration whose version exceeds the DB's
@@ -883,6 +890,7 @@ export interface Task {
   updatedAt: number;
   notes?: string | null;
   repeat?: Repeat;
+  project?: string | null;
 }
 
 export type Repeat = "never" | "daily" | "weekdays" | "weekly";
@@ -890,12 +898,12 @@ export type Repeat = "never" | "daily" | "weekdays" | "weekly";
 async function insertTaskRow(d: SQLite.SQLiteDatabase, task: Task): Promise<void> {
   await d.runAsync(
     `INSERT OR REPLACE INTO tasks
-       (id, title, first_action, steps, reminder_id, status, priority, due_at, completed_at, created_at, updated_at, notes, repeat)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, title, first_action, steps, reminder_id, status, priority, due_at, completed_at, created_at, updated_at, notes, repeat, project)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     task.id, task.title, task.firstAction ?? null, JSON.stringify(task.steps), task.reminderId,
     task.status,
     task.priority, task.dueAt ?? null, task.completedAt ?? null,
-    task.createdAt, task.updatedAt, task.notes ?? null, task.repeat ?? "never",
+    task.createdAt, task.updatedAt, task.notes ?? null, task.repeat ?? "never", task.project ?? null,
   );
 }
 
@@ -950,7 +958,7 @@ export async function getTasks(status?: Task["status"]): Promise<Task[]> {
     steps: parseTaskSteps(r.steps), reminderId: r.reminder_id ?? null,
     status: r.status, priority: r.priority, dueAt: r.due_at,
     completedAt: r.completed_at, createdAt: r.created_at, updatedAt: r.updated_at,
-    notes: r.notes ?? null, repeat: (r.repeat ?? "never") as Repeat,
+    notes: r.notes ?? null, repeat: (r.repeat ?? "never") as Repeat, project: r.project ?? null,
   }));
 }
 
@@ -1090,12 +1098,12 @@ export async function deleteTask(id: string): Promise<void> {
 // Title, notes, time and repeat edited together from the task form.
 export async function updateTaskDetails(
   id: string,
-  fields: { title: string; notes: string | null; dueAt: number | null; repeat: Repeat; steps: string[] },
+  fields: { title: string; notes: string | null; dueAt: number | null; repeat: Repeat; steps: string[]; project: string | null },
 ): Promise<void> {
   const d = await getDatabase();
   await d.runAsync(
-    "UPDATE tasks SET title = ?, notes = ?, due_at = ?, repeat = ?, steps = ?, updated_at = ? WHERE id = ?",
-    fields.title, fields.notes, fields.dueAt, fields.repeat, JSON.stringify(fields.steps), Date.now(), id,
+    "UPDATE tasks SET title = ?, notes = ?, due_at = ?, repeat = ?, steps = ?, project = ?, updated_at = ? WHERE id = ?",
+    fields.title, fields.notes, fields.dueAt, fields.repeat, JSON.stringify(fields.steps), fields.project, Date.now(), id,
   );
 }
 

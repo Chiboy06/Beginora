@@ -9,7 +9,8 @@ jest.mock("../../connectors/email-connector", () => ({ openEmailDraft: jest.fn()
 jest.mock("../../telegram/telegram-service", () => ({ sendTelegramMessage: jest.fn() }));
 const mockCreateTaskWithPlan = jest.fn(async (..._args: unknown[]) => ({ id: "t1" }));
 const mockSetReminderId = jest.fn(async (..._args: unknown[]) => {});
-jest.mock("../../store/task-store", () => ({ useTaskStore: { getState: () => ({ createTaskWithPlan: mockCreateTaskWithPlan, setReminderId: mockSetReminderId }) }, createTaskWithPlan: mockCreateTaskWithPlan }));
+const mockUpdateDetails = jest.fn(async () => {});
+jest.mock("../../store/task-store", () => ({ useTaskStore: { getState: () => ({ createTaskWithPlan: mockCreateTaskWithPlan, setReminderId: mockSetReminderId, updateDetails: mockUpdateDetails }) }, createTaskWithPlan: mockCreateTaskWithPlan }));
 
 import { dispatchToolCall } from "../tool-dispatcher";
 import { decompose } from "../../ai/decomposer";
@@ -81,4 +82,6 @@ test("add_task with a time schedules a reminder that opens the task", async () =
   expect(scheduleLocalReminder).toHaveBeenCalledWith("finish my essay: Open the document", "2026-10-20T18:00:00", null, { kind: "task", taskId: "t1" });
   expect(mockSetReminderId).toHaveBeenCalledWith("t1", "n1");
   expect(result.message).toContain("I'll remind you");
+  // It also shows on that day in Plan.
+  expect(mockUpdateDetails).toHaveBeenCalledWith("t1", expect.objectContaining({ dueAt: new Date("2026-10-20T18:00:00").getTime(), remind: false }));
 });

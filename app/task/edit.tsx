@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Button, Card, ScheduleFields, SectionTitle, kit, type Schedule } from "../../components/Kit";
+import { Button, Card, Chip, ScheduleFields, SectionTitle, kit, type Schedule } from "../../components/Kit";
 import { GlassScreen } from "../../components/GlassSurface";
 import { useTaskStore } from "../../lib/store/task-store";
+import { prefs } from "../../lib/store/prefs";
 import { colors, spacing } from "../../lib/theme";
 
 export default function EditTaskScreen() {
@@ -16,6 +17,8 @@ export default function EditTaskScreen() {
   const [title, setTitle] = useState(task?.title ?? "");
   const [notes, setNotes] = useState(task?.notes ?? "");
   const [steps, setSteps] = useState<string[]>(task?.steps ?? []);
+  const [project, setProject] = useState<string | null>(task?.project ?? null);
+  const projectOptions = [...new Set([...prefs.projects, ...(task?.project ? [task.project] : [])])];
   const [newStep, setNewStep] = useState("");
   const [schedule, setSchedule] = useState<Schedule>({
     dueAt: task?.dueAt ?? null,
@@ -41,6 +44,7 @@ export default function EditTaskScreen() {
         title: title.trim().slice(0, 200),
         notes: notes.trim() || null,
         steps: steps.map((s) => s.trim()).filter(Boolean),
+        project,
         dueAt: schedule.dueAt,
         repeat: schedule.repeat,
         remind: schedule.remind && schedule.dueAt !== null,
@@ -86,6 +90,16 @@ export default function EditTaskScreen() {
           placeholderTextColor={colors.textPlaceholder}
           accessibilityLabel="Notes"
         />
+
+        {projectOptions.length > 0 && (
+          <>
+            <SectionTitle>Project</SectionTitle>
+            <View style={kit.chips}>
+              <Chip label="None" selected={!project} onPress={() => setProject(null)} />
+              {projectOptions.map((p) => <Chip key={p} label={p} selected={project === p} onPress={() => setProject(p)} />)}
+            </View>
+          </>
+        )}
 
         <SectionTitle>When</SectionTitle>
         <Card><ScheduleFields value={schedule} onChange={setSchedule} /></Card>

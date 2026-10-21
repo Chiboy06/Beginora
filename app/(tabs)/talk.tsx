@@ -24,7 +24,9 @@ import { colors, spacing, typography, radii, shadow } from "../../lib/theme";
 import type { Message } from "../../lib/orchestrator/types";
 import { prefs } from "../../lib/store/prefs";
 import { useHandsFree } from "../../lib/voice/use-hands-free";
+import { interpretVoice } from "../../lib/voice/hands-free";
 import { useKeyboardHeight } from "../../lib/ui/use-keyboard-height";
+import { useTabBarSpace } from "../../lib/ui/tab-bar";
 
 // Tapping a chip fills the message box; the user edits names and times before sending.
 const PROMPT_CHIPS = [
@@ -206,6 +208,8 @@ export default function ChatScreen() {
   const lastScrollRef = useRef(0);
   const chatInputRef = useRef<ChatInputHandle>(null);
   const keyboardHeight = useKeyboardHeight();
+  // The glass tab bar floats over the screen; it hides while typing.
+  const barSpace = useTabBarSpace();
   const handledUrlRef = useRef<string | null>(null);
 
   const messages = useChatStore((s) => s.messages);
@@ -414,7 +418,12 @@ export default function ChatScreen() {
 
       <ChatInput
         ref={chatInputRef}
-        onSend={sendMessage}
+        onSend={(text) => {
+          // "open my journal", "plan my week": typed page commands work like spoken ones.
+          const intent = interpretVoice(text, false);
+          if (intent.kind === "open" && intent.route !== "back") router.push(intent.route as never);
+          else sendMessage(text);
+        }}
         onStop={stopGenerating}
         isGenerating={isGenerating}
         disabled={false}
@@ -425,7 +434,7 @@ export default function ChatScreen() {
   if (Platform.OS === "android") {
     return (
       <GlassScreen avoidKeyboard={false}>
-        <View style={[styles.container, { paddingBottom: keyboardHeight }]}>
+        <View style={[styles.container, { paddingBottom: keyboardHeight > 0 ? keyboardHeight : barSpace }]}>
           {chatContent}
         </View>
       </GlassScreen>
@@ -435,7 +444,7 @@ export default function ChatScreen() {
   return (
     <GlassScreen avoidKeyboard={false}>
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, { paddingBottom: barSpace }]}
         behavior="padding"
         keyboardVerticalOffset={90}
       >

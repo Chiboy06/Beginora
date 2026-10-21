@@ -133,6 +133,10 @@ export default function RootLayout() {
       const data = request.content.data ?? {};
       if (data.kind === "task" && typeof data.taskId === "string") {
         router.push({ pathname: "/task/[id]", params: { id: data.taskId } });
+      } else if (data.kind === "mood_checkin") {
+        router.push("/journal/new");
+      } else if (data.kind === "weekly_plan") {
+        router.push("/weekly-plan");
       } else if (data.kind === "appointment") {
         router.push("/calendar");
       } else if (data.kind === "sms" && typeof data.to === "string") {
@@ -250,6 +254,8 @@ export default function RootLayout() {
           <Stack.Screen name="capture" options={{ title: "Capture", presentation: "modal" }} />
           <Stack.Screen name="task/edit" options={{ title: "Edit task", presentation: "modal" }} />
           <Stack.Screen name="reset" options={{ title: "Reset my day" }} />
+          <Stack.Screen name="goals" options={{ title: "My goals" }} />
+          <Stack.Screen name="weekly-plan" options={{ title: "Plan my week" }} />
 
           {/* Routines, mood and journal */}
           <Stack.Screen name="routines/index" options={{ title: "Routines" }} />

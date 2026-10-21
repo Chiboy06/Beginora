@@ -54,6 +54,17 @@ export async function checkForAppUpdate(): Promise<AppUpdateResult> {
   }
 }
 
+// Restart the app's JavaScript (local data is kept), e.g. to apply a new theme.
+// False when this build cannot restart itself; the user then reopens the app.
+export async function restartApp(): Promise<boolean> {
+  try {
+    await Updates.reloadAsync();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Apply only after the user confirms; this restarts JS and preserves local SQLite data. */
 export async function applyDownloadedAppUpdate(): Promise<void> {
   if (!Updates.isEnabled) throw new Error("Over-the-air updates are not connected in this build.");

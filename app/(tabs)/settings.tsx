@@ -29,6 +29,8 @@ import type { KnowledgeFile } from "../../lib/storage/database";
 import { useModelStore } from "../../lib/store/model-store";
 import { prefs } from "../../lib/store/prefs";
 import { Chip } from "../../components/Kit";
+import { restartApp } from "../../lib/updates/update-service";
+import { useTabBarSpace } from "../../lib/ui/tab-bar";
 import { startBeginoraService, stopBeginoraService } from "../../lib/native/vesta-service";
 import {
   getPerfSettings,
@@ -56,6 +58,7 @@ function formatFileSize(bytes: number): string {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const barSpace = useTabBarSpace();
   const language = useChatStore((s) => s.language);
   const modelLoaded = useChatStore((s) => s.modelLoaded);
   const modelPath = useChatStore((s) => s.modelPath);
@@ -373,7 +376,7 @@ export default function SettingsScreen() {
 
   return (
     <GlassScreen>
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: barSpace + 32 }]}>
 
       {/* AI Model */}
       <Text style={styles.sectionTitle}>AI Model</Text>
@@ -417,10 +420,16 @@ export default function SettingsScreen() {
       </View>
 
       {/* Planner and wellbeing */}
-      <Text style={styles.sectionTitle}>Routines and journal</Text>
+      <Text style={styles.sectionTitle}>Goals, routines and journal</Text>
       <View style={styles.card}>
-        <Text style={styles.desc}>Ready-made routines with a timer for each step, and a daily mood and journal. Everything stays on this phone.</Text>
+        <Text style={styles.desc}>Your goals and projects, a weekly plan checked against them (with an optional Monday check-in), ready-made routines, and a daily mood and journal. Everything stays on this phone.</Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md, flexWrap: "wrap" }}>
+          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => router.push("/goals")} accessibilityRole="button">
+            <Text style={styles.btnPrimaryText}>My goals</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => router.push("/weekly-plan")} accessibilityRole="button">
+            <Text style={styles.btnPrimaryText}>Plan my week</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => router.push("/routines")} accessibilityRole="button">
             <Text style={styles.btnPrimaryText}>Routines</Text>
           </TouchableOpacity>
@@ -440,13 +449,24 @@ export default function SettingsScreen() {
               label={a === "system" ? "Follow phone" : a === "light" ? "Light" : "Dark"}
               selected={appearance === a}
               onPress={() => {
+                if (a === appearance) return;
                 prefs.appearance = a;
                 setAppearance(a);
+                // Styles are built at start-up, so a restart applies the new look everywhere.
+                Alert.alert("Apply the new look?", "Beginora restarts in a second. Your tasks and chats are kept.", [
+                  { text: "Later", style: "cancel" },
+                  {
+                    text: "Restart now",
+                    onPress: async () => {
+                      if (!(await restartApp())) Alert.alert("Almost done", "Close Beginora and open it again to see the new look.");
+                    },
+                  },
+                ]);
               }}
             />
           ))}
         </View>
-        <Text style={[styles.toggleHint, { marginTop: spacing.sm }]}>Applies the next time you open Beginora. Text size follows your phone's font size setting.</Text>
+        <Text style={[styles.toggleHint, { marginTop: spacing.sm }]}>Beginora restarts to apply it; your data is kept. Text size follows your phone's font size setting.</Text>
       </View>
 
       {/* Notifications */}

@@ -88,3 +88,26 @@ describe("shouldStopForAppState", () => {
     expect(shouldStopForAppState("active", false)).toBe(false);
   });
 });
+
+describe("opening any page by voice or text", () => {
+  test.each([
+    ["open my journal", "/journal"],
+    ["show me the plan", "/tasks"],
+    ["go to routines", "/routines"],
+    ["open my goals", "/goals"],
+    ["plan my week", "/weekly-plan"],
+    ["let's plan my week", "/weekly-plan"],
+    ["reset my day", "/reset"],
+    ["start a focus session", "/task/focus"],
+    ["take me to today", "/"],
+    ["open the Telegram page", "/telegram"],
+    ["bring up my memories", "/memory"],
+  ])("%s", (said, route) => {
+    expect(interpretVoice(said, false)).toMatchObject({ kind: "open", route });
+  });
+
+  test("ordinary requests stay messages", () => {
+    expect(interpretVoice("set me a task", false)).toEqual({ kind: "message", text: "set me a task" });
+    expect(interpretVoice("I'm feeling happy today", false).kind).toBe("message");
+  });
+});
