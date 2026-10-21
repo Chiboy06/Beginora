@@ -166,10 +166,16 @@ function nextWeekday(name: string, now: Date): Date {
 
 const FILLER = /^(?:(?:and|also|then|so|plus)\s+)*(?:(?:this week,?\s*)?(?:i(?:'ll| will| need to| have to| want to| must| should| plan to| am going to|'m going to)|need to|have to|want to|going to|gotta|plan to)\s+)?(?:(?:also|just|then|really)\s+)?/i;
 
+// In a comma list, "a, b and c" ends with "and"; split there too, but not
+// before a weekday ("run on Tuesday and Thursday" is one task on two days).
+const LIST_AND = new RegExp(`\\s+and\\s+(?!(?:on\\s+|this\\s+|next\\s+)?(?:${WEEKDAYS.join("|")})\\b)`, "i");
+
 // No model: split the spoken draft into tasks and read days from the words.
 export function draftToTasks(draft: string, projects: string[], now: Date): PlannedTask[] {
+  const isList = /,|;|\n/.test(draft);
   return draft
     .split(/\n|;|\.\s+|,\s*(?:and\s+)?|\s+and then\s+/i)
+    .flatMap((piece) => (isList ? piece.split(LIST_AND) : [piece]))
     .map((piece) => piece.replace(/^[\s\-*•\d.)]+/, "").replace(FILLER, "").trim())
     .filter((piece) => piece.length >= 3)
     .flatMap((piece) => {
@@ -201,4 +207,23 @@ export function planAsText(rows: PlannedTask[], carry: string[]): string {
     `${project}\n${items.map((r) => `- ${r.task.trim()}${r.due ? ` (due ${r.due})` : ""}`).join("\n")}`);
   if (carry.length) parts.push(`Carrying over\n${carry.map((t) => `- ${t}`).join("\n")}`);
   return `My week\n\n${parts.join("\n\n")}`;
+}
+
+// A time from spoken words: "tomorrow at 5pm", "on Friday", "Friday at 9",
+// "at 18:30". dayOnly means a day was said without a clock time. rest is the
+// words without the day and time ("call mum on Friday at 9" -> "call mum").
+export function whenFromWords(text: string, now: Date): { at: Date | null; dayOnly: boolean; rest: string } {
+  const day = WEEKDAY.exec(text);
+  const withoutDay = (day ? text.replace(day[0], " ") : text).replace(/\s{2,}/g, " ").trim();
+  const said = captureFrom(withoutDay, now);
+  const rest = (said.at || said.day ? said.title : withoutDay).replace(/[\s,.]+$/, "");
+  const clock = captureFrom(`x ${withoutDay}`, now);
+  if (day) {
+    const base = nextWeekday(day[1], now);
+    return clock.at
+      ? { at: new Date(base.getFullYear(), base.getMonth(), base.getDate(), clock.at.getHours(), clock.at.getMinutes()), dayOnly: false, rest }
+      : { at: base, dayOnly: true, rest };
+  }
+  if (clock.at) return { at: clock.at, dayOnly: false, rest };
+  return clock.day ? { at: clock.day, dayOnly: true, rest } : { at: null, dayOnly: false, rest };
 }

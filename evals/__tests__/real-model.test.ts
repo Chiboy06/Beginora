@@ -126,7 +126,8 @@ const CASES: [string, Expect][] = [
   ["List all the states in Nigeria", { text: true, contains: /lagos[\s\S]*kano|kano[\s\S]*lagos/i }],
   ["can you define photosynthesis for my assignment?", { text: true, contains: /light|sun|plant/i }],
   ["remind me to call Dr. Ben by 12 a.m.", { tool: "set_reminder" }],
-  ["add a task to finish my essay by 6pm", { tool: "add_task" }],
+  // A task with a time now asks before saving: remind you? any details?
+  ["add a task to finish my essay by 6pm", { text: true, contains: /"Finish my essay".*18:00|"Finish my essay".*6:00.*PM.*remind you/is }],
   ["set an alarm for 7 o'clock today", { tool: "set_alarm" }],
   ["Set a reminder for 5 a.m. tomorrow", { tool: "set_reminder" }],
   ["how are you?", { text: true }],

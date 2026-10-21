@@ -5,6 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.16] — Talk to it: follow-up questions by voice or text
+
+### Added
+- **Follow-up questions.** These work the same typed, with the microphone, or in hands-free voice, and run in code, so they work with any model or none.
+  - **Tasks.** "Set me a task" asks: What's the task? When? Remind you? Any details? Then it saves the task with a first small step. Saying the title and time at once ("add a task to call mum on Friday at 9am") skips the questions already answered. "No time" puts it in Sort later.
+  - **Lists.** "Add tasks: buy bread, call mum and pay rent on Friday" reads the list back ("I heard 3 tasks") and adds them after a yes.
+  - **Reminders.** "Set me a reminder" asks what and when.
+- **Moods by voice.** "I'm feeling happy today", "I feel so tired", "my day was good" (or "not good") save today's mood to the journal and ask how your day went.
+- **Daily "How was your day?" check-in.**
+  - After the first mood, Beginora asks when to ask you each day, and sets it.
+  - You can also say "ask me how my day was at 8 pm", or "stop asking about my day".
+  - It can be turned on and off, with a time, in Journal.
+  - The notification opens a new journal entry.
+- **Open any page by voice or text.** For example "open my journal", "show me the plan", "go to routines", "open my goals", "plan my week", "reset my day", "start a focus session", "bring up my memories", "open Telegram".
+
+### Fixed
+- Phrasings that silently failed before now work: "set me a task", "create a task", and "add tasks" (plural).
+- A task saved from chat with a time ("by 6pm") now also gets that due time, so it shows on its day in Plan.
+- An unanswered question never traps the conversation:
+  - a clear new request drops it;
+  - a missed answer is asked once more, then the words are handled normally;
+  - "cancel" stops it.
+
+### Changed
+- Android `versionCode` 18 / version 0.2.16.
+
+---
+
 ## [0.2.15] — Local first, Liquid Glass tab bar, theme switch that works
 
 ### Changed

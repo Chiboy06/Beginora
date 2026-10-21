@@ -249,4 +249,25 @@ export const prefs = {
     if (v) storage.set("weekly_checkin_id", v);
     else storage.delete("weekly_checkin_id");
   },
+
+  // Daily "How was your day?" notification. Off by default.
+  get moodCheckIn(): { enabled: boolean; hour: number; minute: number } {
+    return {
+      enabled: storage.getBoolean("mood_checkin") ?? false,
+      hour: storage.getNumber("mood_checkin_hour") ?? 20,
+      minute: storage.getNumber("mood_checkin_minute") ?? 0,
+    };
+  },
+  set moodCheckIn(v: { enabled: boolean; hour: number; minute: number }) {
+    storage.set("mood_checkin", v.enabled);
+    storage.set("mood_checkin_hour", v.hour);
+    storage.set("mood_checkin_minute", v.minute);
+  },
+  get moodCheckInId(): string | undefined {
+    return storage.getString("mood_checkin_id");
+  },
+  set moodCheckInId(v: string | undefined) {
+    if (v) storage.set("mood_checkin_id", v);
+    else storage.delete("mood_checkin_id");
+  },
 };

@@ -117,3 +117,21 @@ test("loose JSON: real line breaks inside strings are accepted, structure is not
   const { parseLooseJson } = jest.requireActual("../weekly");
   expect(parseLooseJson('{\n  "a": "line one\nline two",\n  "b": "x\\"y"\n}')).toEqual({ a: "line one\nline two", b: 'x"y' });
 });
+
+describe("whenFromWords", () => {
+  const { whenFromWords } = jest.requireActual("../weekly");
+  test.each([
+    ["tomorrow at 5pm", new Date(2026, 9, 20, 17, 0), false],
+    ["Friday at 9am", new Date(2026, 9, 23, 9, 0), false],
+    ["on Friday", new Date(2026, 9, 23), true],
+    ["tomorrow", new Date(2026, 9, 20), true],
+    ["at 18:30", new Date(2026, 9, 19, 18, 30), false],
+  ])("%s", (said, at, dayOnly) => {
+    expect(whenFromWords(said, NOW)).toMatchObject({ at, dayOnly });
+  });
+  test("no time", () => expect(whenFromWords("whenever", NOW)).toMatchObject({ at: null, dayOnly: false }));
+  test("the words without the day and time", () => {
+    expect(whenFromWords("call mum on Friday at 9am", NOW).rest.toLowerCase()).toBe("call mum");
+    expect(whenFromWords("buy bread", NOW).rest).toBe("buy bread");
+  });
+});

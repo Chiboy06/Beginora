@@ -2,14 +2,14 @@
   "expo": {
     "name": "Beginora",
     "slug": "beginora",
-    "version": "0.2.15",
+    "version": "0.2.16",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "beginora",
     "android": {
       "package": "app.beginora.android",
-      "versionCode": 17,
+      "versionCode": 18,
       "adaptiveIcon": {
         "backgroundColor": "#F7F4EF",
         "foregroundImage": "./assets/android-icon-foreground.png"

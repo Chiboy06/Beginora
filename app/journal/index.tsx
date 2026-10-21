@@ -10,11 +10,22 @@ import { getJournalEntries, type JournalEntry } from "../../lib/storage/database
 import { moodFor, MOODS } from "../../lib/planner/moods";
 import { addDays, sameDay, startOfDay, startOfWeek, timeLabel } from "../../lib/planner/schedule";
 import { colors, radii, spacing, typography } from "../../lib/theme";
+import { Switch } from "react-native";
+import { Chip } from "../../components/Kit";
+import { prefs } from "../../lib/store/prefs";
+import { setMoodCheckIn } from "../../lib/planner/mood-checkin";
 
 export default function JournalScreen() {
   const router = useRouter();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [selected, setSelected] = useState(startOfDay(new Date()));
+  const [checkIn, setCheckIn] = useState(prefs.moodCheckIn);
+  const [checkInNote, setCheckInNote] = useState<string | null>(null);
+  const changeCheckIn = async (enabled: boolean, hour: number) => {
+    const r = await setMoodCheckIn(enabled, hour, 0);
+    setCheckIn(prefs.moodCheckIn);
+    setCheckInNote(r.message);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -44,6 +55,26 @@ export default function JournalScreen() {
         </Card>
 
         <Button label="How was your day?" icon="add" onPress={() => router.push("/journal/new")} style={{ marginTop: spacing.lg }} />
+
+        <Card style={{ marginTop: spacing.md, gap: spacing.sm }}>
+          <View style={kit.switchRow}>
+            <Text style={kit.switchLabel}>Ask me how my day was, every day</Text>
+            <Switch
+              value={checkIn.enabled}
+              onValueChange={(v) => void changeCheckIn(v, checkIn.hour)}
+              trackColor={{ true: colors.accent, false: colors.border }}
+              accessibilityLabel="Daily how was your day check-in"
+            />
+          </View>
+          {checkIn.enabled && (
+            <View style={kit.chips}>
+              {[18, 19, 20, 21, 22].map((h) => (
+                <Chip key={h} label={`${h}:00`} selected={checkIn.hour === h} onPress={() => void changeCheckIn(true, h)} />
+              ))}
+            </View>
+          )}
+          <Text style={kit.muted}>{checkInNote ?? "You can also say it in Talk: ask me how my day was at 8 pm."}</Text>
+        </Card>
 
         <SectionTitle>{selected.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</SectionTitle>
         {onDay.length === 0 && <Text style={kit.muted}>Nothing written this day.</Text>}

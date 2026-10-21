@@ -24,6 +24,7 @@ import { colors, spacing, typography, radii, shadow } from "../../lib/theme";
 import type { Message } from "../../lib/orchestrator/types";
 import { prefs } from "../../lib/store/prefs";
 import { useHandsFree } from "../../lib/voice/use-hands-free";
+import { interpretVoice } from "../../lib/voice/hands-free";
 import { useKeyboardHeight } from "../../lib/ui/use-keyboard-height";
 import { useTabBarSpace } from "../../lib/ui/tab-bar";
 
@@ -417,7 +418,12 @@ export default function ChatScreen() {
 
       <ChatInput
         ref={chatInputRef}
-        onSend={sendMessage}
+        onSend={(text) => {
+          // "open my journal", "plan my week": typed page commands work like spoken ones.
+          const intent = interpretVoice(text, false);
+          if (intent.kind === "open" && intent.route !== "back") router.push(intent.route as never);
+          else sendMessage(text);
+        }}
         onStop={stopGenerating}
         isGenerating={isGenerating}
         disabled={false}

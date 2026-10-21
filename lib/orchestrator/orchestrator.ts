@@ -37,6 +37,7 @@ import { describeAction, unclearAction } from "./action-text";
 import { dateTimeReply, smallTalkReply } from "./small-talk";
 import { directAction } from "./direct-actions";
 import { asksAboutUser } from "./memory-gate";
+import { runFollowUp } from "./followup-runner";
 import { tidyReply } from "./reply-tidy";
 import { onlineSettings, remoteGenerate, wantsOnline, type OnlineSettings } from "../llm/remote-engine";
 
@@ -144,6 +145,11 @@ export async function processMessage(
   // construction, which is the KV-cache invariant. Defaults to now.
   sentAt: Date = new Date(),
 ): Promise<OrchestratorResponse> {
+  // Follow-up questions first ("set me a task" -> what? when? remind?), the
+  // same for typing and voice, answered in code so any model or none works.
+  const followUp = await runFollowUp(userText, sentAt);
+  if (followUp) return { type: "text", content: followUp };
+
   // Greetings, thanks, feelings and crisis wording are answered instantly in
   // code: small models loop or copy earlier replies on exactly these turns.
   const instant = dateTimeReply(userText, sentAt) ??

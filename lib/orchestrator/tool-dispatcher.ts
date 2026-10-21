@@ -225,6 +225,11 @@ export async function dispatchToolCall(
         const task = await useTaskStore.getState().createTaskWithPlan(title, plan.firstAction, plan.steps);
         let reminderNote = "";
         if (typeof parameters.remindAt === "string") {
+          // The time is also the task's due time, so it shows on that day in Plan.
+          const dueAt = new Date(parameters.remindAt).getTime();
+          if (!Number.isNaN(dueAt)) {
+            await useTaskStore.getState().updateDetails(task.id, { title, steps: plan.steps, dueAt, remind: false });
+          }
           // A task with a time also notifies at that time, and the notification opens the task.
           const reminder = await scheduleLocalReminder(
             `${title}: ${plan.firstAction}`,

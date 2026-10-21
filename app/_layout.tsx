@@ -133,6 +133,8 @@ export default function RootLayout() {
       const data = request.content.data ?? {};
       if (data.kind === "task" && typeof data.taskId === "string") {
         router.push({ pathname: "/task/[id]", params: { id: data.taskId } });
+      } else if (data.kind === "mood_checkin") {
+        router.push("/journal/new");
       } else if (data.kind === "weekly_plan") {
         router.push("/weekly-plan");
       } else if (data.kind === "appointment") {
