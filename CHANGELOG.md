@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.15] — Local first, Liquid Glass tab bar, theme switch that works
+
+### Changed
+- **Local first everywhere.** The phone's own model is tried before the online model:
+  - **Chat in "When needed" mode:** goes online only when no phone model is loaded (before, it also went online whenever a small model was loaded). If the phone model fails on a question, the online model answers instead of showing an error.
+  - **Plan my week and Summarise my goals:** use the phone model (1.5B or more) first, then the online model, then the no-AI splitter. Before, they tried online first.
+  - **"Always for questions"** stays as an explicit choice in Settings > Online model.
+- **Liquid Glass tab bar.** It floats over the screens with a translucent fill and a light edge, so content shows through it. iOS adds a live blur; Android uses a translucent fill. Today, Plan, Talk and Settings leave room for it, and the + buttons and the chat box sit above it.
+- **Dark and light mode apply at once.** Choosing Light, Dark or Follow phone offers "Restart now", and Beginora restarts in a second with your data kept. Glass cards now use a dark blur in dark mode.
+- Android `versionCode` 17 / version 0.2.15.
+
+---
+
 ## [0.2.14] — Plan your week with Beginora, step by step
 
 Follows the four steps of "Plan your week": talk instead of typing, a task manager, tell it your goals, and a weekly routine.

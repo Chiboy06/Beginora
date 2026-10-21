@@ -2,7 +2,7 @@
 // Routes user messages through the LLM, parses tool calls, dispatches actions.
 // Now includes memory retrieval (inject into prompt) and extraction (post-response).
 
-import { generate, isLoaded, estimatePromptTokens, getContextSize, getModelInfo } from "../llm/llm-engine";
+import { generate, isLoaded, estimatePromptTokens, getContextSize } from "../llm/llm-engine";
 import type { CompletionMessage } from "../llm/llm-engine";
 import { chatSystemPrompt, buildStablePrefix, annotateUserMessage } from "./prompt-builder";
 import { schedulePrefixPersist } from "./session-warmer";
@@ -167,7 +167,7 @@ export async function processMessage(
         : null;
   // Questions (never actions) may go to the user's online model.
   let online: OnlineSettings | null = null;
-  if (!routedTool && wantsOnline(prefs.onlineMode, modelReady, () => getModelInfo().path ?? "")) {
+  if (!routedTool && wantsOnline(prefs.onlineMode, modelReady)) {
     const settings = await onlineSettings().catch(() => null);
     if (settings?.url && settings.model) online = settings;
   }
@@ -296,7 +296,16 @@ export async function processMessage(
         // An action turn produces tool JSON, not prose: show the typing
         // indicator instead of streaming raw JSON onto the screen.
         routedTool ? undefined : onToken,
-      );
+      ).catch(async (err: unknown) => {
+        // Local first, online second: a question the phone model failed on
+        // goes to the user's online model, if they set one up.
+        const settings = !routedTool && prefs.onlineMode !== "off" ? await onlineSettings().catch(() => null) : null;
+        if (!settings?.url || !settings.model) throw err;
+        onStreamReset?.();
+        const r = await remoteGenerate(messages, chatOptions, settings);
+        usedOnline = true;
+        return r;
+      });
     const raw = result.text;
     if (__DEV__) {
       console.log(

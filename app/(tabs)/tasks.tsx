@@ -13,6 +13,7 @@ import { cancelLocalReminder, listReminders } from "../../lib/native/reminders";
 import type { Task } from "../../lib/storage/database";
 import { addDays, inboxTasks, REPEAT_LABELS, sameDay, startOfDay, tasksOnDay, timeLabel } from "../../lib/planner/schedule";
 import { colors, radii, spacing, typography } from "../../lib/theme";
+import { useTabBarSpace } from "../../lib/ui/tab-bar";
 
 type View3 = "week" | "month" | "list";
 type Filter = "all" | "pending" | "active" | "snoozed" | "done";
@@ -59,6 +60,7 @@ function TaskRow({ task, onToggle, onOpen, onMenu }: { task: Task; onToggle: () 
 
 export default function PlanScreen() {
   const router = useRouter();
+  const barSpace = useTabBarSpace();
   const tasks = useTaskStore((s) => s.tasks);
   const loadTasks = useTaskStore((s) => s.loadTasks);
   const setStatus = useTaskStore((s) => s.setStatus);
@@ -117,7 +119,7 @@ export default function PlanScreen() {
 
   return (
     <GlassScreen>
-      <ScrollView contentContainerStyle={kit.screenPad}>
+      <ScrollView contentContainerStyle={[kit.screenPad, { paddingBottom: barSpace + 90 }]}>
         <View style={styles.segment} accessibilityRole="tablist">
           {(["week", "month", "list"] as View3[]).map((m) => (
             <TouchableOpacity
@@ -210,7 +212,7 @@ export default function PlanScreen() {
       </ScrollView>
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: barSpace + spacing.md }]}
         onPress={() => router.push({ pathname: "/task/new", params: { date: String(selected.getTime()) } })}
         activeOpacity={0.85}
         accessibilityRole="button"

@@ -20,8 +20,8 @@ const PROVIDERS = [
 
 const MODES: { key: "off" | "fallback" | "always"; label: string; about: string }[] = [
   { key: "off", label: "Off", about: "Everything stays on the phone." },
-  { key: "fallback", label: "When needed", about: "Questions go online only when no phone model is loaded or the loaded one is small (under 1.5B)." },
-  { key: "always", label: "Always for questions", about: "Every question goes online. Actions still run on the phone." },
+  { key: "fallback", label: "When needed", about: "Local first: the phone model answers. Questions go online only when no phone model is loaded. Recommended." },
+  { key: "always", label: "Always for questions", about: "Every question goes online, even with a phone model loaded. Actions still run on the phone." },
 ];
 
 export default function OnlineAiScreen() {

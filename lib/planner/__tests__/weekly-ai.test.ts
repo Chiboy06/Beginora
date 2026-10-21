@@ -21,7 +21,17 @@ beforeEach(() => {
 });
 afterAll(() => { prefs.onlineMode = "off"; });
 
-test("uses the online model when one is set up", async () => {
+test("local first: the phone model is used even when an online model is set up", async () => {
+  prefs.onlineMode = "always";
+  remote.onlineSettings.mockResolvedValue({ url: "https://x/v1/chat/completions", model: "m", key: "k" });
+  llm.isLoaded.mockReturnValue(true);
+  llm.generate.mockResolvedValue({ text: good });
+  const r = await reviewWeek(input);
+  expect(r.source).toBe("phone");
+  expect(remote.remoteGenerate).not.toHaveBeenCalled();
+});
+
+test("the online model is used when there is no phone model", async () => {
   prefs.onlineMode = "fallback";
   remote.onlineSettings.mockResolvedValue({ url: "https://x/v1/chat/completions", model: "m", key: "k" });
   remote.remoteGenerate.mockResolvedValue({ text: good });
@@ -30,13 +40,13 @@ test("uses the online model when one is set up", async () => {
   expect(r.flags[0].item).toBe("Buy a new sofa");
 });
 
-test("falls back to the phone model when the online one fails", async () => {
-  prefs.onlineMode = "always";
+test("the online model is used when the phone model's answer is unusable", async () => {
+  prefs.onlineMode = "fallback";
   remote.onlineSettings.mockResolvedValue({ url: "https://x/v1/chat/completions", model: "m", key: "k" });
-  remote.remoteGenerate.mockRejectedValue(new Error("offline"));
+  remote.remoteGenerate.mockResolvedValue({ text: good });
   llm.isLoaded.mockReturnValue(true);
-  llm.generate.mockResolvedValue({ text: good });
-  expect((await reviewWeek(input)).source).toBe("phone");
+  llm.generate.mockResolvedValue({ text: "Sounds like a great week!" });
+  expect((await reviewWeek(input)).source).toBe("online");
 });
 
 test("a model reply that is not usable JSON falls back to splitting the words", async () => {

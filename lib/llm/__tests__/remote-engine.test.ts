@@ -25,15 +25,12 @@ describe("chatCompletionsUrl", () => {
   });
 });
 
-describe("wantsOnline", () => {
-  const tiny = () => "/m/Qwen3-0.6B-Q4_K_M.gguf";
-  const big = () => "/m/Qwen3-4B-Q4_K_M.gguf";
-  test("off never goes online", () => expect(wantsOnline("off", false, tiny)).toBe(false));
-  test("always goes online", () => expect(wantsOnline("always", true, big)).toBe(true));
-  test("when needed: no model or a tiny one", () => {
-    expect(wantsOnline("fallback", false, big)).toBe(true);
-    expect(wantsOnline("fallback", true, tiny)).toBe(true);
-    expect(wantsOnline("fallback", true, big)).toBe(false);
+describe("wantsOnline (local first)", () => {
+  test("off never goes online", () => expect(wantsOnline("off", false)).toBe(false));
+  test("always goes online, by the user's choice", () => expect(wantsOnline("always", true)).toBe(true));
+  test("when needed: only when no phone model is loaded, whatever its size", () => {
+    expect(wantsOnline("fallback", false)).toBe(true);
+    expect(wantsOnline("fallback", true)).toBe(false);
   });
 });
 

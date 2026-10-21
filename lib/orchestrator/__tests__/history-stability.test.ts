@@ -330,3 +330,35 @@ describe("online model", () => {
     expect(remoteSpy.mock.calls[0][0][0].content).not.toContain("ama il caffè");
   });
 });
+
+describe("local first", () => {
+  const { prefs } = jest.requireActual("../../store/prefs");
+  const remote = jest.requireActual("../../llm/remote-engine");
+  let remoteSpy: jest.SpyInstance;
+  let settingsSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    prefs.onlineMode = "fallback";
+    settingsSpy = jest.spyOn(remote, "onlineSettings").mockResolvedValue({ url: "https://x/v1/chat/completions", model: "m", key: "k" });
+    remoteSpy = jest.spyOn(remote, "remoteGenerate");
+  });
+  afterEach(() => {
+    prefs.onlineMode = "off";
+    remoteSpy.mockRestore();
+    settingsSpy.mockRestore();
+  });
+
+  test("with a phone model loaded, the phone model answers and nothing goes online", async () => {
+    mockGenerate.mockResolvedValue(gen("Abuja."));
+    const res = await processMessage("what is the capital of Nigeria?", [], "en");
+    expect(res).toEqual({ type: "text", content: "Abuja." });
+    expect(remoteSpy).not.toHaveBeenCalled();
+  });
+
+  test("if the phone model fails, the question goes to the online model", async () => {
+    mockGenerate.mockRejectedValue(new Error("context full"));
+    remoteSpy.mockResolvedValue(gen("Abuja is the capital."));
+    const res = await processMessage("what is the capital of Nigeria?", [], "en");
+    expect(res).toEqual({ type: "text", content: "Abuja is the capital.", source: "online" });
+  });
+});
