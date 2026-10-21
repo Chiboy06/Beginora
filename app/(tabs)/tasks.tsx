@@ -41,6 +41,7 @@ function TaskRow({ task, onToggle, onOpen, onMenu }: { task: Task; onToggle: () 
       <TouchableOpacity style={styles.flex} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open ${task.title}`}>
         <Text style={[styles.title, done && styles.titleDone]} numberOfLines={2}>{task.title}</Text>
         <View style={styles.meta}>
+          {task.project && <Text style={[kit.muted, { color: colors.accent, fontWeight: "600" }]}>{task.project}</Text>}
           {task.dueAt !== null && <Text style={kit.muted}>{timeLabel(new Date(task.dueAt))}</Text>}
           {task.repeat && task.repeat !== "never" && (
             <Text style={kit.muted}><Ionicons name="repeat" size={12} /> {REPEAT_LABELS[task.repeat]}</Text>
@@ -69,6 +70,7 @@ export default function PlanScreen() {
   const [selected, setSelected] = useState(startOfDay(new Date()));
   const [month, setMonth] = useState(new Date(selected.getFullYear(), selected.getMonth(), 1));
   const [filter, setFilter] = useState<Filter>("all");
+  const [project, setProject] = useState<string | null>(null);
   const [reminders, setReminders] = useState(() => listReminders().upcoming);
 
   useFocusEffect(
@@ -91,7 +93,7 @@ export default function PlanScreen() {
         text: t.dueAt !== null ? "Move to tomorrow" : "Plan for tomorrow 9:00",
         onPress: () => {
           const base = t.dueAt !== null ? new Date(t.dueAt) : new Date(new Date().setHours(9, 0, 0, 0));
-          void updateDetails(t.id, { title: t.title, notes: t.notes, steps: t.steps, repeat: t.repeat, dueAt: addDays(base, 1).getTime(), remind: !!t.reminderId || t.dueAt === null });
+          void updateDetails(t.id, { title: t.title, notes: t.notes, steps: t.steps, repeat: t.repeat, project: t.project, dueAt: addDays(base, 1).getTime(), remind: !!t.reminderId || t.dueAt === null });
         },
       },
       {
@@ -110,7 +112,8 @@ export default function PlanScreen() {
   const dayReminders = reminders.filter((r) => sameDay(new Date(r.at), selected));
   const inbox = inboxTasks(tasks);
   const count = (d: Date) => tasksOnDay(tasks, d).length + reminders.filter((r) => sameDay(new Date(r.at), d)).length;
-  const listed = tasks.filter((t) => filter === "all" || t.status === filter);
+  const listed = tasks.filter((t) => (filter === "all" || t.status === filter) && (!project || t.project === project));
+  const projectNames = [...new Set(tasks.map((t) => t.project).filter((p): p is string => !!p))];
 
   return (
     <GlassScreen>
@@ -134,6 +137,12 @@ export default function PlanScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[kit.chips, { flexWrap: "nowrap", marginVertical: spacing.lg }]}>
               {FILTERS.map((f) => <Chip key={f.key} label={f.label} selected={filter === f.key} onPress={() => setFilter(f.key)} />)}
             </ScrollView>
+            {projectNames.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[kit.chips, { flexWrap: "nowrap", marginBottom: spacing.lg }]}>
+                <Chip label="All projects" selected={!project} onPress={() => setProject(null)} />
+                {projectNames.map((p) => <Chip key={p} label={p} selected={project === p} onPress={() => setProject(p)} />)}
+              </ScrollView>
+            )}
             <RemindersList />
             <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
               {listed.length === 0 && <Text style={kit.muted}>No tasks here.</Text>}

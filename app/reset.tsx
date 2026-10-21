@@ -35,7 +35,7 @@ export default function ResetScreen() {
   const tomorrow = (t: Task) => {
     const base = t.dueAt !== null ? new Date(t.dueAt) : new Date(new Date().setHours(9, 0, 0, 0));
     const next = addDays(new Date(now.getFullYear(), now.getMonth(), now.getDate(), base.getHours(), base.getMinutes()), 1);
-    void updateDetails(t.id, { title: t.title, notes: t.notes, steps: t.steps, repeat: t.repeat, dueAt: next.getTime(), remind: !!t.reminderId });
+    void updateDetails(t.id, { title: t.title, notes: t.notes, steps: t.steps, repeat: t.repeat, project: t.project, dueAt: next.getTime(), remind: !!t.reminderId });
   };
 
   const option = (key: Exclude<Mode, null>, title: string, body: string) => (

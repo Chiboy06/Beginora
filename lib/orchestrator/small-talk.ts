@@ -4,12 +4,13 @@
 
 import { CRISIS_REPLY, isCrisis } from "../ai/decomposer";
 
-type Kind = "greeting" | "how_are_you" | "thanks" | "capabilities" | "feeling";
+type Kind = "greeting" | "how_are_you" | "thanks" | "capabilities" | "feeling" | "plan_week";
 
 const PATTERNS: { kind: Kind; test: RegExp }[] = [
   { kind: "how_are_you", test: /^(hi|hey|hello)?[,!\s]*(how are you|how're you|how are u|how is it going|how's it going|how do you do)\b/i },
   { kind: "greeting", test: /^(hi|hey|hello|hiya|good (morning|afternoon|evening)|yo)( there)?( beginora)?[!.\s]*$/i },
   { kind: "thanks", test: /^(thanks|thank you|thank u|thx|cheers|great,? thanks|ok(ay)? thanks?)( so much| a lot)?( beginora)?[!.\s]*$/i },
+  { kind: "plan_week", test: /^(can you |could you |please |let'?s |i want to |i need to |help me )*(plan|organi[sz]e|schedule) (my|the|this|next) week\b/i },
   { kind: "capabilities", test: /\b(what can you (do|help( me)? with)|how can you help|what do you do|help me use (this|you))\b/i },
   { kind: "feeling", test: /^(i\s*(feel|'?m feeling|am feeling|'?m|am)\s+(so |really |very |a bit |kind of )?(overwhelmed|stressed|anxious|tired|exhausted|lost|unmotivated|lazy|down|bad))[!.\s]*(today|right now|now)?[!.\s]*$/i },
 ];
@@ -31,6 +32,9 @@ const REPLIES: Record<Kind, ((name: string) => string)[]> = {
   capabilities: [
     () =>
       "I help you start things. Tell me a task and I'll give you one small first step. I can also set alarms, timers and reminders, add calendar events, prepare texts and emails for you to send, save notes, and check in gently if a task gets stuck.",
+  ],
+  plan_week: [
+    (n) => `Let's plan it${n}. Open Today and tap "Plan my week". Talk through your rough plan there; I'll check it against your goals and turn it into tasks you approve.`,
   ],
   feeling: [
     (n) => `That sounds like a lot${n}. You don't have to do everything now. Want to pick one thing? Tell me the task and I'll find a tiny first step.`,

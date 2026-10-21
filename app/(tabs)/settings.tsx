@@ -417,10 +417,16 @@ export default function SettingsScreen() {
       </View>
 
       {/* Planner and wellbeing */}
-      <Text style={styles.sectionTitle}>Routines and journal</Text>
+      <Text style={styles.sectionTitle}>Goals, routines and journal</Text>
       <View style={styles.card}>
-        <Text style={styles.desc}>Ready-made routines with a timer for each step, and a daily mood and journal. Everything stays on this phone.</Text>
+        <Text style={styles.desc}>Your goals and projects, a weekly plan checked against them (with an optional Monday check-in), ready-made routines, and a daily mood and journal. Everything stays on this phone.</Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md, flexWrap: "wrap" }}>
+          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => router.push("/goals")} accessibilityRole="button">
+            <Text style={styles.btnPrimaryText}>My goals</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => router.push("/weekly-plan")} accessibilityRole="button">
+            <Text style={styles.btnPrimaryText}>Plan my week</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={() => router.push("/routines")} accessibilityRole="button">
             <Text style={styles.btnPrimaryText}>Routines</Text>
           </TouchableOpacity>

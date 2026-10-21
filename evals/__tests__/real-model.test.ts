@@ -15,6 +15,7 @@ jest.mock("../../lib/llm/llm-engine", () => {
   const actual = jest.requireActual("../../lib/llm/llm-engine");
   return {
     isLoaded: () => true,
+    getModelInfo: () => ({ loaded: true, path: String(process.env.REAL_MODEL) }),
     getContextSize: () => 4096,
     estimatePromptTokens: actual.estimatePromptTokens,
     stopGeneration: async () => {},
@@ -220,3 +221,22 @@ run(`real model conversation: ${MODEL}`, () => {
     }
   });
 });
+
+run(`real model weekly plan: ${MODEL}`, () => {
+  jest.setTimeout(300_000);
+
+  test("a spoken weekly plan becomes tasks, checked against goals", async () => {
+    const { reviewWeek } = jest.requireActual("../../lib/planner/weekly-ai");
+    const r = await reviewWeek({
+      goals: "Finish my PhD thesis by June. Get fit: run twice a week. Launch the Beginora app.",
+      projects: ["Thesis", "Health", "Beginora"],
+      draft: "This week I want to write the methods chapter by Friday, run on Tuesday and Thursday, fix the Beginora login bug, and binge the new series on Netflix",
+      carry: [],
+      now: new Date(2026, 9, 19, 9, 0),
+    });
+    console.log(JSON.stringify(r, null, 2));
+    expect(r.tasks.length).toBeGreaterThanOrEqual(3);
+    for (const t of r.tasks) expect(t.task.length).toBeGreaterThan(2);
+  });
+});
+

@@ -23,6 +23,7 @@ export interface TaskDetails {
   dueAt?: number | null;
   repeat?: Repeat;
   steps?: string[];
+  project?: string | null;
   // Ring at dueAt. Ignored when dueAt is empty or already past.
   remind?: boolean;
 }
@@ -106,6 +107,7 @@ export const useTaskStore = create<TaskState>((set, get) => {
       updatedAt: now,
       notes: details.notes ?? null,
       repeat: details.repeat ?? "never",
+      project: details.project ?? null,
     };
     if (details.remind) task.reminderId = await scheduleTaskReminder(task, task.dueAt).catch(() => null);
     try {
@@ -128,10 +130,12 @@ export const useTaskStore = create<TaskState>((set, get) => {
       dueAt: details.dueAt ?? null,
       repeat: details.repeat ?? "never",
       steps: details.steps ?? previous.steps,
+      // Not passed means unchanged, so older callers keep the project.
+      project: details.project !== undefined ? details.project : previous.project ?? null,
       updatedAt: Date.now(),
     };
     try {
-      await updateTaskDetails(id, { title: next.title, notes: next.notes ?? null, dueAt: next.dueAt, repeat: next.repeat ?? "never", steps: next.steps });
+      await updateTaskDetails(id, { title: next.title, notes: next.notes ?? null, dueAt: next.dueAt, repeat: next.repeat ?? "never", steps: next.steps, project: next.project ?? null });
     } catch {
       set({ error: "Failed to save task" });
       throw new Error("Failed to save task");

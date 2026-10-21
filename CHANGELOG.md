@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.13] — Plan my week, checked against your goals
+
+### Added
+- **My goals**: write or speak your yearly or quarterly goals and how you work, and keep a list of projects. Everything stays on the phone.
+- **Plan my week**:
+  - Talk through a rough plan; it is checked against your goals.
+  - Up to 3 off-goal items are flagged kindly, each with "Remove from plan" or "Keep it".
+  - The plan becomes editable rows of project, task and due date. Due dates are added only when you name a day.
+  - Open tasks from last week are listed separately: Keep, Already done, or Let go (deleting asks first).
+  - "Create N tasks" adds them all at once.
+  - A new project or goal change is suggested, and saved only if you tap "Save to my goals".
+- **Monday check-in** (optional): a weekly notification at the hour you choose, "What's your plan for the week? Let's check it against your goals." It opens Plan my week. It is scheduled on the phone, so it needs no computer or internet.
+- **Projects on tasks**: shown in Plan, filterable in the list view, and editable on the Edit screen.
+- Saying "plan my week" in Talk points you to the screen.
+
+### Model choice for the goal check
+- The online model is used if set up, otherwise a phone model of 1.5B or more.
+- Otherwise (or for Qwen3 0.6B) the plan is split into tasks from your words, without the goal check.
+- In testing, Qwen3 0.6B dropped 3 of 5 items, so models under 1.5B are skipped for this.
+- If any model returns far fewer tasks than you said, its goal flags are kept but every task from your words is used.
+
+### Changed
+- Android `versionCode` 15 / version 0.2.13.
+
+---
+
 ## [0.2.12] — Planner, routines, journal, online model, shared Telegram bot
 
 ### Added

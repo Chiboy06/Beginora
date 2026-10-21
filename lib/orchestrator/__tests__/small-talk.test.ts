@@ -64,3 +64,7 @@ describe("dateTimeReply", () => {
     expect(dateTimeReply(said, NOW)).toBeNull();
   });
 });
+
+test.each(["plan my week", "Can you help me plan my week?", "let's organise this week"])("weekly planning points to the screen: %s", (said) => {
+  expect(smallTalkReply(said, "", 0)).toMatch(/Plan my week/);
+});

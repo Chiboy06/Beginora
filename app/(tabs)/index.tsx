@@ -168,6 +168,8 @@ export default function TodayScreen() {
         <SectionTitle>Tools</SectionTitle>
         <View style={styles.tools}>
           {[
+            { label: "Plan my week", icon: "calendar-outline" as const, to: "/weekly-plan" },
+            { label: "My goals", icon: "flag-outline" as const, to: "/goals" },
             { label: "Routines", icon: "repeat" as const, to: "/routines" },
             { label: "Focus", icon: "timer-outline" as const, to: "/task/focus" },
             { label: "Talk", icon: "chatbubble-ellipses-outline" as const, to: "/talk" },

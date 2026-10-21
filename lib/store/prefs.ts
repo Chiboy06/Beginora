@@ -199,4 +199,40 @@ export const prefs = {
   set telegramRelayLinked(v: boolean) {
     storage.set("telegram_relay_linked", v);
   },
+
+  // Weekly planning: the user's goals in their own words, and their projects.
+  get goalsText(): string {
+    return storage.getString("goals_text") ?? "";
+  },
+  set goalsText(v: string) {
+    storage.set("goals_text", v.slice(0, 4000));
+  },
+  get projects(): string[] {
+    try {
+      const parsed = JSON.parse(storage.getString("projects") ?? "[]");
+      return Array.isArray(parsed) ? parsed.filter((p) => typeof p === "string") : [];
+    } catch {
+      return [];
+    }
+  },
+  set projects(v: string[]) {
+    const clean = [...new Set(v.map((p) => p.replace(/\s+/g, " ").trim().slice(0, 40)).filter(Boolean))].slice(0, 20);
+    storage.set("projects", JSON.stringify(clean));
+  },
+
+  // Monday check-in: "What's your plan for the week?" Off by default.
+  get weeklyCheckIn(): { enabled: boolean; hour: number } {
+    return { enabled: storage.getBoolean("weekly_checkin") ?? false, hour: storage.getNumber("weekly_checkin_hour") ?? 9 };
+  },
+  set weeklyCheckIn(v: { enabled: boolean; hour: number }) {
+    storage.set("weekly_checkin", v.enabled);
+    storage.set("weekly_checkin_hour", v.hour);
+  },
+  get weeklyCheckInId(): string | undefined {
+    return storage.getString("weekly_checkin_id");
+  },
+  set weeklyCheckInId(v: string | undefined) {
+    if (v) storage.set("weekly_checkin_id", v);
+    else storage.delete("weekly_checkin_id");
+  },
 };
