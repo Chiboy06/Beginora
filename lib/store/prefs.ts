@@ -220,13 +220,27 @@ export const prefs = {
     storage.set("projects", JSON.stringify(clean));
   },
 
-  // Monday check-in: "What's your plan for the week?" Off by default.
-  get weeklyCheckIn(): { enabled: boolean; hour: number } {
-    return { enabled: storage.getBoolean("weekly_checkin") ?? false, hour: storage.getNumber("weekly_checkin_hour") ?? 9 };
+  // The planning guide saved after the goals; empty means the default guide.
+  get planningGuide(): string {
+    return storage.getString("planning_guide") ?? "";
   },
-  set weeklyCheckIn(v: { enabled: boolean; hour: number }) {
+  set planningGuide(v: string) {
+    storage.set("planning_guide", v.slice(0, 2000));
+  },
+
+  // The weekly-plan check-in: "What's your plan for the week?" Off by default.
+  // weekday: 1 = Sunday ... 7 = Saturday (expo-notifications); 2 = Monday.
+  get weeklyCheckIn(): { enabled: boolean; hour: number; weekday: number } {
+    return {
+      enabled: storage.getBoolean("weekly_checkin") ?? false,
+      hour: storage.getNumber("weekly_checkin_hour") ?? 9,
+      weekday: storage.getNumber("weekly_checkin_weekday") ?? 2,
+    };
+  },
+  set weeklyCheckIn(v: { enabled: boolean; hour: number; weekday: number }) {
     storage.set("weekly_checkin", v.enabled);
     storage.set("weekly_checkin_hour", v.hour);
+    storage.set("weekly_checkin_weekday", v.weekday);
   },
   get weeklyCheckInId(): string | undefined {
     return storage.getString("weekly_checkin_id");

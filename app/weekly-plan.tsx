@@ -2,7 +2,7 @@
 // fix the tables (project, task, due date), then create everything at once.
 
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, Card, Chip, SectionTitle, kit } from "../components/Kit";
@@ -11,7 +11,7 @@ import { VoiceButton } from "../components/VoiceButton";
 import { prefs } from "../lib/store/prefs";
 import { useTaskStore } from "../lib/store/task-store";
 import { reviewWeek } from "../lib/planner/weekly-ai";
-import { carryOverTasks, dueToMs, isoDay, type PlannedTask, type WeeklyReview } from "../lib/planner/weekly";
+import { carryOverTasks, dueToMs, isoDay, planAsText, type PlannedTask, type WeeklyReview } from "../lib/planner/weekly";
 import { addDays, startOfDay } from "../lib/planner/schedule";
 import { colors, spacing, typography } from "../lib/theme";
 
@@ -52,7 +52,7 @@ export default function WeeklyPlanScreen() {
   const check = async () => {
     setBusy(true);
     try {
-      const r = await reviewWeek({ goals, projects, draft, carry: carry.map((t) => t.title) });
+      const r = await reviewWeek({ goals, projects, draft, carry: carry.map((t) => t.title), guide: prefs.planningGuide });
       setReview(r);
       setRows(r.tasks);
       setCarryChoice(Object.fromEntries(carry.map((t) => [t.id, "keep" as CarryChoice])));
@@ -67,6 +67,8 @@ export default function WeeklyPlanScreen() {
   const newProjects = [...new Set(rows.map((r) => r.project).filter((p): p is string => !!p && !projects.some((x) => x.toLowerCase() === p.toLowerCase())))];
   const toCreate = rows.filter((r) => r.task.trim());
   const drops = carry.filter((t) => carryChoice[t.id] === "drop");
+  // Any other task app on the phone (Todoist, Google Tasks, Linear ...) can take the plan as text.
+  const share = () => void Share.share({ message: planAsText(toCreate, carry.filter((t) => carryChoice[t.id] === "keep").map((t) => t.title)) }).catch(() => {});
 
   const approve = async () => {
     const run = async () => {
@@ -103,6 +105,7 @@ export default function WeeklyPlanScreen() {
           <Text style={kit.h1} accessibilityRole="header">Your week is planned</Text>
           <Text style={kit.sub}>{created} {created === 1 ? "task" : "tasks"} added{carry.length ? `, ${carry.filter((t) => carryChoice[t.id] === "keep").length} carried over` : ""}. Start with one small step.</Text>
           <Button label="See my week in Plan" icon="calendar" onPress={() => router.replace("/tasks")} />
+          <Button label="Also send to another task app" kind="secondary" icon="share-outline" onPress={share} />
           <Button label="Back to Today" kind="quiet" onPress={() => router.replace("/")} />
         </ScrollView>
       </GlassScreen>
@@ -208,6 +211,7 @@ export default function WeeklyPlanScreen() {
             disabled={busy || (toCreate.length === 0 && Object.values(carryChoice).every((c) => c === "keep"))}
             style={{ marginTop: spacing.lg }}
           />
+          <Button label="Send to another task app" kind="secondary" icon="share-outline" onPress={share} disabled={toCreate.length === 0} />
           <Button label="Change my plan" kind="quiet" onPress={() => setStep("draft")} />
         </ScrollView>
       </GlassScreen>

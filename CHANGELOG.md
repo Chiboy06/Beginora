@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.14] — Plan your week with Beginora, step by step
+
+Follows the four steps of "Plan your week": talk instead of typing, a task manager, tell it your goals, and a weekly routine.
+
+### Added
+- **Summarise my goals**: talk freely, then Beginora tidies it into Goals, Projects and How I work, and finds your projects. You choose "Use this summary" or "Keep my words". Needs the online model or a phone model of 1.5B or more.
+- **Planning guide**: the weekly-planning instructions are saved after your goals and used every week. You can edit them, or reset to the default.
+- **Goals as a memory**: saving your goals also stores them as one memory, so Talk knows them when you ask about yourself. Saving again replaces it.
+- **The weekly-plan routine**: pick the day (Monday by default) and the time. Its only instruction is to ask "What's your plan for the week? Let's check it against your goals." and wait for your draft.
+- **Send to another task app**: share the approved plan, grouped by project, to Todoist, Google Tasks, Linear or any app on the phone. Beginora's own tasks stay the main task manager.
+
+### Fixed
+- Model answers with real line breaks inside JSON strings are now read instead of rejected.
+
+### Changed
+- Android `versionCode` 16 / version 0.2.14.
+
+---
+
 ## [0.2.13] — Plan my week, checked against your goals
 
 ### Added

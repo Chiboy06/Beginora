@@ -1,19 +1,21 @@
-// The Monday check-in: a weekly notification that opens the weekly plan. It
-// is scheduled on the phone, so it works offline and with no computer on.
+// The "weekly-plan" routine: a weekly notification that only asks for the
+// plan and opens the weekly plan screen to wait for the draft. It is scheduled
+// on the phone, so it works offline and with no computer on.
 
 import * as Notifications from "expo-notifications";
 import { ensureConfigured } from "../native/reminders";
 import { prefs } from "../store/prefs";
+import { CHECK_IN_QUESTION } from "./weekly";
 
-// expo-notifications counts weekdays from Sunday = 1, so Monday is 2.
-const MONDAY = 2;
+// expo-notifications counts weekdays from Sunday = 1.
+export const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export async function setWeeklyCheckIn(enabled: boolean, hour: number): Promise<{ ok: boolean; message: string }> {
+export async function setWeeklyCheckIn(enabled: boolean, hour: number, weekday = 2): Promise<{ ok: boolean; message: string }> {
   const previous = prefs.weeklyCheckInId;
   if (previous) await Notifications.cancelScheduledNotificationAsync(previous).catch(() => {});
   prefs.weeklyCheckInId = undefined;
-  prefs.weeklyCheckIn = { enabled: false, hour };
-  if (!enabled) return { ok: true, message: "Monday check-in turned off." };
+  prefs.weeklyCheckIn = { enabled: false, hour, weekday };
+  if (!enabled) return { ok: true, message: "The weekly-plan routine is off." };
 
   await ensureConfigured();
   const permission = await Notifications.requestPermissionsAsync();
@@ -21,12 +23,12 @@ export async function setWeeklyCheckIn(enabled: boolean, hour: number): Promise<
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: "Plan your week",
-      body: "What's your plan for the week? Let's check it against your goals.",
+      body: CHECK_IN_QUESTION,
       data: { kind: "weekly_plan" },
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday: MONDAY, hour, minute: 0, channelId: "reminders" },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday, hour, minute: 0, channelId: "reminders" },
   });
   prefs.weeklyCheckInId = id;
-  prefs.weeklyCheckIn = { enabled: true, hour };
-  return { ok: true, message: `Every Monday at ${String(hour).padStart(2, "0")}:00.` };
+  prefs.weeklyCheckIn = { enabled: true, hour, weekday };
+  return { ok: true, message: `weekly-plan: every ${WEEKDAY_NAMES[weekday - 1]} at ${String(hour).padStart(2, "0")}:00.` };
 }

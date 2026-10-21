@@ -87,3 +87,33 @@ test("two weekdays in one item make one task on each day", () => {
     { project: null, task: "Run", due: "2026-10-22" },
   ]);
 });
+
+test("the plan as text for other task apps, grouped by project", () => {
+  const { planAsText } = jest.requireActual("../weekly");
+  expect(planAsText(
+    [
+      { project: "Thesis", task: "Write chapter 2", due: "2026-10-23" },
+      { project: null, task: "Call mum", due: null },
+      { project: "Thesis", task: "Email supervisor", due: null },
+      { project: null, task: "  ", due: null },
+    ],
+    ["Pay rent"],
+  )).toBe("My week\n\nThesis\n- Write chapter 2 (due 2026-10-23)\n- Email supervisor\n\nNo project\n- Call mum\n\nCarrying over\n- Pay rent");
+});
+
+test("the planning guide is part of the weekly prompt", () => {
+  const { weeklyMessages: wm, DEFAULT_GUIDE } = jest.requireActual("../weekly");
+  expect(wm("g", [], "d", [], NOW)[0].content).toContain(DEFAULT_GUIDE);
+  expect(wm("g", [], "d", [], NOW, "Only plan three things a day.")[0].content).toContain("Only plan three things a day.");
+});
+
+test("a goal summary is read from the model's JSON", () => {
+  const { parseSummary } = jest.requireActual("../weekly");
+  expect(parseSummary('{"summary":"Goals:\n- Finish thesis","projects":["Thesis"," ",3]}')).toEqual({ summary: "Goals:\n- Finish thesis", projects: ["Thesis"] });
+  expect(parseSummary("Great goals!")).toBeNull();
+});
+
+test("loose JSON: real line breaks inside strings are accepted, structure is not changed", () => {
+  const { parseLooseJson } = jest.requireActual("../weekly");
+  expect(parseLooseJson('{\n  "a": "line one\nline two",\n  "b": "x\\"y"\n}')).toEqual({ a: "line one\nline two", b: 'x"y' });
+});
