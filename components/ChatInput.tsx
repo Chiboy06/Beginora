@@ -48,6 +48,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(
         <View style={styles.inputRow}>
           <VoiceButton
             disabled={disabled || isGenerating}
+            // Words appear in the box while you speak, like a voice chat.
+            onPartial={setText}
             onTranscript={(transcript) => {
               setText(transcript);
               requestAnimationFrame(() => inputRef.current?.focus());

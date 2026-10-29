@@ -111,3 +111,30 @@ describe("opening any page by voice or text", () => {
     expect(interpretVoice("I'm feeling happy today", false).kind).toBe("message");
   });
 });
+
+describe("talking like a conversation", () => {
+  const { soundsUnfinished, nextSentences } = jest.requireActual("../hands-free");
+
+  test.each([
+    ["read by 5, and", true],
+    ["by 6 I'll be going out for", true],
+    ["call mum,", true],
+    ["set me a task", false],
+    ["I'm feeling happy today", false],
+  ])("unfinished: %s", (said, unfinished) => {
+    expect(soundsUnfinished(said)).toBe(unfinished);
+  });
+
+  test("full sentences are spoken as soon as the next one starts", () => {
+    const streamed = "Sure. Your first step is to open the file. Then wri";
+    const first = nextSentences(streamed, 0);
+    expect(first.sentences).toEqual(["Sure.", "Your first step is to open the file."]);
+    const more = nextSentences(`${streamed}te one line. Good`, first.upTo);
+    expect(more.sentences).toEqual(["Then write one line."]);
+  });
+
+  test("a sentence still being written is held back", () => {
+    expect(nextSentences("Abuja is the capital", 0).sentences).toEqual([]);
+    expect(nextSentences("2.5 hours is enough. Ok", 0).sentences).toEqual(["2.5 hours is enough."]);
+  });
+});

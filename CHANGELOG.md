@@ -5,6 +5,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.18] — Voice that feels like a conversation
+
+### Changed
+- **Listening happens inside Beginora.**
+  - No Google pop-up each turn.
+  - Your words appear while you speak, both in the chat box (microphone button) and on the hands-free voice panel.
+  - On-device recognition is tried first (local first). If the phone has no offline language pack, the phone's normal recognizer is used.
+  - Phones without in-app recognition still get the old pop-up.
+- **It doesn't cut you off.**
+  - It waits about 1.5 s of silence before deciding you've finished.
+  - If you trail off on "and…", "by…", "so…" or a comma, it keeps listening and joins the parts into one message.
+- **It talks while it thinks.** Each sentence of the reply is spoken as soon as it is written, instead of after the whole answer.
+- **A voice panel in Talk.**
+  - An orb that grows with your voice, your words as you speak, and Listening / Thinking / Talking.
+  - Tap the orb to finish speaking, or to interrupt Beginora and talk.
+  - The orb stays still if the phone asks for reduced motion.
+- **Silence ends gently:** "I'll stop listening for now. Tap to talk again."
+- **New dependency:** `expo-speech-recognition` 58.0.1. It is a native module, so **a new APK build is required**; an over-the-air update cannot add it.
+- Android `versionCode` 20 / version 0.2.18.
+
+---
+
+## [0.2.17] — A whole day's plan in one sentence
+
+### Fixed
+- A message with several times becomes a schedule. For example: "read by 5, by 6 I'll go jogging, by 7 dinner, by 8 light gaming, by 9 movies, by 11 sleeping".
+  - Each item gets its own time; times without am/pm are read in order (5 pm to 11 pm).
+  - The list is read back; after a yes, each item becomes a task with a reminder on its day in Plan.
+  - Works the same typed or spoken.
+  - "Tomorrow" applies to the whole plan, and one item with two times ("medicine at 8am and 8pm") becomes two.
+
+### Changed
+- Android `versionCode` 19 / version 0.2.17.
+
+---
+
 ## [0.2.16] — Talk to it: follow-up questions by voice or text
 
 ### Added

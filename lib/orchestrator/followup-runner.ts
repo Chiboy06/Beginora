@@ -63,6 +63,12 @@ async function apply(effect: Effect): Promise<string | null> {
       for (const t of effect.tasks) await useTaskStore.getState().addTask(t.task, { dueAt: dueToMs(t.due) });
       return null;
     }
+    case "create_schedule": {
+      const { useTaskStore } = await import("../store/task-store");
+      // Times already gone stay as tasks without a reminder.
+      for (const i of effect.items) await useTaskStore.getState().addTask(i.title, { dueAt: i.at, remind: i.at > Date.now() });
+      return null;
+    }
     case "create_reminder": {
       const { scheduleLocalReminder } = await import("../native/reminders");
       const r = await scheduleLocalReminder(effect.text, new Date(effect.at).toISOString());
