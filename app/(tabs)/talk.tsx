@@ -25,6 +25,7 @@ import type { Message } from "../../lib/orchestrator/types";
 import { prefs } from "../../lib/store/prefs";
 import { useHandsFree } from "../../lib/voice/use-hands-free";
 import { interpretVoice } from "../../lib/voice/hands-free";
+import { VoiceOrb } from "../../components/VoiceOrb";
 import { useKeyboardHeight } from "../../lib/ui/use-keyboard-height";
 import { useTabBarSpace } from "../../lib/ui/tab-bar";
 
@@ -401,17 +402,28 @@ export default function ChatScreen() {
         }
       />
 
+      {Platform.OS === "android" && handsFree.active && (
+        <VoiceOrb
+          listening={handsFree.listening}
+          speaking={handsFree.speaking}
+          thinking={isGenerating}
+          heard={handsFree.heard}
+          level={handsFree.level}
+          onTap={handsFree.listening ? handsFree.finish : handsFree.interrupt}
+        />
+      )}
+
       {Platform.OS === "android" && (
         <Pressable
           style={({ pressed }) => [styles.handsFree, handsFree.active && styles.handsFreeActive, pressed && { opacity: 0.8 }]}
-          onPress={!handsFree.active ? handsFree.start : handsFree.speaking ? handsFree.interrupt : handsFree.stop}
+          onPress={!handsFree.active ? handsFree.start : handsFree.stop}
           accessibilityRole="button"
-          accessibilityLabel={!handsFree.active ? "Start hands-free conversation" : handsFree.speaking ? "Stop talking and listen" : "Stop hands-free conversation"}
+          accessibilityLabel={!handsFree.active ? "Start hands-free conversation" : "End hands-free conversation"}
           accessibilityHint="Talk to Beginora and hear replies aloud. Say stop to end."
         >
           <Ionicons name={handsFree.active ? "stop-circle" : "headset"} size={20} color={handsFree.active ? colors.onAccent : colors.accent} />
           <Text style={[styles.handsFreeText, handsFree.active && { color: colors.onAccent }]}>
-            {!handsFree.active ? "Talk hands-free" : handsFree.speaking ? "Tap to talk now" : "Listening… tap or say \"stop\" to end"}
+            {!handsFree.active ? "Talk hands-free" : "End conversation"}
           </Text>
         </Pressable>
       )}

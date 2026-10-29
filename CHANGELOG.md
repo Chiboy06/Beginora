@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.18] — Voice that feels like a conversation
+
+### Changed
+- **Listening happens inside Beginora.**
+  - No Google pop-up each turn.
+  - Your words appear while you speak, both in the chat box (microphone button) and on the hands-free voice panel.
+  - On-device recognition is tried first (local first). If the phone has no offline language pack, the phone's normal recognizer is used.
+  - Phones without in-app recognition still get the old pop-up.
+- **It doesn't cut you off.**
+  - It waits about 1.5 s of silence before deciding you've finished.
+  - If you trail off on "and…", "by…", "so…" or a comma, it keeps listening and joins the parts into one message.
+- **It talks while it thinks.** Each sentence of the reply is spoken as soon as it is written, instead of after the whole answer.
+- **A voice panel in Talk.**
+  - An orb that grows with your voice, your words as you speak, and Listening / Thinking / Talking.
+  - Tap the orb to finish speaking, or to interrupt Beginora and talk.
+  - The orb stays still if the phone asks for reduced motion.
+- **Silence ends gently:** "I'll stop listening for now. Tap to talk again."
+- **New dependency:** `expo-speech-recognition` 58.0.1. It is a native module, so **a new APK build is required**; an over-the-air update cannot add it.
+- Android `versionCode` 20 / version 0.2.18.
+
+---
+
 ## [0.2.17] — A whole day's plan in one sentence
 
 ### Fixed

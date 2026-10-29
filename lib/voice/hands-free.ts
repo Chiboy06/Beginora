@@ -81,3 +81,28 @@ export function toSpeech(text: string, maxChars = 320): string {
   const lastStop = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("? "), cut.lastIndexOf("! "));
   return lastStop > maxChars / 2 ? cut.slice(0, lastStop + 1) : cut;
 }
+
+// People pause mid-thought ("read by 5, and..."). An ending like this means
+// keep listening instead of sending half a sentence.
+export function soundsUnfinished(text: string): boolean {
+  return /(,|\b(and|or|but|so|then|because|by|at|to|with|for|of|the|a|an|my|i|um|uh|er|like|also|plus))\s*$/i.test(text.trim());
+}
+
+// Whole sentences in `text` after the first `spoken` characters, ready to be
+// read aloud while the rest of the reply is still being written.
+export function nextSentences(text: string, spoken: number): { sentences: string[]; upTo: number } {
+  const rest = text.slice(spoken);
+  const sentences: string[] = [];
+  let upTo = spoken;
+  // A dot only ends a sentence before a space or the end ("2.5" stays whole).
+  const re = /(?:[^.!?\n]|[.!?](?!\s|$))*[.!?\n]+(?=\s|$)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(rest)) !== null) {
+    // Only sentences followed by more text are complete; the last one may still grow.
+    if (m.index + m[0].length >= rest.length) break;
+    const s = m[0].trim();
+    if (s) sentences.push(s);
+    upTo = spoken + m.index + m[0].length;
+  }
+  return { sentences, upTo };
+}

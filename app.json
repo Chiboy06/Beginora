@@ -2,14 +2,14 @@
   "expo": {
     "name": "Beginora",
     "slug": "beginora",
-    "version": "0.2.17",
+    "version": "0.2.18",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "beginora",
     "android": {
       "package": "app.beginora.android",
-      "versionCode": 19,
+      "versionCode": 20,
       "adaptiveIcon": {
         "backgroundColor": "#F7F4EF",
         "foregroundImage": "./assets/android-icon-foreground.png"
@@ -65,6 +65,14 @@
         "expo-contacts",
         {
           "contactsPermission": "Allow Beginora to access your contacts to help you delegate and schedule with people."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Beginora to hear you when you talk to it.",
+          "speechRecognitionPermission": "Allow Beginora to turn what you say into text.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox", "com.google.android.as"]
         }
       ],
       "llama.rn",
