@@ -78,3 +78,57 @@ Research check:
 - [Self-guided internet ADHD program: SMS reminders and adherence](https://hvlopen.brage.unit.no/hvlopen-xmlui/handle/11250/3039341?show=full)
 - [Super Brains app: psychoeducation for adults with ADHD](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10417394/)
 - [Chatbot-supported psychoeducation in adult ADHD, RCT (BJPsych Open 2023)](https://doaj.org/article/4408171d737f4328ac09ba39ee5d9bbc)
+
+## Added 29 October: voice like ChatGPT/Gemini, screen time, stories
+
+### Already fixed (0.2.17)
+- A whole day's plan in one sentence ("read by 5, jogging by 6 … sleeping by 11") is read back and becomes timed tasks with reminders.
+
+### 6. Talk to it like ChatGPT or Gemini
+
+**How the big apps do it (research):**
+- ChatGPT Advanced Voice and Gemini Live use one model that hears and speaks audio directly, in the cloud, with the server detecting when you start talking. That is why you can interrupt them mid-sentence.
+- Most other voice apps chain listen → think → speak, but **stream** every step. The reply starts playing before the whole answer is written, and a small detector decides when you have finished your thought.
+
+**Why Beginora feels different (cause found):**
+- Each turn opens Google's separate speech pop-up (`BeginoraVoiceActivity`), listens once and closes.
+- Beginora then waits for the **whole** reply before speaking.
+- Listening itself is not the problem: the words are heard correctly.
+
+**Plan, local first:**
+1. **Listen inside Beginora, continuously.** No pop-up. A calm listening orb, your words appearing live as you speak, and on-device recognition where the phone supports it (Android 13+ offline language packs). Uses `expo-speech-recognition` 58.0.1, which matches Expo SDK 58.
+2. **Know when you have finished.** Wait a little longer when a sentence ends in "and…" or "by 6…". Do not cut you off mid-thought.
+3. **Speak while thinking.** Start speaking the first sentence as soon as it is written (chat already streams words); keep a short pause between turns.
+4. **Interrupting:** tap anywhere, or say "stop", to cut the voice and listen. True talk-over interruption needs echo cancelling so Beginora does not hear itself; try it as an experimental switch only after measuring it on the S22+.
+
+**Not now (ultra review):**
+- A downloaded speech model such as Whisper or sherpa-onnx: 40–100 MB+, and it fixes listening, which already works.
+- Gemini Live native audio: cloud-only, against local first. It could become an opt-in "Live voice (online)" using your own Gemini key later.
+
+### 7. Screen time and app limits
+
+- **What exists:** Beginora already reads per-app usage (with your permission) and answers "how much time on my phone today?" in Talk.
+- **Add a Screen time page:**
+  - today and this week per app;
+  - your most distracting apps;
+  - this week compared with last week.
+- **Gentle limits:**
+  - set daily minutes per app;
+  - Beginora's background check (about every 15 minutes, an Android limit) sends **one** kind note when you pass a limit: "Instagram: 40 of 30 minutes. Want to switch to your first step?", with a button to open Focus.
+- **Hard locks:** a button opens Android's own Digital Wellbeing app timers, which really lock the app.
+  - Beginora does not lock apps itself: on Android that needs an accessibility service, which Google Play restricts for apps like this.
+
+### 8. Stories and interactive sessions
+
+- **Lessons as short stories:** each Learn lesson becomes a 1-minute story about someone with the same struggle. You choose what they try next, see what happens, then press "Try it now" yourself.
+- **Guided voice sessions** (spoken by Beginora, works offline), for example:
+  - **Brain dump** (2 min): say everything on your mind; it becomes tasks.
+  - **Body doubling** (10–25 min): Beginora "sits with you" with short check-ins.
+  - **Wind-down** (5 min): review the day, set tomorrow's first step, then how was your day.
+- Free-form stories in Talk already work with the phone or online model.
+
+### Sources for 6–8
+- OpenAI GPT-4o realtime / Advanced Voice: [Microsoft Tech Community, GPT-4o Realtime best practices](https://techcommunity.microsoft.com/blog/azure-ai-services-blog/-/4373584), [launch coverage](https://beebom.com/chatgpt-advanced-voice-rolling-out/amp/)
+- [Google Gemini Live API overview](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/live-api)
+- [LiveKit: voice agent architecture (STT, LLM, TTS pipelines)](https://livekit.com/blog/voice-agent-architecture-stt-llm-tts-pipelines-explained)
+- On-device speech in React Native: [react-native-sherpa-onnx](https://github.com/XDcobra/react-native-sherpa-onnx), [whisper.rn](https://www.mintlify.com/mybigday/whisper.rn)
