@@ -137,3 +137,20 @@ describe("open questions never trap the conversation", () => {
     expect(startFollowUp("remind me sometime soon", NOW, ctx)).toBeNull();
   });
 });
+
+describe("a whole schedule in one sentence", () => {
+  const evening = new Date(2026, 9, 29, 15, 0);
+  test("is read back, and a yes adds each item as a task with a reminder", () => {
+    const first = startFollowUp("read by 5, by 6 I'll be going out for jogging, and by 7 I'll be having my dinner", evening, ctx)!;
+    expect(first.reply).toMatch(/I heard 3 plans/);
+    const yes = continueFollowUp(first.next!, "yes", evening, ctx)!;
+    expect(yes.effect).toEqual({
+      type: "create_schedule",
+      items: [
+        { title: "Read", at: new Date(2026, 9, 29, 17, 0).getTime() },
+        { title: "Going out for jogging", at: new Date(2026, 9, 29, 18, 0).getTime() },
+        { title: "Having my dinner", at: new Date(2026, 9, 29, 19, 0).getTime() },
+      ],
+    });
+  });
+});

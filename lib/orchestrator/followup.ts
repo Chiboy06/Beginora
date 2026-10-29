@@ -5,6 +5,7 @@
 
 import { captureFrom, parseClock } from "./direct-actions";
 import { routeIntent } from "./intent-router";
+import { scheduleFromWords } from "./schedule-words";
 import { draftToTasks, whenFromWords, isoDay, type PlannedTask } from "../planner/weekly";
 import { MOODS } from "../planner/moods";
 
@@ -12,6 +13,7 @@ import { MOODS } from "../planner/moods";
 export type FollowUp = (
   | { kind: "task"; step: "title" | "when" | "remind" | "notes"; title: string; dueAt: number | null; remind: boolean }
   | { kind: "tasks_confirm"; tasks: PlannedTask[] }
+  | { kind: "schedule_confirm"; items: { title: string; at: number }[] }
   | { kind: "reminder"; step: "text" | "when"; text: string }
   | { kind: "mood_note"; positive: boolean }
   | { kind: "mood_time" }
@@ -20,6 +22,7 @@ export type FollowUp = (
 export type Effect =
   | { type: "create_task"; title: string; dueAt: number | null; remind: boolean; notes: string | null }
   | { type: "create_tasks"; tasks: PlannedTask[] }
+  | { type: "create_schedule"; items: { title: string; at: number }[] }
   | { type: "create_reminder"; text: string; at: number }
   | { type: "log_mood"; mood: string }
   | { type: "add_mood_note"; note: string }
@@ -100,6 +103,14 @@ const DAILY_OFF = /\b(?:stop|don'?t|do not|no more)\b.*\b(?:ask(?:ing)?|check(?:
 // A new conversation started by these words, or null.
 export function startFollowUp(text: string, now: Date, ctx: FollowUpContext): Turn | null {
   const said = text.trim();
+
+  // Several times in one message: a whole schedule, read back before saving.
+  const schedule = scheduleFromWords(said, now);
+  if (schedule) {
+    const items = schedule.map((i) => ({ title: i.title, at: i.at.getTime() }));
+    const list = items.map((i) => `- ${whenText(i.at)}: ${i.title}`).join("\n");
+    return { reply: `I heard ${items.length} plans:\n${list}\nShall I add each one as a task with a reminder?`, next: { kind: "schedule_confirm", items } };
+  }
 
   if (DAILY_OFF.test(said)) return { reply: "Okay, I won't ask about your day any more. You can turn it back on in Journal.", next: null, effect: { type: "daily_checkin_off" } };
   if (DAILY_ASK.test(said)) {
@@ -201,6 +212,11 @@ export function continueFollowUp(p: FollowUp, text: string, now: Date, ctx: Foll
         effect: { type: "create_task", title: p.title, dueAt: p.dueAt, remind: p.remind && p.dueAt !== null, notes },
       };
     }
+
+    case "schedule_confirm":
+      if (YES.test(said)) return { reply: `Done: ${p.items.length} tasks with reminders. You'll see them on their day in Plan.`, next: null, effect: { type: "create_schedule", items: p.items } };
+      if (NO.test(said)) return { reply: "Okay, I didn't add them. Say your plan again any time.", next: null };
+      return askAgain("Shall I add those plans with reminders? Say yes or no.");
 
     case "tasks_confirm":
       if (YES.test(said)) return { reply: `Added ${p.tasks.length} tasks. You'll find them in Plan.`, next: null, effect: { type: "create_tasks", tasks: p.tasks } };

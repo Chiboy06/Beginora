@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.17] — A whole day's plan in one sentence
+
+### Fixed
+- A message with several times becomes a schedule. For example: "read by 5, by 6 I'll go jogging, by 7 dinner, by 8 light gaming, by 9 movies, by 11 sleeping".
+  - Each item gets its own time; times without am/pm are read in order (5 pm to 11 pm).
+  - The list is read back; after a yes, each item becomes a task with a reminder on its day in Plan.
+  - Works the same typed or spoken.
+  - "Tomorrow" applies to the whole plan, and one item with two times ("medicine at 8am and 8pm") becomes two.
+
+### Changed
+- Android `versionCode` 19 / version 0.2.17.
+
+---
+
 ## [0.2.16] — Talk to it: follow-up questions by voice or text
 
 ### Added
