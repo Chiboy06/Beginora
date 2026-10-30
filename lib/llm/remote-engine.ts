@@ -89,7 +89,7 @@ export async function remoteGenerate(
       }),
       signal: controller.signal,
     });
-  } catch (err) {
+  } catch {
     throw new OnlineError(controller.signal.aborted ? "The online model took too long to answer." : "No internet connection to the online model.");
   } finally {
     clearTimeout(timer);

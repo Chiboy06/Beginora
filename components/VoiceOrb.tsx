@@ -2,7 +2,7 @@
 // you speak, and what Beginora is doing. Tap to finish speaking, or to cut
 // Beginora off and talk. Motion is kept still when the phone asks for less.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "../lib/theme";
 
@@ -16,7 +16,8 @@ export function VoiceOrb({
   level: number;
   onTap: () => void;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  // Created once; state, not a ref, so render never reads a ref.
+  const [scale] = useState(() => new Animated.Value(1));
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {

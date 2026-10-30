@@ -31,15 +31,22 @@ export default function TelegramScreen() {
         if (prefs.telegramTwoWay) void startTelegramBot();
       }
       return s.linked;
-    } catch (err) {
+    } catch {
       setLinked(false);
       return false;
     }
   }, []);
 
+  // On open, refresh the link status; state changes only when the answer arrives.
   useEffect(() => {
-    if (available && prefs.telegramRelayLinked) void check();
-  }, [available, check]);
+    if (!available || !prefs.telegramRelayLinked) return;
+    relayStatus()
+      .then((s) => {
+        setLinked(s.linked);
+        setName(s.name);
+      })
+      .catch(() => setLinked(false));
+  }, [available]);
 
   // After tapping Start in Telegram, the user comes back: check right away,
   // then every 3 seconds for up to two minutes.

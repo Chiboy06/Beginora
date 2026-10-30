@@ -12,6 +12,11 @@ import { deleteRoutine, getRoutines, saveRoutine, type Routine } from "../../lib
 import { parseSteps, ROUTINE_LIBRARY, routineMinutes, type RoutineTemplate } from "../../lib/planner/routine-library";
 import { colors, radii, spacing, typography } from "../../lib/theme";
 
+// A new routine saved from a template or the "make your own" form.
+async function saveNewRoutine(t: Pick<RoutineTemplate, "name" | "emoji" | "steps">): Promise<void> {
+  await saveRoutine({ id: uuid(), name: t.name, emoji: t.emoji, steps: t.steps, createdAt: Date.now() });
+}
+
 export default function RoutinesScreen() {
   const router = useRouter();
   const [mine, setMine] = useState<Routine[]>([]);
@@ -24,10 +29,8 @@ export default function RoutinesScreen() {
   useFocusEffect(load);
 
   const add = async (t: Pick<RoutineTemplate, "name" | "emoji" | "steps">) => {
-    const routine: Routine = { id: uuid(), name: t.name, emoji: t.emoji, steps: t.steps, createdAt: Date.now() };
-    await saveRoutine(routine);
+    await saveNewRoutine(t);
     load();
-    return routine;
   };
 
   const create = async () => {

@@ -4,7 +4,7 @@
 
 jest.mock("../../llm/llm-engine", () => ({
   // Real-shaped estimator: ~3 chars/token + 8/message (mirrors llm-engine).
-  estimatePromptTokens: jest.fn((msgs: Array<{ content: string }>) =>
+  estimatePromptTokens: jest.fn((msgs: { content: string }[]) =>
     msgs.reduce((n, m) => n + Math.ceil(m.content.length / 3) + 8, 0),
   ),
   getContextSize: jest.fn(() => 4096),

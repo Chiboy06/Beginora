@@ -42,7 +42,7 @@ const STEP_MS = 70_000;
 
 // Plain-chat turns (no tool routing): the measurement target is prefill, and
 // canned assistant replies keep the history byte-identical across arms.
-const TURNS: Array<{ user: string; canned: string }> = [
+const TURNS: { user: string; canned: string }[] = [
   { user: "ciao, come va?", canned: "Tutto bene! Come posso aiutarti?" },
   { user: "che ora è adesso?", canned: "Sono le 9:16." },
   {

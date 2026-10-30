@@ -13,7 +13,6 @@ import {
 } from "../llm/session-cache";
 import { chatSystemPrompt, annotateUserMessage } from "./prompt-builder";
 import { prefs } from "../store/prefs";
-import { getKnowledgeForPrompt } from "./knowledge-manager";
 import { getConfig } from "../storage/database";
 import type { Language } from "./types";
 
