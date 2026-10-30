@@ -98,7 +98,9 @@ export function useHandsFree() {
     listenRef.current();
   }, []);
 
-  listenRef.current = () => {
+  // The latest listen function, set after each render (never during it).
+  useEffect(() => {
+    listenRef.current = () => {
     void (async () => {
       if (!activeRef.current) return;
       setHeard("");
@@ -153,7 +155,8 @@ export function useHandsFree() {
       spokenTextRef.current = "";
       void chat.sendMessage(intent.kind === "message" ? intent.text : result.text);
     })();
-  };
+    };
+  });
 
   // While the reply is being written, speak each sentence as soon as it is complete.
   useEffect(() => {

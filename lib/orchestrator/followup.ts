@@ -3,7 +3,7 @@
 // mood, asks about the day and when to ask each day. Pure: each turn returns
 // the reply, the next question (or null) and what to save.
 
-import { captureFrom, parseClock } from "./direct-actions";
+import { parseClock } from "./direct-actions";
 import { routeIntent } from "./intent-router";
 import { scheduleFromWords } from "./schedule-words";
 import { draftToTasks, whenFromWords, isoDay, type PlannedTask } from "../planner/weekly";

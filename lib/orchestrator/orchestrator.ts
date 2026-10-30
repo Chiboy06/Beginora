@@ -16,12 +16,6 @@ import type {
 } from "./types";
 import { checkToolParams, dispatchToolCall } from "./tool-dispatcher";
 
-// The parameter a spoken relative time ("in 1 hour") fills for each tool.
-const RELATIVE_TIME_PARAM: Record<string, string> = {
-  create_event: "start",
-  set_reminder: "datetime",
-  schedule_sms: "datetime",
-};
 import {
   getMemoriesForPrompt,
   extractMemories,
@@ -40,6 +34,13 @@ import { asksAboutUser } from "./memory-gate";
 import { runFollowUp } from "./followup-runner";
 import { tidyReply } from "./reply-tidy";
 import { onlineSettings, remoteGenerate, wantsOnline, type OnlineSettings } from "../llm/remote-engine";
+
+// The parameter a spoken relative time ("in 1 hour") fills for each tool.
+const RELATIVE_TIME_PARAM: Record<string, string> = {
+  create_event: "start",
+  set_reminder: "datetime",
+  schedule_sms: "datetime",
+};
 
 const MAX_HISTORY_MESSAGES = 20;
 // Once the conversation exceeds the window, `slice(-MAX)` would re-slice to a

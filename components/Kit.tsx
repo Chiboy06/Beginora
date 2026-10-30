@@ -178,12 +178,13 @@ export function StepTimer({ minutes, onFinish }: { minutes: number; onFinish?: (
   const [endAt, setEndAt] = useState<number | null>(null);
   const [left, setLeft] = useState(minutes * 60);
   const finished = useRef(false);
-
-  useEffect(() => {
+  // A new length resets the timer during render, not in an effect (no extra render pass).
+  const [forMinutes, setForMinutes] = useState(minutes);
+  if (forMinutes !== minutes) {
+    setForMinutes(minutes);
     setEndAt(null);
     setLeft(minutes * 60);
-    finished.current = false;
-  }, [minutes]);
+  }
 
   useEffect(() => {
     if (endAt === null) return;

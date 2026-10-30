@@ -29,7 +29,6 @@ import type { KnowledgeFile } from "../../lib/storage/database";
 import { useModelStore } from "../../lib/store/model-store";
 import { prefs } from "../../lib/store/prefs";
 import { Chip } from "../../components/Kit";
-import { restartApp } from "../../lib/updates/update-service";
 import { useTabBarSpace } from "../../lib/ui/tab-bar";
 import { startBeginoraService, stopBeginoraService } from "../../lib/native/vesta-service";
 import {
@@ -48,7 +47,7 @@ import {
 import { colors, spacing, radii, typography } from "../../lib/theme";
 import type { Language } from "../../lib/orchestrator/types";
 import { GlassScreen } from "../../components/GlassSurface";
-import { applyDownloadedAppUpdate, checkForAppUpdate } from "../../lib/updates/update-service";
+import { applyDownloadedAppUpdate, checkForAppUpdate, restartApp } from "../../lib/updates/update-service";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

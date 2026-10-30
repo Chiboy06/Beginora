@@ -19,7 +19,7 @@ export default function JournalEntryScreen() {
   const [body, setBody] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [custom, setCustom] = useState("");
-  const [createdAt, setCreatedAt] = useState(Date.now());
+  const [createdAt, setCreatedAt] = useState(() => Date.now());
   const editing = !!params.id;
 
   useEffect(() => {

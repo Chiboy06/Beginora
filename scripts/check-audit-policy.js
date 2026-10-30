@@ -3,12 +3,15 @@
 
 const { spawnSync } = require('node:child_process');
 
-// npm registry/advisory state checked 2026-10-11. Both advisories identify the
-// newest published package versions as affected and list no patched release.
-// Keep this list exact and temporary: any new high/critical advisory fails CI.
+// npm registry/advisory state checked 2026-10-30. Keep this list exact and
+// temporary: any new high/critical advisory fails CI, and each entry says why it
+// cannot be fixed here.
 const ALLOWED_HIGH = new Map([
-  ["GHSA-VFJ7-8CJW-P6XM", { packageName: "braces", affectedRange: "<=3.0.3" }],
-  ["GHSA-86W9-CPQP-85RV", { packageName: "node-forge", affectedRange: "<=1.4.0" }],
+  ["GHSA-MRHX-C7XC-M3W5", {
+    packageName: "zod",
+    affectedRange: "<4.6.6",
+    reason: "only used by Expo's CLI and the ESLint hooks plugin at build time, never in the app; the only patched release is zod 4.6.6+, a major version those tools do not support yet. Remove once Expo ships a patched CLI.",
+  }],
 ]);
 
 function fail(message) {
@@ -78,6 +81,6 @@ if (unexpected.size) fail(`unapproved high/critical findings:\n- ${[...unexpecte
 console.log(`npm audit: ${totals.total} total (${totals.moderate} moderate, ${totals.high} high, ${totals.critical} critical).`);
 for (const id of seenAllowed) {
   const item = ALLOWED_HIGH.get(id);
-  console.warn(`KNOWN UPSTREAM ADVISORY ALLOWED: ${id} ${item.packageName}${item.affectedRange}; no patched package was published at the last registry check. Recheck before release.`);
+  console.warn(`KNOWN UPSTREAM ADVISORY ALLOWED: ${id} ${item.packageName}${item.affectedRange}: ${item.reason} Recheck before release.`);
 }
 console.log("Security gate passed: no critical findings and no unapproved high-severity advisories.");

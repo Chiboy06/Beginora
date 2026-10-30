@@ -99,7 +99,7 @@ function TaskFocus({ id, lengthSeconds }: { id: string; lengthSeconds: number })
       }
     }, 250);
     return () => clearInterval(interval);
-  }, [running, runDetection]);
+  }, [running, runDetection, lengthSeconds]);
 
   const finishSession = async () => {
     try {

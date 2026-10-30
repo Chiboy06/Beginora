@@ -2,16 +2,14 @@
 // A summary, never a score.
 
 import { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Button, Card, SectionTitle, WeekStrip, kit } from "../../components/Kit";
+import { Button, Card, Chip, SectionTitle, WeekStrip, kit } from "../../components/Kit";
 import { GlassScreen } from "../../components/GlassSurface";
 import { getJournalEntries, type JournalEntry } from "../../lib/storage/database";
 import { moodFor, MOODS } from "../../lib/planner/moods";
 import { addDays, sameDay, startOfDay, startOfWeek, timeLabel } from "../../lib/planner/schedule";
 import { colors, radii, spacing, typography } from "../../lib/theme";
-import { Switch } from "react-native";
-import { Chip } from "../../components/Kit";
 import { prefs } from "../../lib/store/prefs";
 import { setMoodCheckIn } from "../../lib/planner/mood-checkin";
 

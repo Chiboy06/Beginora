@@ -19,7 +19,6 @@ import {
   saveMemory,
   getAllMemories,
   getTopMemories,
-  findMemoryByContent,
   bumpMemoryAccess,
   decayMemories as dbDecayMemories,
 } from "../storage/database";

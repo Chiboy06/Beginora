@@ -22,6 +22,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Tap the orb to finish speaking, or to interrupt Beginora and talk.
   - The orb stays still if the phone asks for reduced motion.
 - **Silence ends gently:** "I'll stop listening for now. Tap to talk again."
+- **Build review (30 October):**
+  - **Dependencies:** 17 packages were a few patch versions behind Expo SDK 58 and are now aligned, including `expo` 58.0.21, `expo-router` 58.0.28, `expo-notifications` 58.1.7 and `react-native` 0.88.1. `expo install --check` reports up to date.
+  - **Security:** `node-forge` moved to 1.4.2 (fixed advisory). The unused `drizzle-orm` / `drizzle-kit` layer (`lib/db`, never imported) was removed, which cleared the 4 moderate findings. The only remaining high finding is zod inside Expo's build-time CLI; its only fix is a major version Expo does not support yet. It is approved by exact advisory ID in `scripts/check-audit-policy.js`, with the reason. `npm run audit:ci` passes.
+  - **Lint:** from 33 errors to 0. Fixed refs read or written during render (voice orb, hands-free hook), `Date.now()` during render, extra renders from state set in effects (step timer, Telegram status), a missing effect dependency (Focus), unused and duplicate imports, and import order. The lint config now skips `relay/` and `supabase/` (other runtimes), knows `scripts/` are Node, and turns off two rules that do not apply to React Native, each with its reason.
+  - **Verified:** type check, 700 Jest tests, 17 relay tests (SQLite and Postgres), real-model eval 21/23 (the 2 misses are Qwen3 0.6B facts), a full Android Metro bundle (8.5 MB Hermes bytecode), and `expo prebuild` (speech service query, microphone permission, version 20).
 - **New dependency:** `expo-speech-recognition` 58.0.1. It is a native module, so **a new APK build is required**; an over-the-air update cannot add it.
 - Android `versionCode` 20 / version 0.2.18.
 

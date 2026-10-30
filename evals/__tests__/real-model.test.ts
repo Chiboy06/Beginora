@@ -8,7 +8,6 @@
 // Only generation is real; device actions are recorded instead of run.
 
 const MODEL = process.env.REAL_MODEL;
-const OLLAMA = process.env.OLLAMA_URL ?? "http://localhost:11434";
 
 jest.mock("../../lib/store/task-store", () => ({ useTaskStore: { getState: () => ({ createTaskWithPlan: jest.fn() }) } }));
 jest.mock("../../lib/llm/llm-engine", () => {
